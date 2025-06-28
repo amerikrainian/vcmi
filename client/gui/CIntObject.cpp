@@ -10,6 +10,8 @@
 #include "StdInc.h"
 #include "CIntObject.h"
 
+#include "AccessibilityManager.h"
+#include "FocusManager.h"
 #include "GameEngine.h"
 #include "WindowHandler.h"
 #include "EventDispatcher.h"
@@ -55,6 +57,16 @@ void CIntObject::showAll(Canvas & to)
 	for(auto & elem : children)
 		if(elem->recActions & SHOWALL)
 			elem->showAll(to);
+	
+	// Draw focus indicator if this element has focus
+	if (hasFocus() && pos.w > 0 && pos.h > 0)
+	{
+		// Draw a 2-pixel white border around the element
+		const int borderWidth = 2;
+		const ColorRGBA focusColor(255, 255, 255); // White focus indicator for better visibility
+		
+		to.drawBorder(pos, focusColor, borderWidth);
+	}
 }
 
 void CIntObject::activate()
@@ -301,6 +313,79 @@ const Rect & CIntObject::center(const Point & p, bool propagate)
 bool CIntObject::captureThisKey(EShortcut key)
 {
 	return false;
+}
+
+void CIntObject::setAccessibilityInfo(const UIAccessibilityInfo& info)
+{
+	accessibility = info;
+}
+
+const UIAccessibilityInfo* CIntObject::getAccessibilityInfo() const
+{
+	if (accessibility.has_value())
+		return &accessibility.value();
+	return nullptr;
+}
+
+bool CIntObject::isAccessible() const
+{
+	return accessibility.has_value() && accessibility->isAccessible;
+}
+
+bool CIntObject::isFocusable() const
+{
+	// Element must be active, enabled, and have keyboard handling
+	if (!isActive() || isDisabled() || !inputEnabled)
+		return false;
+	
+	// Must have accessibility info with valid tab order
+	auto info = getAccessibilityInfo();
+	if (!info || !info->isAccessible || info->tabOrder < 0)
+		return false;
+	
+	// Must handle keyboard events - check if keyboard is in the used events
+	return (used & KEYBOARD) != 0;
+}
+
+bool CIntObject::hasFocus() const
+{
+	return FocusManager::getInstance().getFocusedElement() == this;
+}
+
+void CIntObject::setFocus(bool focused)
+{
+	if (focused)
+	{
+		// Request focus from FocusManager
+		if (isFocusable())
+			FocusManager::getInstance().setFocus(this);
+	}
+	else
+	{
+		// Clear focus if this element currently has it
+		if (hasFocus())
+			FocusManager::getInstance().clearFocus();
+	}
+}
+
+void CIntObject::onFocusGained()
+{
+	focusState = true;
+	// Default implementation - trigger redraw to show focus indicator
+	if (parent)
+		parent->redraw();
+	else
+		redraw();
+}
+
+void CIntObject::onFocusLost()
+{
+	focusState = false;
+	// Default implementation - trigger redraw to remove focus indicator
+	if (parent)
+		parent->redraw();
+	else
+		redraw();
 }
 
 CKeyShortcut::CKeyShortcut()

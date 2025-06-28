@@ -13,6 +13,7 @@
 #include "GameEngine.h"
 #include "CIntObject.h"
 #include "CursorHandler.h"
+#include "FocusManager.h"
 
 #include "../render/Canvas.h"
 #include "../render/IScreenHandler.h"
@@ -29,6 +30,9 @@ void WindowHandler::popWindow(std::shared_ptr<IShowActivatable> top)
 	if(!windowsStack.empty())
 		windowsStack.back()->activate();
 
+	// Update focusable elements when window stack changes
+	FocusManager::getInstance().updateFocusableElements();
+	
 	totalRedraw();
 }
 
@@ -45,6 +49,10 @@ void WindowHandler::pushWindow(std::shared_ptr<IShowActivatable> newInt)
 	windowsStack.push_back(newInt);
 	ENGINE->cursor().set(Cursor::Map::POINTER);
 	newInt->activate();
+	
+	// Update focusable elements when window stack changes
+	FocusManager::getInstance().updateFocusableElements();
+	
 	totalRedraw();
 }
 
@@ -155,4 +163,12 @@ void WindowHandler::clear()
 
 	windowsStack.clear();
 	disposed.clear();
+}
+
+std::vector<IShowActivatable*> WindowHandler::getWindowsArray() const
+{
+	std::vector<IShowActivatable*> result;
+	for (const auto& window : windowsStack)
+		result.push_back(window.get());
+	return result;
 }

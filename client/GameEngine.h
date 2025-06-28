@@ -30,6 +30,7 @@ class ISoundPlayer;
 class IMusicPlayer;
 class CursorHandler;
 class IVideoPlayer;
+class AccessibilityManager;
 
 class GameEngine
 {
@@ -78,6 +79,7 @@ public:
 	IMusicPlayer & music() { return *musicPlayerInstance; }
 	CursorHandler & cursor() { return *cursorHandlerInstance; }
 	IVideoPlayer & video() { return *videoPlayerInstance; }
+	static AccessibilityManager & accessibility();
 
 	/// Returns current logical screen dimensions
 	/// May not match size of window if user has UI scaling different from 100%

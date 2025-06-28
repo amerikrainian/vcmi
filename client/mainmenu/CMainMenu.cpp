@@ -139,6 +139,22 @@ size_t CMenuScreen::getActiveTab() const
 	return tabs->getActive();
 }
 
+//helper function to add accessibility info to buttons
+static void addButtonAccessibility(std::shared_ptr<CButton> button, const std::pair<std::string, std::string>& help, int tabOrder = -1)
+{
+	if (!help.first.empty() || !help.second.empty() || tabOrder >= 0)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = help.first; // Hover text as accessible name
+		if (!help.second.empty())
+			accessInfo.description = help.second; // Right-click help text as description
+		if (tabOrder >= 0)
+			accessInfo.tabOrder = tabOrder;
+		button->setAccessibilityInfo(accessInfo);
+	}
+}
+
 //function for std::string -> std::function conversion for main menu
 static std::function<void()> genCommand(CMenuScreen * menu, std::vector<std::string> menuType, const std::string & string)
 {
@@ -216,7 +232,7 @@ static std::function<void()> genCommand(CMenuScreen * menu, std::vector<std::str
 	return std::function<void()>();
 }
 
-std::shared_ptr<CButton> CMenuEntry::createButton(CMenuScreen * parent, const JsonNode & button)
+std::shared_ptr<CButton> CMenuEntry::createButton(CMenuScreen * parent, const JsonNode & button, int tabOrder)
 {
 	std::function<void()> command = genCommand(parent, parent->menuNameToEntry, button["command"].String());
 
@@ -242,6 +258,9 @@ std::shared_ptr<CButton> CMenuEntry::createButton(CMenuScreen * parent, const Js
 	if (button["center"].Bool())
 		result->moveBy(Point(-result->pos.w/2, -result->pos.h/2));
 
+	// Add accessibility information with tab order
+	addButtonAccessibility(result, help, tabOrder);
+
 	return result;
 }
 
@@ -254,6 +273,7 @@ CMenuEntry::CMenuEntry(CMenuScreen * parent, const JsonNode & config)
 	for(const JsonNode & node : config["images"].Vector())
 		images.push_back(CMainMenu::createPicture(node));
 
+	int tabOrderIndex = 1; // Start tab order from 1
 	for (const JsonNode& node : config["buttons"].Vector())
 	{
 		auto tokens = node["command"].String().find(' ');
@@ -291,7 +311,7 @@ CMenuEntry::CMenuEntry(CMenuScreen * parent, const JsonNode & config)
 			}
 		}
 
-		buttons.push_back(createButton(parent, node));
+		buttons.push_back(createButton(parent, node, tabOrderIndex++));
 		buttons.back()->setHoverable(true);
 		buttons.back()->setRedrawParent(true);
 	}
@@ -473,12 +493,19 @@ CMultiMode::CMultiMode(ESelectionScreen ScreenType)
 	playerName->setCallback(std::bind(&CMultiMode::onNameChange, this, _1));
 
 	buttonHotseat = std::make_shared<CButton>(Point(373, 78 + 57 * 0), AnimationPath::builtin("MUBHOT.DEF"), LIBRARY->generaltexth->zelp[266], std::bind(&CMultiMode::hostTCP, this, EShortcut::MAIN_MENU_HOTSEAT), EShortcut::MAIN_MENU_HOTSEAT);
+	addButtonAccessibility(buttonHotseat, LIBRARY->generaltexth->zelp[266], 1);
+	
 	buttonLobby = std::make_shared<CButton>(Point(373, 78 + 57 * 1), AnimationPath::builtin("MUBONL.DEF"), LIBRARY->generaltexth->zelp[265], std::bind(&CMultiMode::openLobby, this), EShortcut::MAIN_MENU_LOBBY);
+	addButtonAccessibility(buttonLobby, LIBRARY->generaltexth->zelp[265], 2);
 
 	buttonHost = std::make_shared<CButton>(Point(373, 78 + 57 * 3), AnimationPath::builtin("MUBHOST.DEF"), CButton::tooltip(LIBRARY->generaltexth->translate("vcmi.mainMenu.hostTCP"), ""), std::bind(&CMultiMode::hostTCP, this, EShortcut::MAIN_MENU_HOST_GAME), EShortcut::MAIN_MENU_HOST_GAME);
+	addButtonAccessibility(buttonHost, CButton::tooltip(LIBRARY->generaltexth->translate("vcmi.mainMenu.hostTCP"), ""), 3);
+	
 	buttonJoin = std::make_shared<CButton>(Point(373, 78 + 57 * 4), AnimationPath::builtin("MUBJOIN.DEF"), CButton::tooltip(LIBRARY->generaltexth->translate("vcmi.mainMenu.joinTCP"), ""), std::bind(&CMultiMode::joinTCP, this, EShortcut::MAIN_MENU_JOIN_GAME), EShortcut::MAIN_MENU_JOIN_GAME);
+	addButtonAccessibility(buttonJoin, CButton::tooltip(LIBRARY->generaltexth->translate("vcmi.mainMenu.joinTCP"), ""), 4);
 
 	buttonCancel = std::make_shared<CButton>(Point(373, 424), AnimationPath::builtin("MUBCANC.DEF"), LIBRARY->generaltexth->zelp[288], [this](){ close();}, EShortcut::GLOBAL_CANCEL);
+	addButtonAccessibility(buttonCancel, LIBRARY->generaltexth->zelp[288], 5);
 }
 
 void CMultiMode::openLobby()
@@ -559,7 +586,10 @@ CMultiPlayers::CMultiPlayers(const std::vector<std::string>& playerNames, ESelec
 	}
 
 	buttonOk = std::make_shared<CButton>(Point(95, 338), AnimationPath::builtin("MUBCHCK.DEF"), LIBRARY->generaltexth->zelp[560], std::bind(&CMultiPlayers::enterSelectionScreen, this), EShortcut::GLOBAL_ACCEPT);
+	addButtonAccessibility(buttonOk, LIBRARY->generaltexth->zelp[560], 9); // After all 8 text inputs
+	
 	buttonCancel = std::make_shared<CButton>(Point(205, 338), AnimationPath::builtin("MUBCANC.DEF"), LIBRARY->generaltexth->zelp[561], [this](){ close();}, EShortcut::GLOBAL_CANCEL);
+	addButtonAccessibility(buttonCancel, LIBRARY->generaltexth->zelp[561], 10);
 	statusBar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(7, 381, 348, 18), 7, 381));
 
 	for(int i = 0; i < playerNames.size(); i++)
@@ -617,6 +647,8 @@ CSimpleJoinScreen::CSimpleJoinScreen(bool host)
 	inputAddress = std::make_shared<CTextInput>(Rect(25, 68, 175, 16), background->getSurface());
 	inputPort = std::make_shared<CTextInput>(Rect(25, 115, 175, 16), background->getSurface());
 	buttonOk = std::make_shared<CButton>(Point(26, 142), AnimationPath::builtin("MUBCHCK.DEF"), LIBRARY->generaltexth->zelp[560], std::bind(&CSimpleJoinScreen::connectToServer, this), EShortcut::GLOBAL_ACCEPT);
+	addButtonAccessibility(buttonOk, LIBRARY->generaltexth->zelp[560], 3); // After address and port inputs
+	
 	if(host && !settings["session"]["donotstartserver"].Bool())
 	{
 		textTitle->setText(LIBRARY->generaltexth->translate("vcmi.mainMenu.serverConnecting"));
@@ -636,6 +668,7 @@ CSimpleJoinScreen::CSimpleJoinScreen(bool host)
 	buttonOk->block(inputAddress->getText().empty() || inputPort->getText().empty());
 
 	buttonCancel = std::make_shared<CButton>(Point(142, 142), AnimationPath::builtin("MUBCANC.DEF"), LIBRARY->generaltexth->zelp[561], std::bind(&CSimpleJoinScreen::leaveScreen, this), EShortcut::GLOBAL_CANCEL);
+	addButtonAccessibility(buttonCancel, LIBRARY->generaltexth->zelp[561], 4);
 	statusBar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(7, 186, 218, 18), 7, 186));
 }
 

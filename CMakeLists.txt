@@ -686,6 +686,12 @@ if(NOT TARGET minizip::minizip)
 	add_library(minizip::minizip ALIAS minizip)
 endif()
 
+# Add SpeechCore for accessibility support
+if(ENABLE_CLIENT)
+	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../SpeechCore" "${CMAKE_CURRENT_BINARY_DIR}/SpeechCore")
+	set_property(TARGET SpeechCore PROPERTY FOLDER "3rdparty")
+endif()
+
 if(ENABLE_LAUNCHER OR ENABLE_EDITOR)
 	add_subdirectory(vcmiqt)
 endif()

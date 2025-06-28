@@ -21,6 +21,7 @@
 #include "../gui/MouseButton.h"
 #include "../gui/Shortcut.h"
 #include "../gui/InterfaceObjectConfigurable.h"
+#include "../gui/AccessibilityManager.h"
 #include "../media/ISoundPlayer.h"
 #include "../windows/InfoWindows.h"
 #include "../render/Canvas.h"
@@ -146,6 +147,29 @@ void ButtonBase::setConfigurable(const JsonPath & jsonName, bool playerColoredBu
 void CButton::addHoverText(EButtonState state, const std::string & text)
 {
 	hoverTexts[vstd::to_underlying(state)] = text;
+	
+	// Update accessibility info if we're setting hover text for normal state
+	if (state == EButtonState::NORMAL && !text.empty())
+	{
+		// Update or create accessibility info
+		if (getAccessibilityInfo())
+		{
+			// Get a copy of existing info and update it
+			UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+			updatedInfo.name = text;
+			setAccessibilityInfo(updatedInfo);
+		}
+		else
+		{
+			// Create new accessibility info
+			UIAccessibilityInfo accessInfo;
+			accessInfo.role = "button";
+			accessInfo.name = text;
+			if (!helpBox.empty())
+				accessInfo.description = helpBox;
+			setAccessibilityInfo(accessInfo);
+		}
+	}
 }
 
 void ButtonBase::setImageOrder(int state1, int state2, int state3, int state4)
@@ -194,6 +218,21 @@ void CButton::setState(EButtonState newState)
 		addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 
 	setStateImpl(newState);
+	
+	// Update accessibility state info
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		if (newState == EButtonState::BLOCKED)
+			updatedInfo.state = "disabled";
+		else if (newState == EButtonState::PRESSED)
+			updatedInfo.state = "pressed";
+		else if (newState == EButtonState::HIGHLIGHTED)
+			updatedInfo.state = "highlighted";
+		else
+			updatedInfo.state = "";
+		setAccessibilityInfo(updatedInfo);
+	}
 }
 
 EButtonState ButtonBase::getState() const
@@ -235,6 +274,29 @@ void CButton::setHelp(const std::pair<std::string, std::string> & help)
 {
 	hoverTexts[0] = help.first;
 	helpBox = help.second;
+	
+	// Update accessibility info
+	if (!help.first.empty() || !help.second.empty())
+	{
+		// Update or create accessibility info
+		if (getAccessibilityInfo())
+		{
+			// Get a copy of existing info and update it
+			UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+			updatedInfo.name = help.first;
+			updatedInfo.description = help.second;
+			setAccessibilityInfo(updatedInfo);
+		}
+		else
+		{
+			// Create new accessibility info
+			UIAccessibilityInfo accessInfo;
+			accessInfo.role = "button";
+			accessInfo.name = help.first;
+			accessInfo.description = help.second;
+			setAccessibilityInfo(accessInfo);
+		}
+	}
 }
 
 void CButton::block(bool on)
@@ -330,7 +392,33 @@ void CButton::hover (bool on)
 	if(!name.empty() && !isBlocked()) //if there is no name, there is nothing to display also
 	{
 		if (on)
+		{
 			ENGINE->statusbar()->write(name);
+			
+			// Announce button to screen reader when hovering
+			if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+			{
+				// If button has accessibility info, use it; otherwise use hover text
+				if (getAccessibilityInfo())
+				{
+					AccessibilityManager::getInstance().announceElement(this);
+				}
+				else if (!name.empty())
+				{
+					// Create temporary accessibility info for the announcement
+					UIAccessibilityInfo tempInfo;
+					tempInfo.role = "button";
+					tempInfo.name = name;
+					if (!helpBox.empty())
+						tempInfo.description = helpBox;
+					
+					// Temporarily set accessibility info for announcement
+					const_cast<CButton*>(this)->setAccessibilityInfo(tempInfo);
+					AccessibilityManager::getInstance().announceElement(this);
+					// Note: We keep the accessibility info set for future use
+				}
+			}
+		}
 		else
 			ENGINE->statusbar()->clearIfMatching(name);
 	}
@@ -369,6 +457,16 @@ CButton::CButton(Point position, const AnimationPath &defName, const std::pair<s
 {
 	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 	hoverTexts[0] = help.first;
+	
+	// Set up accessibility info if help text is provided
+	if (!help.first.empty() || !help.second.empty())
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = help.first;
+		accessInfo.description = help.second;
+		setAccessibilityInfo(accessInfo);
+	}
 }
 
 void ButtonBase::setPlayerColor(PlayerColor player)

@@ -70,7 +70,7 @@ class CMenuEntry : public CIntObject
 	std::vector<std::shared_ptr<CPicture>> images;
 	std::vector<std::shared_ptr<CButton>> buttons;
 
-	std::shared_ptr<CButton> createButton(CMenuScreen * parent, const JsonNode & button);
+	std::shared_ptr<CButton> createButton(CMenuScreen * parent, const JsonNode & button, int tabOrder = 1);
 
 public:
 	CMenuEntry(CMenuScreen * parent, const JsonNode & config);

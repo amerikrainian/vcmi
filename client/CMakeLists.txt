@@ -43,10 +43,12 @@ set(vcmiclientcommon_SRCS
 	eventsSDL/InputSourceTouch.cpp
 	eventsSDL/InputSourceGameController.cpp
 
+	gui/AccessibilityManager.cpp
 	gui/CIntObject.cpp
 	gui/CursorHandler.cpp
 	gui/EventDispatcher.cpp
 	gui/EventsReceiver.cpp
+	gui/FocusManager.cpp
 	gui/InterfaceObjectConfigurable.cpp
 	gui/FramerateManager.cpp
 	gui/ShortcutHandler.cpp
@@ -246,10 +248,12 @@ set(vcmiclientcommon_HEADERS
 	eventsSDL/InputSourceTouch.h
 	eventsSDL/InputSourceGameController.h
 
+	gui/AccessibilityManager.h
 	gui/CIntObject.h
 	gui/CursorHandler.h
 	gui/EventDispatcher.h
 	gui/EventsReceiver.h
+	gui/FocusManager.h
 	gui/InterfaceObjectConfigurable.h
 	gui/FramerateManager.h
 	gui/MouseButton.h
@@ -488,6 +492,11 @@ target_link_libraries(vcmiclientcommon PRIVATE vcmiservercommon)
 
 target_link_libraries(vcmiclientcommon PUBLIC
 		vcmi SDL2::SDL2 SDL2::Image SDL2::Mixer SDL2::TTF
+)
+
+# SpeechCore library for accessibility
+target_link_libraries(vcmiclientcommon PRIVATE
+		SpeechCore
 )
 
 if(ENABLE_VIDEO)

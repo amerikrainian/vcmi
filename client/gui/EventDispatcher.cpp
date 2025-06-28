@@ -12,6 +12,8 @@
 
 #include "EventsReceiver.h"
 #include "FramerateManager.h"
+#include "FocusManager.h"
+#include "AccessibilityManager.h"
 #include "GameEngine.h"
 #include "MouseButton.h"
 #include "WindowHandler.h"
@@ -84,6 +86,29 @@ void EventDispatcher::dispatchShortcutPressed(const std::vector<EShortcut> & sho
 
 	if (vstd::contains(shortcutsVector, EShortcut::MOUSE_RIGHT))
 		dispatchShowPopup(ENGINE->getCursorPosition(), settings["input"]["shortcutToleranceDistance"].Integer());
+
+	// Handle Tab navigation if keyboard navigation is enabled
+	if (AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
+	{
+		if (vstd::contains(shortcutsVector, EShortcut::GLOBAL_MOVE_FOCUS))
+		{
+			FocusManager::getInstance().moveFocusNext();
+			return;
+		}
+		
+		if (vstd::contains(shortcutsVector, EShortcut::GLOBAL_MOVE_FOCUS_PREV))
+		{
+			FocusManager::getInstance().moveFocusPrevious();
+			return;
+		}
+		
+		// Handle Enter/Space on focused element
+		if (vstd::contains(shortcutsVector, EShortcut::GLOBAL_ACCEPT))
+		{
+			if (FocusManager::getInstance().handleActivation())
+				return;
+		}
+	}
 
 	for(auto & i : keyinterested)
 		for(EShortcut shortcut : shortcutsVector)

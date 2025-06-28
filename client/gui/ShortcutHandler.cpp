@@ -120,6 +120,7 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 		{"globalOptions",            EShortcut::GLOBAL_OPTIONS            },
 		{"globalBackspace",          EShortcut::GLOBAL_BACKSPACE          },
 		{"globalMoveFocus",          EShortcut::GLOBAL_MOVE_FOCUS         },
+		{"globalMoveFocusPrev",      EShortcut::GLOBAL_MOVE_FOCUS_PREV    },
 		{"moveLeft",                 EShortcut::MOVE_LEFT                 },
 		{"moveRight",                EShortcut::MOVE_RIGHT                },
 		{"moveUp",                   EShortcut::MOVE_UP                   },

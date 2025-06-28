@@ -15,6 +15,8 @@
 #include "../../lib/Color.h"
 #include "../../lib/GameConstants.h"
 
+#include <optional>
+
 class GameEngine;
 class CPicture;
 class Canvas;
@@ -22,6 +24,9 @@ class Canvas;
 VCMI_LIB_NAMESPACE_BEGIN
 class CArmedInstance;
 VCMI_LIB_NAMESPACE_END
+
+// Include AccessibilityInfo definition
+#include "AccessibilityManager.h"
 
 class IShowActivatable
 {
@@ -48,6 +53,13 @@ class CIntObject : public IShowActivatable, public AEventsReceiver //interface o
 
 	bool inputEnabled;
 	bool redrawParent;
+	
+	/// Accessibility information for this UI element
+	std::optional<UIAccessibilityInfo> accessibility;
+
+protected:
+	/// Focus state tracking
+	bool focusState = false;
 
 public:
 	std::vector<CIntObject *> children;
@@ -124,6 +136,20 @@ public:
 
 	void addChild(CIntObject *child, bool adjustPosition = false);
 	void removeChild(CIntObject *child, bool adjustPosition = false);
+
+	/// Accessibility support methods
+	void setAccessibilityInfo(const UIAccessibilityInfo& info);
+	const UIAccessibilityInfo* getAccessibilityInfo() const;
+	bool isAccessible() const;
+	
+	/// Focus handling methods
+	virtual void onFocusGained();
+	virtual void onFocusLost();
+	virtual bool isFocusable() const;
+	void setFocus(bool focused);
+	
+	/// Visual focus indicator
+	bool hasFocus() const;
 
 };
 

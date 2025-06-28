@@ -77,6 +77,9 @@ public:
 	/// returns all existing windows of selected type
 	template <typename T>
 	std::vector<std::shared_ptr<T>> findWindows() const;
+	
+	/// returns all windows in the stack (for focus management)
+	std::vector<IShowActivatable*> getWindowsArray() const;
 };
 
 template <typename T, typename ... Args>

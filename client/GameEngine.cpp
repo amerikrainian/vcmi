@@ -16,6 +16,7 @@
 #include "gui/FramerateManager.h"
 #include "gui/WindowHandler.h"
 #include "gui/EventDispatcher.h"
+#include "gui/AccessibilityManager.h"
 #include "eventsSDL/InputHandler.h"
 
 #include "media/CMusicHandler.h"
@@ -85,6 +86,11 @@ GameEngine::GameEngine()
 	cursorHandlerInstance = std::make_unique<CursorHandler>();
 
 	asyncTasks = std::make_unique<AsyncRunner>();
+
+	// Initialize accessibility manager
+	AccessibilityManager::getInstance().init();
+	// Enable screen reader by default for testing
+	AccessibilityManager::getInstance().setScreenReaderEnabled(true);
 }
 
 void GameEngine::handleEvents()
@@ -125,6 +131,9 @@ void GameEngine::updateFrame()
 	handleEvents();
 	windows().simpleRedraw();
 
+	// Process any pending accessibility announcements
+	AccessibilityManager::getInstance().processAnnouncements();
+
 	if (settings["video"]["showfps"].Bool())
 		drawFPSCounter();
 
@@ -136,6 +145,9 @@ void GameEngine::updateFrame()
 
 GameEngine::~GameEngine()
 {
+	// Shutdown accessibility manager before UI elements are destroyed
+	AccessibilityManager::getInstance().shutdown();
+
 	// enforce deletion order on shutdown
 	// all UI elements including adventure map must be destroyed before Gui Handler
 	// proper solution would be removal of adventureInt global
@@ -257,4 +269,9 @@ void GameEngine::onScreenResize(bool resolutionChanged)
 void GameEngine::setEngineUser(IGameEngineUser * user)
 {
 	engineUser = user;
+}
+
+AccessibilityManager & GameEngine::accessibility()
+{
+	return AccessibilityManager::getInstance();
 }
