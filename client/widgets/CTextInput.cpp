@@ -16,6 +16,7 @@
 #include "../GameEngine.h"
 #include "../eventsSDL/InputHandler.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../render/Graphics.h"
 #include "../render/IFont.h"
 #include "../render/IRenderHandler.h"
@@ -58,6 +59,13 @@ CTextInput::CTextInput(const Rect & Pos, EFonts font, ETextAlignment alignment, 
 	createLabel(giveFocusToInput);
 	setFont(font);
 	setAlignment(alignment);
+	
+	// Set up default accessibility info for text input
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "textbox";
+	accessInfo.name = "Text input field";
+	accessInfo.value = currentText;
+	setAccessibilityInfo(accessInfo);
 }
 
 CTextInput::CTextInput(const Rect & Pos, const Point & bgOffset, const ImagePath & bgName)
@@ -70,6 +78,13 @@ CTextInput::CTextInput(const Rect & Pos, const Point & bgOffset, const ImagePath
 		setRedrawParent(true);
 
 	createLabel(true);
+	
+	// Set up default accessibility info for text input
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "textbox";
+	accessInfo.name = "Text input field";
+	accessInfo.value = currentText;
+	setAccessibilityInfo(accessInfo);
 }
 
 CTextInput::CTextInput(const Rect & Pos, std::shared_ptr<IImage> srf)
@@ -81,6 +96,13 @@ CTextInput::CTextInput(const Rect & Pos, std::shared_ptr<IImage> srf)
 	pos.h = background->pos.h;
 	background->pos = pos;
 	createLabel(true);
+	
+	// Set up default accessibility info for text input
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "textbox";
+	accessInfo.name = "Text input field";
+	accessInfo.value = currentText;
+	setAccessibilityInfo(accessInfo);
 }
 
 void CTextInput::setFont(EFonts font)
@@ -187,6 +209,14 @@ void CTextInput::setText(const std::string & nText)
 {
 	currentText = nText;
 	updateLabel();
+	
+	// Update accessibility info with the new text value
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.value = currentText;
+		setAccessibilityInfo(updatedInfo);
+	}
 }
 
 void CTextInput::updateLabel()
@@ -221,6 +251,14 @@ void CTextInput::textInputted(const std::string & enteredText)
 		updateLabel();
 		if(onTextEdited)
 			onTextEdited(currentText);
+		
+		// Update accessibility info with the new text value
+		if (getAccessibilityInfo())
+		{
+			UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+			updatedInfo.value = currentText;
+			setAccessibilityInfo(updatedInfo);
+		}
 	}
 	composedText.clear();
 }
@@ -307,6 +345,12 @@ void CTextInput::deactivate()
 void CTextInput::onFocusGot()
 {
 	updateLabel();
+	
+	// Announce the text input field when it gains focus
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled() && getAccessibilityInfo())
+	{
+		AccessibilityManager::getInstance().announceElement(this);
+	}
 }
 
 void CTextInput::onFocusLost()

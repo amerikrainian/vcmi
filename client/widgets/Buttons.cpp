@@ -458,15 +458,12 @@ CButton::CButton(Point position, const AnimationPath &defName, const std::pair<s
 	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 	hoverTexts[0] = help.first;
 	
-	// Set up accessibility info if help text is provided
-	if (!help.first.empty() || !help.second.empty())
-	{
-		UIAccessibilityInfo accessInfo;
-		accessInfo.role = "button";
-		accessInfo.name = help.first;
-		accessInfo.description = help.second;
-		setAccessibilityInfo(accessInfo);
-	}
+	// Always set up accessibility info - every button should have at least a role
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "button";
+	accessInfo.name = help.first;
+	accessInfo.description = help.second;
+	setAccessibilityInfo(accessInfo);
 }
 
 void ButtonBase::setPlayerColor(PlayerColor player)
@@ -579,6 +576,17 @@ void CToggleButton::doSelect(bool on)
 	else
 	{
 		setState(EButtonState::NORMAL);
+	}
+	
+	// Update accessibility state to reflect toggle state
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		if (on)
+			updatedInfo.state = "checked";
+		else
+			updatedInfo.state = "";
+		setAccessibilityInfo(updatedInfo);
 	}
 }
 

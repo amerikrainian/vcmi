@@ -31,6 +31,12 @@ protected:
 	void updateShadow();
 	void setBackground(const ImagePath & filename);
 	std::shared_ptr<CPicture> createBg(const ImagePath & imageName, bool playerColored);
+	
+	/// Handle escape key to close dialog
+	void keyPressed(EShortcut key) override;
+	
+	/// Called when dialog is shown - announce accessibility info
+	void activate() override;
 public:
 	enum EOptions
 	{

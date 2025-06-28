@@ -40,6 +40,12 @@ class CLabel;
 /// text + comp. + ok button
 class CInfoWindow : public WindowBase
 {
+protected:
+	/// Handle escape key to close dialog
+	void keyPressed(EShortcut key) override;
+	
+	/// Called when dialog is shown - announce accessibility info
+	void activate() override;
 public:
 	using TButtonsInfo = std::vector<std::pair<AnimationPath, CFunctionList<void()>>>;
 	using TCompsInfo = std::vector<std::shared_ptr<CComponent>>;

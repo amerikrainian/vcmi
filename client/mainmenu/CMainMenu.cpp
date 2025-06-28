@@ -140,19 +140,23 @@ size_t CMenuScreen::getActiveTab() const
 }
 
 //helper function to add accessibility info to buttons
-static void addButtonAccessibility(std::shared_ptr<CButton> button, const std::pair<std::string, std::string>& help, int tabOrder = -1)
+static void addButtonAccessibility(std::shared_ptr<CButton> button, const std::pair<std::string, std::string>& help, int tabOrder = -1, const std::string& buttonName = "")
 {
-	if (!help.first.empty() || !help.second.empty() || tabOrder >= 0)
-	{
-		UIAccessibilityInfo accessInfo;
-		accessInfo.role = "button";
-		accessInfo.name = help.first; // Hover text as accessible name
-		if (!help.second.empty())
-			accessInfo.description = help.second; // Right-click help text as description
-		if (tabOrder >= 0)
-			accessInfo.tabOrder = tabOrder;
-		button->setAccessibilityInfo(accessInfo);
-	}
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "button";
+	
+	// Use provided button name if available, otherwise use hover text
+	if (!buttonName.empty())
+		accessInfo.name = buttonName;
+	else if (!help.first.empty())
+		accessInfo.name = help.first;
+	
+	if (!help.second.empty())
+		accessInfo.description = help.second; // Right-click help text as description
+	if (tabOrder >= 0)
+		accessInfo.tabOrder = tabOrder;
+	
+	button->setAccessibilityInfo(accessInfo);
 }
 
 //function for std::string -> std::function conversion for main menu

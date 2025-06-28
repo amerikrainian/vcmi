@@ -20,6 +20,7 @@
 #include "../gui/CursorHandler.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/CComponent.h"
 #include "../widgets/GraphicalPrimitiveCanvas.h"
@@ -45,6 +46,23 @@ CSelWindow::CSelWindow( const std::string & Text, PlayerColor player, int charpe
 	backgroundTexture = std::make_shared<CFilledTexture>(ImagePath::builtin("DiBoxBck"), pos);
 
 	ID = askID;
+	
+	// Extract title from text
+	std::string title;
+	std::string content = Text;
+	size_t newlinePos = Text.find('\n');
+	if (newlinePos != std::string::npos)
+	{
+		title = Text.substr(0, newlinePos);
+		// Remove formatting tags from title
+		while (title.find('{') != std::string::npos && title.find('}') != std::string::npos)
+		{
+			size_t start = title.find('{');
+			size_t end = title.find('}');
+			title.erase(start, end - start + 1);
+		}
+	}
+	
 	for(int i = 0; i < Buttons.size(); i++)
 	{
 		buttons.push_back(std::make_shared<CButton>(Point(0, 0), Buttons[i].first, CButton::tooltip(), Buttons[i].second));
@@ -54,27 +72,60 @@ CSelWindow::CSelWindow( const std::string & Text, PlayerColor player, int charpe
 	}
 
 	text = std::make_shared<CTextBox>(Text, Rect(0, 0, 250, 100), 0, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE);
+	
+	// Set accessibility for text
+	text->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName(content)
+		.withTabOrder(0));
 
 	if(buttons.size() > 1 && askID.getNum() >= 0) //cancel button functionality
 		buttons.back()->addCallback([askID](){GAME->interface()->cb->selectionMade(0, askID);});
 
 	if(buttons.size() == 1)
+	{
 		buttons.front()->assignedKey = EShortcut::GLOBAL_RETURN;
+		buttons.front()->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("OK")
+			.withTabOrder(comps.size() + 1));
+	}
 
 	if(buttons.size() == 2)
 	{
 		buttons.front()->assignedKey = EShortcut::GLOBAL_ACCEPT;
 		buttons.back()->assignedKey = EShortcut::GLOBAL_CANCEL;
+		
+		buttons.front()->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("OK")
+			.withTabOrder(comps.size() + 1));
+		buttons.back()->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Cancel")
+			.withTabOrder(comps.size() + 2));
 	}
 
 	if(!comps.empty())
 	{
 		components = std::make_shared<CComponentBox>(comps, Rect(0,0,0,0));
-		for (auto & comp : comps)
-			comp->onChoose = [this](){ madeChoiceAndClose(); };
+		for (int i = 0; i < comps.size(); i++)
+		{
+			comps[i]->onChoose = [this](){ madeChoiceAndClose(); };
+			// Set tab order for components
+			comps[i]->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("option")
+				.withTabOrder(i + 1));
+		}
 	}
 
 	CMessage::drawIWindow(this, Text, player);
+	
+	// Set accessibility info for the selection window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(title.empty() ? "Selection" : title)
+		.withDescription(content));
 }
 
 void CSelWindow::madeChoice()
@@ -101,6 +152,23 @@ CInfoWindow::CInfoWindow(const std::string & Text, PlayerColor player, const TCo
 	backgroundTexture = std::make_shared<CFilledTexture>(ImagePath::builtin("DiBoxBck"), pos);
 
 	ID = QueryID(-1);
+	
+	// Extract title from text (first line before newline)
+	std::string title;
+	std::string content = Text;
+	size_t newlinePos = Text.find('\n');
+	if (newlinePos != std::string::npos)
+	{
+		title = Text.substr(0, newlinePos);
+		// Remove formatting tags from title
+		while (title.find('{') != std::string::npos && title.find('}') != std::string::npos)
+		{
+			size_t start = title.find('{');
+			size_t end = title.find('}');
+			title.erase(start, end - start + 1);
+		}
+	}
+	
 	for(const auto & Button : Buttons)
 	{
 		auto button = std::make_shared<CButton>(Point(0, 0), Button.first, CButton::tooltip(), std::bind(&CInfoWindow::close, this));
@@ -116,25 +184,55 @@ CInfoWindow::CInfoWindow(const std::string & Text, PlayerColor player, const TCo
 		int finalHeight = text->label->textSize.y;
 		text->resize(Point(finalWidth, finalHeight));
 	}
+	
+	// Set accessibility for text
+	text->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName(content)
+		.withTabOrder(0));
 
 	if(buttons.size() == 1)
+	{
 		buttons.front()->assignedKey = EShortcut::GLOBAL_RETURN;
+		// Set accessibility info for single button
+		buttons.front()->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("OK")
+			.withTabOrder(1));
+	}
 
 	if(buttons.size() == 2)
 	{
 		buttons.front()->assignedKey = EShortcut::GLOBAL_ACCEPT;
 		buttons.back()->assignedKey = EShortcut::GLOBAL_CANCEL;
+		
+		// Set accessibility info for Yes/No or OK/Cancel buttons
+		buttons.front()->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Yes")
+			.withTabOrder(1));
+		buttons.back()->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("No")
+			.withTabOrder(2));
 	}
 
 	if(!comps.empty())
 		components = std::make_shared<CComponentBox>(comps, Rect(0,0,0,0));
 
 	CMessage::drawIWindow(this, Text, player);
+	
+	// Set accessibility info for the window itself
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(title.empty() ? "Information" : title)
+		.withDescription(content));
 }
 
 CInfoWindow::CInfoWindow()
 {
 	ID = QueryID(-1);
+	addUsedEvents(KEYBOARD);
 }
 
 void CInfoWindow::close()
@@ -143,6 +241,50 @@ void CInfoWindow::close()
 
 	if(GAME->interface())
 		GAME->interface()->showingDialog->setFree();
+}
+
+void CInfoWindow::keyPressed(EShortcut key)
+{
+	// Handle escape key to close dialog
+	if (key == EShortcut::GLOBAL_CANCEL)
+	{
+		// If there's a cancel button, trigger it; otherwise just close
+		if (buttons.size() == 2)
+		{
+			buttons.back()->clickPressed(ENGINE->getCursorPosition());
+			buttons.back()->clickReleased(ENGINE->getCursorPosition());
+		}
+		else
+		{
+			close();
+		}
+	}
+}
+
+void CInfoWindow::activate()
+{
+	WindowBase::activate();
+	
+	// Announce dialog content when opened
+	auto info = getAccessibilityInfo();
+	if (info && AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement;
+		
+		// Announce the window title/name
+		if (!info->name.empty())
+			announcement = info->name + " " + info->role;
+		else
+			announcement = info->role;
+		
+		// Announce the main content
+		if (text && text->getAccessibilityInfo())
+		{
+			announcement += ". " + text->getAccessibilityInfo()->name;
+		}
+		
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }
 
 void CInfoWindow::showAll(Canvas & to)

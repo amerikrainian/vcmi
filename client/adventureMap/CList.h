@@ -11,6 +11,7 @@
 
 #include "../widgets/Scrollable.h"
 #include "../../lib/FunctionList.h"
+#include "../gui/AccessibilityManager.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -96,6 +97,13 @@ public:
 	void selectIndex(int which);
 	void selectNext();
 	void selectPrev();
+
+	/// keyboard navigation support
+	void keyPressed(EShortcut key) override;
+	bool captureThisKey(EShortcut key) override;
+	
+	/// Announce the current selection for accessibility
+	void announceSelection();
 
 	void showAll(Canvas & to) override;
 };

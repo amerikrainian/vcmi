@@ -11,6 +11,7 @@
 #include "ObjectLists.h"
 
 #include "../GameEngine.h"
+#include "../gui/AccessibilityManager.h"
 #include "Slider.h"
 
 CObjectList::CObjectList(CreateFunc create)
@@ -104,6 +105,14 @@ CListBox::CListBox(CreateFunc create, Point Pos, Point ItemOffset, size_t Visibl
 
 		slider->setPanningStep(itemOffset.x + itemOffset.y);
 	}
+	
+	// Set up default accessibility info for list
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "list";
+	accessInfo.name = "List control";
+	accessInfo.value = "0 of " + std::to_string(totalSize) + " items";
+	setAccessibilityInfo(accessInfo);
+	
 	reset();
 }
 
@@ -148,6 +157,17 @@ void CListBox::resize(size_t newSize)
 	totalSize = newSize;
 	if (slider)
 		slider->setAmount((int)totalSize);
+	
+	// Update accessibility info with new total size
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.value = "Showing items " + std::to_string(first + 1) + " to " + 
+		                    std::to_string(std::min(first + items.size(), totalSize)) + 
+		                    " of " + std::to_string(totalSize);
+		setAccessibilityInfo(updatedInfo);
+	}
+	
 	reset();
 }
 
@@ -216,6 +236,16 @@ void CListBox::moveToPos(size_t which)
 	{
 		first = newPos;
 		reset();
+	}
+	
+	// Update accessibility info with current position
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.value = "Showing items " + std::to_string(first + 1) + " to " + 
+		                    std::to_string(std::min(first + items.size(), totalSize)) + 
+		                    " of " + std::to_string(totalSize);
+		setAccessibilityInfo(updatedInfo);
 	}
 }
 

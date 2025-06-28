@@ -15,6 +15,7 @@
 #include "TextControls.h"
 #include "../GameEngine.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 
 ComboBox::DropDown::Item::Item(const JsonNode & config, ComboBox::DropDown & _dropDown, Point position)
 	: InterfaceObjectConfigurable(LCLICK | HOVER, position),
@@ -164,13 +165,32 @@ ComboBox::ComboBox(Point position, const AnimationPath & defName, const std::pai
 	{
 		ENGINE->windows().createAndPushWindow<ComboBox::DropDown>(dropDownDescriptor, *this, dropDownPosition);
 	});
+	
+	// Update accessibility info to indicate this is a combo box
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.role = "combobox";
+		setAccessibilityInfo(updatedInfo);
+	}
 }
 
 void ComboBox::setItem(const void * item)
 {
 	auto w = std::dynamic_pointer_cast<CLabel>(getOverlay());
 	if( w && getItemText)
-		setTextOverlay(getItemText(0, item), w->font, w->color);
+	{
+		std::string itemText = getItemText(0, item);
+		setTextOverlay(itemText, w->font, w->color);
+		
+		// Update accessibility info with selected value
+		if (getAccessibilityInfo())
+		{
+			UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+			updatedInfo.value = itemText;
+			setAccessibilityInfo(updatedInfo);
+		}
+	}
 	
 	if(onSetItem)
 		onSetItem(item);

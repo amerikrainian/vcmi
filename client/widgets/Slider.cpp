@@ -15,6 +15,7 @@
 
 #include "../gui/MouseButton.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../GameEngine.h"
 #include "../render/Canvas.h"
 #include "../render/Colors.h"
@@ -131,6 +132,14 @@ void CSlider::scrollTo(int to, bool callCallbacks)
 	value = to;
 
 	updateSliderPos();
+	
+	// Update accessibility info with new value
+	if (getAccessibilityInfo())
+	{
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.value = std::to_string(value) + " of " + std::to_string(positions);
+		setAccessibilityInfo(updatedInfo);
+	}
 
 	if (callCallbacks)
 		moved(getValue());
@@ -254,6 +263,13 @@ CSlider::CSlider(Point position, int totalw, const SliderMovingFunctor & Moved, 
 	// for horizontal sliders that act as values selection - add keyboard event to receive left/right click
 	if (getOrientation() == Orientation::HORIZONTAL)
 		addUsedEvents(KEYBOARD);
+
+	// Set up default accessibility info for slider
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "slider";
+	accessInfo.name = getOrientation() == Orientation::HORIZONTAL ? "Horizontal slider" : "Vertical slider";
+	accessInfo.value = std::to_string(value) + " of " + std::to_string(positions);
+	setAccessibilityInfo(accessInfo);
 
 	updateSliderPos();
 }

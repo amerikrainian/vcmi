@@ -16,6 +16,8 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/CursorHandler.h"
+#include "../gui/AccessibilityManager.h"
+#include "../gui/Shortcut.h"
 #include "../battle/BattleInterface.h"
 #include "../windows/CMessage.h"
 #include "../renderSDL/SDL_PixelAccess.h"
@@ -33,7 +35,7 @@
 #include <SDL_surface.h>
 
 CWindowObject::CWindowObject(int options_, const ImagePath & imageName, Point centerAt):
-	WindowBase(0, Point()),
+	WindowBase(KEYBOARD, Point()),
 	options(options_),
 	background(createBg(imageName, options & PLAYER_COLORED))
 {
@@ -50,10 +52,15 @@ CWindowObject::CWindowObject(int options_, const ImagePath & imageName, Point ce
 
 	if (!(options & SHADOW_DISABLED))
 		setShadow(true);
+
+	// Set default accessibility info for windows
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withState(options & RCLICK_POPUP ? "popup" : "dialog"));
 }
 
 CWindowObject::CWindowObject(int options_, const ImagePath & imageName):
-	WindowBase(0, Point()),
+	WindowBase(KEYBOARD, Point()),
 	options(options_),
 	background(createBg(imageName, options_ & PLAYER_COLORED))
 {
@@ -70,6 +77,11 @@ CWindowObject::CWindowObject(int options_, const ImagePath & imageName):
 
 	if(!(options & SHADOW_DISABLED))
 		setShadow(true);
+
+	// Set default accessibility info for windows
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withState(options & RCLICK_POPUP ? "popup" : "dialog"));
 }
 
 CWindowObject::~CWindowObject()
@@ -192,4 +204,37 @@ void CWindowObject::showAll(Canvas & to)
 bool CWindowObject::isPopupWindow() const
 {
 	return options & RCLICK_POPUP;
+}
+
+void CWindowObject::keyPressed(EShortcut key)
+{
+	// Handle escape key to close dialog (except for right-click popups)
+	if (key == EShortcut::GLOBAL_CANCEL && !(options & RCLICK_POPUP))
+	{
+		close();
+	}
+}
+
+void CWindowObject::activate()
+{
+	WindowBase::activate();
+	
+	// Announce window when it's opened
+	auto info = getAccessibilityInfo();
+	if (info && AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement;
+		
+		// Announce role and name
+		if (!info->name.empty())
+			announcement = info->name + " " + info->role;
+		else
+			announcement = info->role;
+		
+		// Add state if present
+		if (!info->state.empty())
+			announcement += ", " + info->state;
+		
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }

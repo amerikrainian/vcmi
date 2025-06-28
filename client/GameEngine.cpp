@@ -91,6 +91,7 @@ GameEngine::GameEngine()
 	AccessibilityManager::getInstance().init();
 	// Enable screen reader by default for testing
 	AccessibilityManager::getInstance().setScreenReaderEnabled(true);
+	AccessibilityManager::getInstance().setKeyboardNavigationEnabled(true);
 }
 
 void GameEngine::handleEvents()

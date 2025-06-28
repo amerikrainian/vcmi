@@ -12,14 +12,12 @@
 
 #include "CIntObject.h"
 #include "../../lib/texts/TextOperations.h"
-#include "../../../SpeechCore/include/SpeechCore.h"
+#include "SpeechCore.h"
 
-#include <mutex>
-#include <thread>
-#include <atomic>
 #include <string>
 #include <codecvt>
 #include <locale>
+#include <SDL_timer.h>
 
 #ifdef VCMI_WINDOWS
 #include <windows.h>
@@ -30,52 +28,18 @@ VCMI_LIB_NAMESPACE_BEGIN
 // Implementation struct for PIMPL idiom
 struct AccessibilityManager::Implementation
 {
-	mutable std::mutex speechMutex;
-	std::atomic<bool> speechInitialized{false};
-	std::atomic<bool> currentlySpeaking{false};
+	bool speechInitialized = false;
 	
 	// For UTF-8 to UTF-16 conversion
-#ifdef VCMI_WINDOWS
-	// Windows-specific conversion members
-#else
+#ifndef VCMI_WINDOWS
 	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 #endif
-	
-	Implementation()
-	{
-#ifdef VCMI_WINDOWS
-		// Initialize COM for SAPI on Windows
-		HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-		if (FAILED(hr) && hr != RPC_E_CHANGED_MODE)
-		{
-			logGlobal->warn("AccessibilityManager: Failed to initialize COM, error: 0x%08X", hr);
-		}
-#endif
-	}
-	
-	~Implementation()
-	{
-		if (speechInitialized)
-		{
-			Speech_Free();
-		}
-#ifdef VCMI_WINDOWS
-		// Uninitialize COM on Windows
-		CoUninitialize();
-#endif
-	}
 	
 	void ensureInitialized()
 	{
 		if (!speechInitialized)
 		{
 			Speech_Init();
-			
-#ifdef VCMI_WINDOWS
-			// On Windows, prefer SAPI as it's more reliable than screen readers for game use
-			Speech_Prefer_Sapi(true);
-#endif
-			
 			Speech_Detect_Driver();
 			speechInitialized = true;
 		}
@@ -161,6 +125,7 @@ AccessibilityManager::AccessibilityManager()
 	, keyboardNavigationEnabled(false)
 	, announceHoverText(true)
 	, focusedElement(nullptr)
+	, lastAnnouncementTime(0)
 {
 	logGlobal->info("AccessibilityManager: Initialized");
 }
@@ -172,8 +137,6 @@ AccessibilityManager::~AccessibilityManager()
 
 void AccessibilityManager::init()
 {
-	std::lock_guard<std::mutex> lock(impl->speechMutex);
-	
 	try
 	{
 		impl->ensureInitialized();
@@ -182,12 +145,11 @@ void AccessibilityManager::init()
 		{
 			logGlobal->info("AccessibilityManager: SpeechCore initialized successfully");
 			
-			// Convert wide string to UTF-8 for logging
+			// Log which screen reader/TTS is being used
 			const wchar_t* driverNameWide = Speech_Current_Driver();
 			if (driverNameWide)
 			{
 #ifdef VCMI_WINDOWS
-				// Convert UTF-16 to UTF-8 for logging
 				int size = WideCharToMultiByte(CP_UTF8, 0, driverNameWide, -1, nullptr, 0, nullptr, nullptr);
 				if (size > 0)
 				{
@@ -195,12 +157,7 @@ void AccessibilityManager::init()
 					WideCharToMultiByte(CP_UTF8, 0, driverNameWide, -1, &driverName[0], size, nullptr, nullptr);
 					logGlobal->info("AccessibilityManager: Using screen reader: %s", driverName.c_str());
 				}
-				else
-				{
-					logGlobal->info("AccessibilityManager: Using screen reader: (name conversion failed)");
-				}
 #else
-				// Use standard conversion on non-Windows platforms
 				std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
 				try
 				{
@@ -217,19 +174,6 @@ void AccessibilityManager::init()
 		else
 		{
 			logGlobal->warn("AccessibilityManager: SpeechCore failed to initialize");
-#ifdef VCMI_WINDOWS
-			// Try to initialize SAPI directly as a fallback
-			logGlobal->info("AccessibilityManager: Attempting direct SAPI initialization");
-			Sapi_Init();
-			if (Speech_Sapi_Loaded())
-			{
-				logGlobal->info("AccessibilityManager: SAPI initialized successfully as fallback");
-			}
-			else
-			{
-				logGlobal->error("AccessibilityManager: SAPI initialization also failed");
-			}
-#endif
 		}
 	}
 	catch (const std::exception& e)
@@ -240,18 +184,11 @@ void AccessibilityManager::init()
 
 void AccessibilityManager::shutdown()
 {
-	std::lock_guard<std::mutex> lock(impl->speechMutex);
-	
 	if (impl->speechInitialized)
 	{
 		stopSpeaking();
-		
-		// Clear any pending announcements
-		while (!announcementQueue.empty())
-		{
-			announcementQueue.pop();
-		}
-		
+		Speech_Free();
+		impl->speechInitialized = false;
 		logGlobal->info("AccessibilityManager: Shutdown complete");
 	}
 }
@@ -268,7 +205,6 @@ void AccessibilityManager::setScreenReaderEnabled(bool enabled)
 	else
 	{
 		announce("Screen reader disabled", true);
-		std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Give time for the announcement
 		stopSpeaking();
 	}
 }
@@ -288,60 +224,38 @@ void AccessibilityManager::announce(const std::string& text, bool interrupt)
 	if (!screenReaderEnabled || text.empty())
 		return;
 	
-	std::lock_guard<std::mutex> lock(impl->speechMutex);
-	
 	impl->ensureInitialized();
 	
 	if (!Speech_Is_Loaded())
 	{
-		logGlobal->warn("AccessibilityManager: Screen reader not available");
-#ifdef VCMI_WINDOWS
-		// Log available drivers for debugging
-		int driverCount = Speech_Get_Drivers();
-		logGlobal->info("AccessibilityManager: Available drivers: %d", driverCount);
-		for (int i = 0; i < driverCount; i++)
-		{
-			const wchar_t* driverName = Speech_Get_Driver(i);
-			if (driverName)
-			{
-				int size = WideCharToMultiByte(CP_UTF8, 0, driverName, -1, nullptr, 0, nullptr, nullptr);
-				if (size > 0)
-				{
-					std::string name(size - 1, '\0');
-					WideCharToMultiByte(CP_UTF8, 0, driverName, -1, &name[0], size, nullptr, nullptr);
-					logGlobal->info("AccessibilityManager: Driver %d: %s", i, name.c_str());
-				}
-			}
-		}
-#endif
+		logGlobal->debug("AccessibilityManager: Screen reader not available");
 		return;
 	}
 	
-	// Sanitize the text for speech
 	std::string cleanText = impl->sanitizeForSpeech(text);
 	if (cleanText.empty())
 		return;
 	
-	if (interrupt)
+	// Prevent duplicate announcements within 100ms
+	uint32_t currentTime = SDL_GetTicks();
+	if (!interrupt && cleanText == lastAnnouncedText && currentTime - lastAnnouncementTime < 100)
 	{
-		// Clear the queue if we're interrupting
-		while (!announcementQueue.empty())
-		{
-			announcementQueue.pop();
-		}
-		
-		// Stop current speech
-		Speech_Stop();
-		impl->currentlySpeaking = false;
+		logGlobal->trace("AccessibilityManager: Skipping duplicate announcement: %s", cleanText.c_str());
+		return;
 	}
 	
-	// Add to queue with default priority (0 for now)
-	announcementQueue.push(std::make_pair(cleanText, 0));
+	lastAnnouncedText = cleanText;
+	lastAnnouncementTime = currentTime;
 	
-	// Process immediately if not speaking
-	if (!impl->currentlySpeaking)
+	std::wstring wideText = impl->toWideString(cleanText);
+	if (!wideText.empty())
 	{
-		processAnnouncements();
+		// Fire-and-forget approach - just send to screen reader
+		bool success = Speech_Output(wideText.c_str(), interrupt);
+		if (!success)
+		{
+			logGlobal->debug("AccessibilityManager: Failed to speak text: %s", cleanText.c_str());
+		}
 	}
 }
 
@@ -375,57 +289,17 @@ void AccessibilityManager::handleHover(const CIntObject* element)
 	if (!screenReaderEnabled || !announceHoverText || !element)
 		return;
 	
-	// TODO: Implement hover text extraction from CIntObject
-	// This would require access to tooltip text or other hover information
+	// Get accessibility info from the element
+	const UIAccessibilityInfo* info = element->getAccessibilityInfo();
+	if (info && !info->name.empty())
+	{
+		announce(info->name, false);
+	}
 }
 
 void AccessibilityManager::processAnnouncements()
 {
-	if (!screenReaderEnabled)
-		return;
-	
-	std::lock_guard<std::mutex> lock(impl->speechMutex);
-	
-	while (!announcementQueue.empty() && !impl->currentlySpeaking)
-	{
-		auto announcement = announcementQueue.front();
-		announcementQueue.pop();
-		
-		std::wstring wideText = impl->toWideString(announcement.first);
-		if (!wideText.empty())
-		{
-			impl->currentlySpeaking = true;
-			
-			bool success = Speech_Output(wideText.c_str(), false);
-			if (!success)
-			{
-				logGlobal->warn("AccessibilityManager: Failed to speak text");
-#ifdef VCMI_WINDOWS
-				// Get more detailed error information on Windows
-				DWORD error = GetLastError();
-				logGlobal->warn("AccessibilityManager: Windows error code: %d", error);
-#endif
-				impl->currentlySpeaking = false;
-			}
-			else
-			{
-				// Start a thread to monitor when speech completes
-				std::thread([this]() {
-					while (Speech_Is_Speaking())
-					{
-						std::this_thread::sleep_for(std::chrono::milliseconds(50));
-					}
-					impl->currentlySpeaking = false;
-					
-					// Check if there are more announcements
-					if (!announcementQueue.empty())
-					{
-						processAnnouncements();
-					}
-				}).detach();
-			}
-		}
-	}
+	// No longer needed - fire-and-forget approach
 }
 
 void AccessibilityManager::stopSpeaking()
@@ -433,25 +307,14 @@ void AccessibilityManager::stopSpeaking()
 	if (!impl->speechInitialized)
 		return;
 	
-	std::lock_guard<std::mutex> lock(impl->speechMutex);
-	
 	Speech_Stop();
-	impl->currentlySpeaking = false;
-	
-	// Clear the queue
-	while (!announcementQueue.empty())
-	{
-		announcementQueue.pop();
-	}
 }
 
 bool AccessibilityManager::isSpeaking() const
 {
-	if (!screenReaderEnabled || !impl->speechInitialized)
-		return false;
-	
-	std::lock_guard<std::mutex> lock(impl->speechMutex);
-	return Speech_Is_Speaking();
+	// Many screen readers don't support this, so just return false
+	// This prevents code from waiting for speech to finish
+	return false;
 }
 
 std::string AccessibilityManager::getAccessibleText(const CIntObject* element) const
@@ -459,18 +322,49 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 	if (!element)
 		return "";
 	
-	// TODO: This requires integration with CIntObject to get accessibility info
-	// For now, return a placeholder
+	const UIAccessibilityInfo* info = element->getAccessibilityInfo();
+	if (!info || !info->isAccessible)
+		return "";
+	
 	std::string text;
 	
-	// Try to get role
-	std::string role = getElementRole(element);
-	if (!role.empty())
+	// Build accessible text from available information
+	// Start with the role if no name is provided
+	if (info->name.empty() && !info->role.empty())
 	{
-		text = role;
+		text = info->role;
+	}
+	else if (!info->name.empty())
+	{
+		text = info->name;
+		// Add role after name
+		if (!info->role.empty())
+		{
+			text += ", ";
+			text += info->role;
+		}
 	}
 	
-	// TODO: Add element name, state, value from UIAccessibilityInfo when it's integrated
+	if (!info->state.empty())
+	{
+		if (!text.empty())
+			text += ", ";
+		text += info->state;
+	}
+	
+	if (!info->value.empty())
+	{
+		if (!text.empty())
+			text += ", ";
+		text += info->value;
+	}
+	
+	if (!info->description.empty() && text != info->description)
+	{
+		if (!text.empty())
+			text += ". ";
+		text += info->description;
+	}
 	
 	return text;
 }
@@ -480,10 +374,11 @@ std::string AccessibilityManager::getElementRole(const CIntObject* element) cons
 	if (!element)
 		return "";
 	
-	// TODO: Determine role based on element type
-	// This would require runtime type information or virtual methods in CIntObject
+	const UIAccessibilityInfo* info = element->getAccessibilityInfo();
+	if (info)
+		return info->role;
 	
-	return "UI element"; // Placeholder
+	return "";
 }
 
 AccessibilityManager& AccessibilityManager::getInstance()

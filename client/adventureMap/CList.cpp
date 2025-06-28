@@ -13,6 +13,8 @@
 
 #include "AdventureMapInterface.h"
 
+#include <boost/format.hpp>
+
 #include "../widgets/Images.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/ObjectLists.h"
@@ -88,6 +90,9 @@ CList::CList(int Size, Rect widgetDimensions)
 {
 	pos.w = widgetDimensions.w;
 	pos.h = widgetDimensions.h;
+	
+	// Enable keyboard events
+	addUsedEvents(KEYBOARD);
 }
 
 void CList::showAll(Canvas & to)
@@ -167,6 +172,10 @@ void CList::select(std::shared_ptr<CListItem> which)
 	{
 		which->onSelect(true);
 		onSelect();
+		
+		// Announce selection for accessibility
+		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+			announceSelection();
 	}
 }
 
@@ -205,6 +214,62 @@ void CList::selectPrev()
 		selectIndex(0);
 	else
 		selectIndex(index-1);
+}
+
+void CList::keyPressed(EShortcut key)
+{
+	if (!AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
+		return;
+		
+	switch(key)
+	{
+		case EShortcut::MOVE_UP:
+			selectPrev();
+			announceSelection();
+			break;
+			
+		case EShortcut::MOVE_DOWN:
+			selectNext();
+			announceSelection();
+			break;
+			
+		case EShortcut::GLOBAL_ACCEPT:
+			if(selected)
+			{
+				// Simulate double-click to open the selected item
+				selected->open();
+			}
+			break;
+	}
+}
+
+bool CList::captureThisKey(EShortcut key)
+{
+	if (!AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
+		return false;
+		
+	return key == EShortcut::MOVE_UP || 
+	       key == EShortcut::MOVE_DOWN ||
+	       key == EShortcut::GLOBAL_ACCEPT;
+}
+
+void CList::announceSelection()
+{
+	if (!selected || !AccessibilityManager::getInstance().isScreenReaderEnabled())
+		return;
+		
+	int currentIndex = getSelectedIndex();
+	int totalItems = static_cast<int>(listBox->size());
+	
+	if (currentIndex >= 0 && totalItems > 0)
+	{
+		std::string announcement = boost::str(boost::format("%s, %d of %d") 
+			% selected->getHoverText() 
+			% (currentIndex + 1) 
+			% totalItems);
+		
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }
 
 CHeroList::CEmptyHeroItem::CEmptyHeroItem()

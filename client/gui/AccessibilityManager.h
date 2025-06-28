@@ -31,8 +31,9 @@ private:
     /// Currently focused UI element for keyboard navigation
     CIntObject* focusedElement;
     
-    /// Queue of pending announcements
-    std::queue<std::pair<std::string, int>> announcementQueue;
+    /// Track last announcement to prevent duplicates
+    mutable std::string lastAnnouncedText;
+    mutable uint32_t lastAnnouncementTime;
     
     /// Convert CIntObject to accessible text
     std::string getAccessibleText(const CIntObject* element) const;
