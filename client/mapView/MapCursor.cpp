@@ -23,9 +23,11 @@
 
 #include "../../lib/callback/CCallback.h"
 #include "../../lib/mapObjects/CGObjectInstance.h"
+#include "../../lib/mapObjects/CGHeroInstance.h"
 #include "../../lib/TerrainHandler.h"
 #include "../../lib/callback/IGameInfoCallback.h"
 #include "../../lib/mapping/CMapDefines.h"
+#include "../PlayerLocalState.h"
 
 
 MapCursor::MapCursor(MapView & owner, const std::shared_ptr<MapViewModel> & model)
@@ -74,8 +76,13 @@ void MapCursor::announcePosition() const
 	
 	// Don't announce cursor position during hero movement
 	// Hero movement announcements are handled by HeroMovementController
-	if (GAME->interface()->isHeroMoving())
-		return;
+	// NOTE: For keyboard cursor movement, we always want to announce regardless of hero movement
+	bool isHeroMoving = GAME->interface()->isHeroMoving();
+	logGlobal->info("MapCursor::announcePosition - hero moving: %s", isHeroMoving ? "yes" : "no");
+	
+	// Temporarily disabled to debug cursor announcements
+	// if (isHeroMoving)
+	//     return;
 		
 	std::string announcement = "Position " + std::to_string(cursorPosition.x) + ", " + std::to_string(cursorPosition.y);
 	
@@ -141,11 +148,35 @@ void MapCursor::setActive(bool isActive)
 	
 	if (active)
 	{
-		// Set initial position to current view center
-		int3 centerTile = model->getTileAtPoint(Point(model->getPixelsVisibleDimensions().x / 2, 
-		                                               model->getPixelsVisibleDimensions().y / 2));
-		centerTile.z = model->getLevel();
-		setCursorPosition(centerTile);
+		// Set initial position to current hero if available, otherwise view center
+		const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
+		int3 initialPos;
+		
+		if (hero)
+		{
+			// Start cursor on hero position
+			initialPos = hero->visitablePos();
+			logGlobal->info("MapCursor::setActive - Starting cursor on hero at position (%d, %d)", 
+			                initialPos.x, initialPos.y);
+		}
+		else
+		{
+			// No hero selected, use view center
+			initialPos = model->getTileAtPoint(Point(model->getPixelsVisibleDimensions().x / 2, 
+			                                         model->getPixelsVisibleDimensions().y / 2));
+			initialPos.z = model->getLevel();
+			logGlobal->info("MapCursor::setActive - No hero, starting cursor at view center (%d, %d)", 
+			                initialPos.x, initialPos.y);
+		}
+		
+		// Don't announce when just activating - wait for actual movement
+		// This prevents duplicate announcements when pressing Ctrl+Arrow
+		if (isValidPosition(initialPos))
+		{
+			cursorPosition = initialPos;
+			ensureCursorVisible();
+			// Note: announcePosition() is intentionally not called here
+		}
 	}
 }
 

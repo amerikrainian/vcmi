@@ -27,6 +27,7 @@
 #include "../render/IImage.h"
 #include "../eventsSDL/InputHandler.h"
 #include "../gui/Shortcut.h"
+#include "../PlayerLocalState.h"
 
 #include "../../lib/callback/CCallback.h"
 #include "../../lib/CConfigHandler.h"
@@ -125,6 +126,18 @@ MapView::MapView(const Point & offset, const Point & dimensions)
 	postSwipeCatchIntervalMs = std::max(100, static_cast<int>(6.0 * 1000.0 * (1.0 / settings["video"]["targetfps"].Float())));
 	
 	// Enable keyboard events
+	addUsedEvents(KEYBOARD);
+}
+
+void MapView::activate()
+{
+	// Call parent implementation first
+	BasicMapView::activate();
+	
+	// Ensure keyboard events are activated
+	// This is needed because addUsedEvents in constructor might not activate events
+	// if the widget wasn't active at that time
+	logGlobal->info("MapView::activate - Ensuring keyboard events are active");
 	addUsedEvents(KEYBOARD);
 }
 
@@ -252,53 +265,51 @@ PuzzleMapView::PuzzleMapView(const Point & offset, const Point & dimensions, con
 
 void MapView::keyPressed(EShortcut key)
 {
+	logGlobal->info("MapView::keyPressed called with key: %d, cursor exists: %s", (int)key, cursor ? "yes" : "no");
+	
 	if (!cursor)
 		return;
-		
-	// Non-Ctrl key handling
-	if (cursor->isActive())
-	{
-		// Cursor is active, handle interaction keys
-		switch(key)
-		{
-		case EShortcut::GLOBAL_ACCEPT:
-		case EShortcut::GLOBAL_RETURN:
-		case EShortcut::ADVENTURE_VISIT_OBJECT:
-			// Interact with object at cursor position
-			cursor->interact();
-			break;
-			
-		case EShortcut::GLOBAL_CANCEL:
-			// Deactivate cursor
-			cursor->setActive(false);
-			break;
-			
-		default:
-			// Any other key deactivates cursor
-			cursor->setActive(false);
-			break;
-		}
-	}
-}
-
-bool MapView::captureThisKey(EShortcut key)
-{
-	// Check if Ctrl is held and this is an arrow key
-	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
 	
-	if (ctrlPressed && cursor)
+	// Check if Ctrl is held for cursor movement
+	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
+	logGlobal->info("MapView::keyPressed - Ctrl pressed: %s, cursor active: %s", 
+	                ctrlPressed ? "yes" : "no", cursor->isActive() ? "yes" : "no");
+	
+	// If cursor is active and Ctrl is not pressed anymore, deactivate cursor and return to hero
+	if (cursor->isActive() && !ctrlPressed)
 	{
+		logGlobal->info("MapView::keyPressed - Cursor was active but Ctrl released, deactivating cursor");
+		cursor->setActive(false);
+		
+		// Center view on current hero if one is selected
+		const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
+		if (hero)
+		{
+			controller->setViewCenter(hero->getSightCenter());
+		}
+		// Don't process the key further since we're just handling cursor deactivation
+		return;
+	}
+	
+	if (ctrlPressed)
+	{
+		// Handle Ctrl+arrow keys for cursor movement
 		switch(key)
 		{
 		case EShortcut::MOVE_LEFT:
 		case EShortcut::MOVE_RIGHT:
 		case EShortcut::MOVE_UP:
 		case EShortcut::MOVE_DOWN:
-			logGlobal->info("MapView::captureThisKey - Ctrl+Arrow key detected: %d", (int)key);
+			logGlobal->info("MapView::keyPressed - Ctrl+Arrow key processed: %d, cursor active: %s", 
+			                (int)key, cursor->isActive() ? "yes" : "no");
 			
-			// Handle cursor movement
-			if (!cursor->isActive())
+			// Activate cursor if not already active
+			bool wasActive = cursor->isActive();
+			if (!wasActive)
+			{
+				logGlobal->info("MapView::keyPressed - Activating cursor");
 				cursor->setActive(true);
+			}
 			
 			// Move cursor based on key
 			switch(key)
@@ -316,6 +327,80 @@ bool MapView::captureThisKey(EShortcut key)
 				cursor->moveCursor(Point(0, 1));
 				break;
 			}
+			return;
+		}
+	}
+		
+	// Non-Ctrl key handling when cursor is active
+	if (cursor->isActive())
+	{
+		// Handle special interaction keys
+		switch(key)
+		{
+		case EShortcut::GLOBAL_ACCEPT:
+		case EShortcut::GLOBAL_RETURN:
+		case EShortcut::ADVENTURE_VISIT_OBJECT:
+			// Interact with object at cursor position
+			cursor->interact();
+			break;
+			
+		case EShortcut::GLOBAL_CANCEL:
+			// Deactivate cursor on ESC
+			cursor->setActive(false);
+			break;
+			
+		default:
+			// Other keys don't affect cursor when it's active
+			break;
+		}
+	}
+}
+
+void MapView::keyReleased(EShortcut key)
+{
+	logGlobal->info("MapView::keyReleased called with key: %d, cursor exists: %s", (int)key, cursor ? "yes" : "no");
+	
+	if (!cursor || !cursor->isActive())
+		return;
+	
+	// Check if Ctrl was released
+	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
+	logGlobal->info("MapView::keyReleased - Ctrl still pressed: %s", ctrlPressed ? "yes" : "no");
+	
+	// If Ctrl is no longer pressed and cursor is active, deactivate it and center on hero
+	if (!ctrlPressed)
+	{
+		logGlobal->info("MapView::keyReleased - Ctrl released, deactivating cursor and centering on hero");
+		cursor->setActive(false);
+		
+		// Center view on current hero if one is selected
+		const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
+		if (hero)
+		{
+			controller->setViewCenter(hero->getSightCenter());
+		}
+	}
+}
+
+bool MapView::captureThisKey(EShortcut key)
+{
+	// Check if Ctrl is held and this is an arrow key
+	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
+	
+	logGlobal->info("MapView::captureThisKey called with key: %d, Ctrl: %s, cursor exists: %s", 
+	                (int)key, ctrlPressed ? "yes" : "no", cursor ? "yes" : "no");
+	
+	if (ctrlPressed && cursor)
+	{
+		switch(key)
+		{
+		case EShortcut::MOVE_LEFT:
+		case EShortcut::MOVE_RIGHT:
+		case EShortcut::MOVE_UP:
+		case EShortcut::MOVE_DOWN:
+			logGlobal->info("MapView::captureThisKey - Capturing Ctrl+Arrow key: %d", (int)key);
+			// We want to capture Ctrl+Arrow keys for cursor movement
+			// The actual movement is handled in keyPressed() to avoid double execution
 			return true; // Capture this key so it doesn't propagate
 		}
 	}

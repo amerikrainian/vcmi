@@ -66,6 +66,7 @@ class MapView : public BasicMapView
 public:
 	void tick(uint32_t msPassed) override;
 	void show(Canvas & to) override;
+	void activate() override;
 
 	MapView(const Point & offset, const Point & dimensions);
 
@@ -98,6 +99,7 @@ public:
 	
 	/// Handle keyboard input for cursor control
 	void keyPressed(EShortcut key) override;
+	void keyReleased(EShortcut key) override;
 	bool captureThisKey(EShortcut key) override;
 	
 	/// Get cursor object for external access
