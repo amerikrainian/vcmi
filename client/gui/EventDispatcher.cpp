@@ -105,7 +105,19 @@ void EventDispatcher::dispatchShortcutPressed(const std::vector<EShortcut> & sho
 		// Handle Enter/Space on focused element
 		if (vstd::contains(shortcutsVector, EShortcut::GLOBAL_ACCEPT))
 		{
-			if (FocusManager::getInstance().handleActivation())
+			// Check if any element will capture this key - if so, let normal key handling proceed
+			bool keyCaptured = false;
+			for(auto & i : keyinterested)
+			{
+				if(i->captureThisKey(EShortcut::GLOBAL_ACCEPT))
+				{
+					keyCaptured = true;
+					break;
+				}
+			}
+			
+			// Only use FocusManager activation if no element will capture the key
+			if (!keyCaptured && FocusManager::getInstance().handleActivation())
 				return;
 		}
 	}
