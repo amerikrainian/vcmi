@@ -31,6 +31,8 @@ class HeroMovementController
 	bool duringMovement = false;
 	/// movement was requested to be terminated, e.g. by player or due to inability to move
 	bool stoppingMovement = false;
+	/// true when hero is moving via directional keys (single tile movement)
+	bool isDirectionalMovement = false;
 
 	bool waitingForQueryApplyReply = false;
 

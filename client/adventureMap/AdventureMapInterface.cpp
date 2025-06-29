@@ -60,7 +60,8 @@ AdventureMapInterface::AdventureMapInterface():
 	spellBeingCasted(nullptr),
 	scrollingWasActive(false),
 	scrollingWasBlocked(false),
-	backgroundDimLevel(settings["adventure"]["backgroundDimLevel"].Integer())
+	backgroundDimLevel(settings["adventure"]["backgroundDimLevel"].Integer()),
+	suppressHeroSelectionAnnouncement(false)
 {
 	OBJECT_CONSTRUCTION;
 	pos.x = pos.y = 0;

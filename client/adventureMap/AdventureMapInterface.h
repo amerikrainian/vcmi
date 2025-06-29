@@ -68,6 +68,9 @@ private:
 	std::shared_ptr<AdventureMapWidget> widget;
 	std::shared_ptr<AdventureMapShortcuts> shortcuts;
 	std::shared_ptr<TurnTimerWidget> watches;
+	
+	/// Flag to suppress hero selection announcements during directional movement
+	bool suppressHeroSelectionAnnouncement;
 
 private:
 	void setState(EAdventureState state);
@@ -138,6 +141,10 @@ public:
 
 	/// Called by PlayerInterface when hero state changed and hero list must be updated
 	void onHeroChanged(const CGHeroInstance * hero);
+	
+	/// Temporarily suppress hero selection announcements
+	void setSuppressHeroSelectionAnnouncement(bool suppress) { suppressHeroSelectionAnnouncement = suppress; }
+	bool isSuppressingHeroSelectionAnnouncement() const { return suppressHeroSelectionAnnouncement; }
 
 	/// Called by PlayerInterface when town state changed and town list must be updated
 	void onTownChanged(const CGTownInstance * town);

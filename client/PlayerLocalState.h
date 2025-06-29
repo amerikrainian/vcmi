@@ -79,7 +79,7 @@ public:
 	bool hasPath(const CGHeroInstance * h) const;
 
 	void removeLastNode(const CGHeroInstance * h);
-	void erasePath(const CGHeroInstance * h);
+	void erasePath(const CGHeroInstance * h, bool notifyHeroChanged = true);
 	void verifyPath(const CGHeroInstance * h);
 
 	/// Returns currently selected object

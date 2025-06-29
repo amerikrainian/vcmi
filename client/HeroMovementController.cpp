@@ -226,7 +226,14 @@ void HeroMovementController::onTryMoveHero(const CGHeroInstance * hero, const Tr
 	GAME->map().waitForOngoingAnimations();
 
 	//move finished
+	// For directional movement, suppress announcement but still update UI
+	if (isDirectionalMovement)
+		adventureInt->setSuppressHeroSelectionAnnouncement(true);
+		
 	adventureInt->onHeroChanged(hero);
+	
+	if (isDirectionalMovement)
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
 
 	// Hero attacked creature, set direction to face it.
 	if(directlyAttackingCreature)
@@ -303,11 +310,23 @@ void HeroMovementController::endMove(const CGHeroInstance * hero)
 {
 	assert(duringMovement == true);
 	assert(currentlyMovingHero != nullptr);
+	
 	duringMovement = false;
 	stoppingMovement = false;
+	bool wasDirectional = isDirectionalMovement;
+	isDirectionalMovement = false;
 	currentlyMovingHero = nullptr;
 	stopMovementSound();
+	
+	// For directional movement, suppress announcement but still update UI
+	if (wasDirectional)
+		adventureInt->setSuppressHeroSelectionAnnouncement(true);
+		
 	adventureInt->onHeroChanged(hero);
+	
+	if (wasDirectional)
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
+		
 	ENGINE->cursor().show();
 }
 
@@ -381,6 +400,9 @@ void HeroMovementController::requestMovementStart(const CGHeroInstance * h, cons
 
 	duringMovement = true;
 	currentlyMovingHero = h;
+	
+	// Check if this is directional movement (single tile, 2 nodes in path)
+	isDirectionalMovement = (path.nodes.size() == 2);
 
 	ENGINE->cursor().hide();
 	sendMovementRequest(h, path);

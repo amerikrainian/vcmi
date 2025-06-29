@@ -77,10 +77,11 @@ void PlayerLocalState::removeLastNode(const CGHeroInstance * h)
 		erasePath(h);
 }
 
-void PlayerLocalState::erasePath(const CGHeroInstance * h)
+void PlayerLocalState::erasePath(const CGHeroInstance * h, bool notifyHeroChanged)
 {
 	paths.erase(h);
-	adventureInt->onHeroChanged(h);
+	if (notifyHeroChanged)
+		adventureInt->onHeroChanged(h);
 	syncronizeState();
 }
 

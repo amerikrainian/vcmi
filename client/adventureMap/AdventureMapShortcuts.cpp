@@ -565,9 +565,10 @@ void AdventureMapShortcuts::moveHeroDirectional(const Point & direction)
 		singleStepPath.nodes.push_back(path.nodes[path.nodes.size()-1]); // current position
 		
 		// Clear any existing path to prevent continuous movement after this single step
-		GAME->interface()->localState->erasePath(h);
+		// Pass false to suppress the onHeroChanged notification to avoid duplicate "Selected Hero" announcements
+		GAME->interface()->localState->erasePath(h, false);
 		
-		// Remove the "Moving to position" announcement - the HeroMovementController will handle the proper announcement
+		// The HeroMovementController will handle the proper announcement after movement
 		
 		// Move hero one tile
 		GAME->interface()->moveHero(h, singleStepPath);

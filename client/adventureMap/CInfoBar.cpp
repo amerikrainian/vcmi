@@ -553,7 +553,8 @@ void CInfoBar::showHeroSelection(const CGHeroInstance * hero)
 		// Only announce hero selection if not during movement
 		// Movement announcements are handled by HeroMovementController
 		// Check both animation state and movement controller state
-		if (!GAME->map().hasOngoingAnimations() && !GAME->interface()->isHeroMoving())
+		// Also check if announcements are temporarily suppressed (e.g., for directional movement)
+		if (!GAME->map().hasOngoingAnimations() && !GAME->interface()->isHeroMoving() && !adventureInt->isSuppressingHeroSelectionAnnouncement())
 		{
 			std::string heroAnnouncement = "Selected hero: " + hero->getNameTranslated();
 			if(hero->level > 0)
