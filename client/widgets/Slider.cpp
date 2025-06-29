@@ -139,6 +139,15 @@ void CSlider::scrollTo(int to, bool callCallbacks)
 		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
 		updatedInfo.value = std::to_string(value) + " of " + std::to_string(positions);
 		setAccessibilityInfo(updatedInfo);
+		
+		// Announce the new value if this slider has focus and screen reader is enabled
+		if (hasFocus() && AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			std::string announcement = updatedInfo.value;
+			if (!updatedInfo.name.empty())
+				announcement = updatedInfo.name + ", " + announcement;
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
 	}
 
 	if (callCallbacks)
