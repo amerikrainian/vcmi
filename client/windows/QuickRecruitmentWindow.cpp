@@ -21,6 +21,8 @@
 #include "../../lib/ResourceSet.h"
 #include "../../lib/CCreatureHandler.h"
 #include "CreaturePurchaseCard.h"
+#include "../gui/AccessibilityManager.h"
+#include "../gui/FocusManager.h"
 
 
 void QuickRecruitmentWindow::setButtons()
@@ -34,18 +36,36 @@ void QuickRecruitmentWindow::setCancelButton()
 {
 	cancelButton = std::make_shared<CButton>(Point((pos.w / 2) + 48, 418), AnimationPath::builtin("ICN6432.DEF"), CButton::tooltip(), [&](){ close(); }, EShortcut::GLOBAL_CANCEL);
 	cancelButton->setImageOrder(0, 1, 2, 3);
+	cancelButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Cancel")
+		.withDescription("Close recruitment window")
+		.withTabOrder(200)
+	);
 }
 
 void QuickRecruitmentWindow::setBuyButton()
 {
 	buyButton = std::make_shared<CButton>(Point((pos.w / 2) - 32, 418), AnimationPath::builtin("IBY6432.DEF"), CButton::tooltip(), [&](){ purchaseUnits(); }, EShortcut::GLOBAL_ACCEPT);
 	buyButton->setImageOrder(0, 1, 2, 3);
+	buyButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Buy")
+		.withDescription("Purchase selected creatures")
+		.withTabOrder(199)
+	);
 }
 
 void QuickRecruitmentWindow::setMaxButton()
 {
 	maxButton = std::make_shared<CButton>(Point((pos.w/2)-112, 418), AnimationPath::builtin("IRCBTNS.DEF"), CButton::tooltip(), [&](){ maxAllCards(cards); }, EShortcut::RECRUITMENT_MAX);
 	maxButton->setImageOrder(0, 1, 2, 3);
+	maxButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Buy All")
+		.withDescription("Set maximum amount for all creatures")
+		.withTabOrder(198)
+	);
 }
 
 void QuickRecruitmentWindow::setCreaturePurchaseCards()
@@ -159,7 +179,8 @@ void QuickRecruitmentWindow::updateAllSliders()
 
 QuickRecruitmentWindow::QuickRecruitmentWindow(const CGTownInstance * townd, Rect startupPosition)
 	: CWindowObject(PLAYER_COLORED | BORDERED),
-	town(townd)
+	town(townd),
+	focusedCardIndex(-1)
 {
 	OBJECT_CONSTRUCTION;
 
@@ -169,4 +190,100 @@ QuickRecruitmentWindow::QuickRecruitmentWindow(const CGTownInstance * townd, Rec
 	maxAllCards(cards);
 
 	center();
+	
+	// Set accessibility info for the dialog
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Recruit Creatures")
+		.withDescription("Window to recruit creatures from " + town->getNameTranslated())
+	);
+	
+	// Announce window when opened
+	AccessibilityManager::getInstance().announce("Recruit Creatures window opened. Use Tab to navigate between creatures and sliders, arrow keys to adjust quantities.", true);
+	
+	// Set initial focus to first card if available
+	if(!cards.empty())
+	{
+		setFocusToCard(0);
+	}
+}
+
+void QuickRecruitmentWindow::setFocusToCard(int index)
+{
+	if(index >= 0 && index < cards.size())
+	{
+		// Remove focus from previous card
+		if(focusedCardIndex >= 0 && focusedCardIndex < cards.size())
+		{
+			// Previous card loses focus automatically
+		}
+		
+		focusedCardIndex = index;
+		cards[focusedCardIndex]->setCardFocus();
+	}
+}
+
+void QuickRecruitmentWindow::keyPressed(EShortcut key)
+{
+	switch(key)
+	{
+		case EShortcut::GLOBAL_MOVE_FOCUS:
+			// Move to next card
+			if(focusedCardIndex < cards.size() - 1)
+			{
+				setFocusToCard(focusedCardIndex + 1);
+			}
+			else
+			{
+				// Move focus to buttons
+				if(focusedCardIndex >= 0 && focusedCardIndex < cards.size())
+				{
+					// Previous card loses focus automatically
+				}
+				focusedCardIndex = -1;
+				// TODO: Set focus to maxButton using FocusManager
+				AccessibilityManager::getInstance().announce("Buy All button");
+			}
+			break;
+			
+		case EShortcut::GLOBAL_MOVE_FOCUS_PREV:
+			// Move to previous card
+			if(focusedCardIndex > 0)
+			{
+				setFocusToCard(focusedCardIndex - 1);
+			}
+			else if(focusedCardIndex == -1 && !cards.empty())
+			{
+				// Move back from buttons to last card
+				setFocusToCard(cards.size() - 1);
+			}
+			break;
+			
+		default:
+			CWindowObject::keyPressed(key);
+			break;
+	}
+}
+
+void QuickRecruitmentWindow::show(Canvas & to)
+{
+	CWindowObject::show(to);
+	
+	// Draw focus indicator for focused card
+	if(focusedCardIndex >= 0 && focusedCardIndex < cards.size())
+	{
+		// Visual focus indicator could be drawn here if needed
+		// For example, draw a highlight rectangle around the focused card
+	}
+}
+
+void QuickRecruitmentWindow::activate()
+{
+	CWindowObject::activate();
+	
+	// Set initial focus to first card if available
+	if(!cards.empty())
+	{
+		setFocusToCard(0);
+	}
 }

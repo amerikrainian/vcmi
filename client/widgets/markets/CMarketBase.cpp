@@ -16,6 +16,7 @@
 #include "../../GameEngine.h"
 #include "../../GameInstance.h"
 #include "../../gui/Shortcut.h"
+#include "../../gui/AccessibilityManager.h"
 #include "../../widgets/Buttons.h"
 #include "../../widgets/TextControls.h"
 
@@ -32,6 +33,8 @@ CMarketBase::CMarketBase(const IMarket * market, const CGHeroInstance * hero)
 	: market(market)
 	, hero(hero)
 {
+	// Enable keyboard navigation for the market window
+	addUsedEvents(KEYBOARD);
 }
 
 void CMarketBase::deselect()
@@ -118,6 +121,26 @@ void CMarketBase::highlightingChanged()
 {
 	offerTradePanel->update();
 	updateShowcases();
+	
+	// Announce trade information to screen reader
+	if(bidTradePanel->isHighlighted() && offerTradePanel->isHighlighted())
+	{
+		const auto params = getShowcasesParams();
+		std::string announcement;
+		
+		if(params.bidParams.has_value() && params.offerParams.has_value())
+		{
+			announcement = "Trading " + params.bidParams.value().text + " for " + params.offerParams.value().text;
+			
+			// Add ratio information
+			if(bidQty > 0 && offerQty > 0)
+			{
+				announcement += ". Exchange rate: " + std::to_string(bidQty) + " to " + std::to_string(offerQty);
+			}
+			
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
+	}
 }
 
 CExperienceAltar::CExperienceAltar()
@@ -197,11 +220,26 @@ CMarketSlider::CMarketSlider(const CSlider::SliderMovingFunctor & movingCallback
 	OBJECT_CONSTRUCTION;
 
 	offerSlider = std::make_shared<CSlider>(Point(230, 489), 137, movingCallback, 0, 0, 0, Orientation::HORIZONTAL);
+	
+	// Set accessibility info for the trade amount slider
+	UIAccessibilityInfo sliderAccessInfo;
+	sliderAccessInfo.role = "slider";
+	sliderAccessInfo.name = "Trade Amount";
+	sliderAccessInfo.description = "Use left/right arrow keys to adjust trade amount";
+	offerSlider->setAccessibilityInfo(sliderAccessInfo);
+	
 	maxAmount = std::make_shared<CButton>(Point(228, 520), AnimationPath::builtin("IRCBTNS.DEF"), LIBRARY->generaltexth->zelp[596],
 		[this]()
 		{
 			offerSlider->scrollToMax();
 		}, EShortcut::MARKET_MAX_AMOUNT);
+		
+	// Set accessibility info for max amount button
+	UIAccessibilityInfo maxAccessInfo;
+	maxAccessInfo.role = "button";
+	maxAccessInfo.name = "Maximum Amount";
+	maxAccessInfo.description = "Set trade amount to maximum available";
+	maxAmount->setAccessibilityInfo(maxAccessInfo);
 }
 
 void CMarketSlider::deselect()
@@ -237,6 +275,9 @@ void CMarketTraderText::deselect()
 void CMarketTraderText::makeDeal()
 {
 	madeTransaction = true;
+	
+	// Announce successful trade to screen reader
+	AccessibilityManager::getInstance().announce("Trade completed successfully", true);
 }
 
 void CMarketTraderText::highlightingChanged()

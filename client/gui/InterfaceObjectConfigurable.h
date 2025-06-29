@@ -48,6 +48,7 @@ protected:
 	void addShortcut(EShortcut shortcut, std::function<void()> callback);
 
 	void keyPressed(EShortcut key) override;
+	bool captureThisKey(EShortcut key) override;
 
 	using BuilderFunction = std::function<std::shared_ptr<CIntObject>(const JsonNode &)>;
 	void registerBuilder(const std::string &, BuilderFunction);

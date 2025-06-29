@@ -15,6 +15,7 @@
 #include "MapViewCache.h"
 #include "MapViewController.h"
 #include "MapViewModel.h"
+#include "MapCursor.h"
 #include "mapHandler.h"
 
 #include "../CPlayerInterface.h"
@@ -25,6 +26,7 @@
 #include "../render/Canvas.h"
 #include "../render/IImage.h"
 #include "../eventsSDL/InputHandler.h"
+#include "../gui/Shortcut.h"
 
 #include "../../lib/callback/CCallback.h"
 #include "../../lib/CConfigHandler.h"
@@ -93,12 +95,21 @@ void MapView::tick(uint32_t msPassed)
 		postSwipe(msPassed);
 
 	BasicMapView::tick(msPassed);
+	
+	if (cursor)
+		cursor->tick(msPassed);
 }
 
 void MapView::show(Canvas & to)
 {
 	actions->setContext(controller->getContext());
 	BasicMapView::show(to);
+	
+	if (cursor && cursor->isActive())
+	{
+		CanvasClipRectGuard guard(to, pos);
+		cursor->render(to);
+	}
 }
 
 MapView::MapView(const Point & offset, const Point & dimensions)
@@ -107,9 +118,14 @@ MapView::MapView(const Point & offset, const Point & dimensions)
 	OBJECT_CONSTRUCTION;
 	actions = std::make_shared<MapViewActions>(*this, model);
 	actions->setContext(controller->getContext());
+	
+	cursor = std::make_shared<MapCursor>(*this, model);
 
 	// catch min 6 frames
 	postSwipeCatchIntervalMs = std::max(100, static_cast<int>(6.0 * 1000.0 * (1.0 / settings["video"]["targetfps"].Float())));
+	
+	// Enable keyboard events
+	addUsedEvents(KEYBOARD);
 }
 
 void MapView::onMapLevelSwitched()
@@ -120,6 +136,14 @@ void MapView::onMapLevelSwitched()
 			controller->setViewCenter(model->getMapViewCenter(), 1);
 		else
 			controller->setViewCenter(model->getMapViewCenter(), 0);
+			
+		// Update cursor level if active
+		if (cursor && cursor->isActive())
+		{
+			int3 newPos = cursor->getCursorPosition();
+			newPos.z = model->getLevel();
+			cursor->setCursorPosition(newPos);
+		}
 	}
 }
 
@@ -224,4 +248,77 @@ PuzzleMapView::PuzzleMapView(const Point & offset, const Point & dimensions, con
 	controller->activatePuzzleMapContext(tileToCenter);
 	controller->setViewCenter(tileToCenter);
 
+}
+
+void MapView::keyPressed(EShortcut key)
+{
+	if (!cursor)
+		return;
+		
+	// Non-Ctrl key handling
+	if (cursor->isActive())
+	{
+		// Cursor is active, handle interaction keys
+		switch(key)
+		{
+		case EShortcut::GLOBAL_ACCEPT:
+		case EShortcut::GLOBAL_RETURN:
+		case EShortcut::ADVENTURE_VISIT_OBJECT:
+			// Interact with object at cursor position
+			cursor->interact();
+			break;
+			
+		case EShortcut::GLOBAL_CANCEL:
+			// Deactivate cursor
+			cursor->setActive(false);
+			break;
+			
+		default:
+			// Any other key deactivates cursor
+			cursor->setActive(false);
+			break;
+		}
+	}
+}
+
+bool MapView::captureThisKey(EShortcut key)
+{
+	// Check if Ctrl is held and this is an arrow key
+	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
+	
+	if (ctrlPressed && cursor)
+	{
+		switch(key)
+		{
+		case EShortcut::MOVE_LEFT:
+		case EShortcut::MOVE_RIGHT:
+		case EShortcut::MOVE_UP:
+		case EShortcut::MOVE_DOWN:
+			logGlobal->info("MapView::captureThisKey - Ctrl+Arrow key detected: %d", (int)key);
+			
+			// Handle cursor movement
+			if (!cursor->isActive())
+				cursor->setActive(true);
+			
+			// Move cursor based on key
+			switch(key)
+			{
+			case EShortcut::MOVE_LEFT:
+				cursor->moveCursor(Point(-1, 0));
+				break;
+			case EShortcut::MOVE_RIGHT:
+				cursor->moveCursor(Point(1, 0));
+				break;
+			case EShortcut::MOVE_UP:
+				cursor->moveCursor(Point(0, -1));
+				break;
+			case EShortcut::MOVE_DOWN:
+				cursor->moveCursor(Point(0, 1));
+				break;
+			}
+			return true; // Capture this key so it doesn't propagate
+		}
+	}
+	
+	return false;
 }

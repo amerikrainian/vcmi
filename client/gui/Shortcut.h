@@ -129,6 +129,10 @@ enum class EShortcut
 	ADVENTURE_TOGGLE_GRID,  // F6, Toggles map grid
 	ADVENTURE_TOGGLE_VISITABLE,  // Toggles visitable tiles overlay
 	ADVENTURE_TOGGLE_BLOCKED,  // Toggles blocked tiles overlay
+	ADVENTURE_SCROLL_LEFT,  // Scroll map view left
+	ADVENTURE_SCROLL_RIGHT, // Scroll map view right
+	ADVENTURE_SCROLL_UP,    // Scroll map view up
+	ADVENTURE_SCROLL_DOWN,  // Scroll map view down
 	ADVENTURE_TOGGLE_SLEEP, // Toggles hero sleep status
 	ADVENTURE_SET_HERO_ASLEEP, // Moves hero to sleep state
 	ADVENTURE_SET_HERO_AWAKE, // Move hero to awake state

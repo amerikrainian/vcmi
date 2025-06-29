@@ -539,6 +539,10 @@ void CSpellWindow::onVideoPlaybackFinished()
 
 void CSpellWindow::keyPressed(EShortcut key)
 {
+	// Don't handle Tab navigation keys - let the focus system process them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return;
+	
 	switch(key)
 	{
 		case EShortcut::GLOBAL_RETURN:

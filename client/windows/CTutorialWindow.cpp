@@ -21,6 +21,7 @@
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/Images.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/TextControls.h"
@@ -49,6 +50,28 @@ CTutorialWindow::CTutorialWindow(const TutorialMode & m)
 	buttonOk = std::make_shared<CButton>(Point(159, 367), AnimationPath::builtin("IOKAY"), CButton::tooltip(), std::bind(&CTutorialWindow::exit, this), EShortcut::GLOBAL_RETURN); //62x28
 	buttonLeft = std::make_shared<CButton>(Point(5, 217), AnimationPath::builtin("HSBTNS3"), CButton::tooltip(), std::bind(&CTutorialWindow::previous, this), EShortcut::MOVE_LEFT); //22x46
 	buttonRight = std::make_shared<CButton>(Point(352, 217), AnimationPath::builtin("HSBTNS5"), CButton::tooltip(), std::bind(&CTutorialWindow::next, this), EShortcut::MOVE_RIGHT); //22x46
+	
+	// Set accessibility info for window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.title"))
+		.withDescription(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.description")));
+	
+	// Set tab order for buttons
+	buttonLeft->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.previous"))
+		.withTabOrder(1));
+	
+	buttonRight->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.next"))
+		.withTabOrder(2));
+	
+	buttonOk->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.ok"))
+		.withTabOrder(3));
 
 	setContent();
 }
@@ -59,11 +82,25 @@ void CTutorialWindow::setContent()
 	auto video = VideoPath::builtin("tutorial/" + videos[page]);
 
 	videoPlayer = std::make_shared<VideoWidget>(Point(30, 120), video, false);
+	
+	// Exclude video widget from tab navigation
+	videoPlayer->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("video")
+		.withName(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.video." + videos[page]))
+		.withTabOrder(-1)); // -1 excludes from tab order
 
 	buttonLeft->block(page<1);
 	buttonRight->block(page>videos.size() - 2);
 
 	labelInformation->setText(LIBRARY->generaltexth->translate("vcmi.tutorialWindow.decription." + videos[page]));
+	
+	// Announce content change for screen readers
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = LIBRARY->generaltexth->translate("vcmi.tutorialWindow.video." + videos[page]) + ". ";
+		announcement += LIBRARY->generaltexth->translate("vcmi.tutorialWindow.decription." + videos[page]);
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }
 
 void CTutorialWindow::openWindowFirstTime(const TutorialMode & m)
@@ -101,4 +138,18 @@ void CTutorialWindow::previous()
 	setContent();
 	deactivate();
 	activate();
+}
+
+void CTutorialWindow::activate()
+{
+	CWindowObject::activate();
+	
+	// Announce initial content when window opens for the first time
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		// Give window announcement time to complete before announcing content
+		std::string announcement = LIBRARY->generaltexth->translate("vcmi.tutorialWindow.video." + videos[page]) + ". ";
+		announcement += LIBRARY->generaltexth->translate("vcmi.tutorialWindow.decription." + videos[page]);
+		AccessibilityManager::getInstance().announce(announcement, false);
+	}
 }

@@ -24,6 +24,7 @@
 #include "../gui/CursorHandler.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../widgets/CComponent.h"
 #include "../widgets/CGarrisonInt.h"
@@ -462,6 +463,15 @@ CTavernWindow::CTavernWindow(const CGObjectInstance * TavernObj, const std::func
 {
 	OBJECT_CONSTRUCTION;
 
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(LIBRARY->generaltexth->jktexts[37]) // "Tavern"
+		.withDescription(LIBRARY->generaltexth->tavernInfo[6])); // Tavern description
+
+	// Enable keyboard navigation for this window
+	addUsedEvents(KEYBOARD);
+
 	std::vector<const CGHeroInstance*> h = GAME->interface()->cb->getAvailableHeroes(TavernObj);
 	if(h.size() < 2)
 		h.resize(2, nullptr);
@@ -477,6 +487,14 @@ CTavernWindow::CTavernWindow(const CGObjectInstance * TavernObj, const std::func
 	h1 = std::make_shared<HeroPortrait>(selected, 0, 72, 299, h[0], [this]() { if(!recruit->isBlocked()) recruitb(); });
 	h2 = std::make_shared<HeroPortrait>(selected, 1, 162, 299, h[1], [this]() { if(!recruit->isBlocked()) recruitb(); });
 
+	// Set tab order for hero portraits
+	if(h[0])
+		h1->setAccessibilityInfo(h1->getAccessibilityInfo() ? *h1->getAccessibilityInfo() : UIAccessibilityInfo() 
+			.withTabOrder(1));
+	if(h[1])
+		h2->setAccessibilityInfo(h2->getAccessibilityInfo() ? *h2->getAccessibilityInfo() : UIAccessibilityInfo() 
+			.withTabOrder(2));
+
 	title = std::make_shared<CLabel>(197, 32, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[37]);
 	cost = std::make_shared<CLabel>(320, 328, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, std::to_string(GameConstants::HERO_GOLD_COST));
 	heroDescription = std::make_shared<CTextBox>("", Rect(30, 373, 233, 35), 0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
@@ -488,6 +506,20 @@ CTavernWindow::CTavernWindow(const CGObjectInstance * TavernObj, const std::func
 	cancel = std::make_shared<CButton>(Point(310, 428), AnimationPath::builtin("ICANCEL.DEF"), CButton::tooltip(LIBRARY->generaltexth->tavernInfo[7]), std::bind(&CTavernWindow::close, this), EShortcut::GLOBAL_CANCEL);
 	recruit = std::make_shared<CButton>(Point(272, 355), AnimationPath::builtin("TPTAV01.DEF"), CButton::tooltip(), std::bind(&CTavernWindow::recruitb, this), EShortcut::GLOBAL_ACCEPT);
 	thiefGuild = std::make_shared<CButton>(Point(22, 428), AnimationPath::builtin("TPTAV02.DEF"), CButton::tooltip(LIBRARY->generaltexth->tavernInfo[5]), std::bind(&CTavernWindow::thievesguildb, this), EShortcut::ADVENTURE_THIEVES_GUILD);
+
+	// Set tab order for buttons
+	recruit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->tavernInfo[8]) // "Recruit Hero"
+		.withTabOrder(3));
+	thiefGuild->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->tavernInfo[5]) // "Thieves' Guild"
+		.withTabOrder(4));
+	cancel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->tavernInfo[7]) // "Cancel"
+		.withTabOrder(5));
 
 	if(!GAME->interface()->makingTurn)
 	{
@@ -561,6 +593,13 @@ void CTavernWindow::addInvite()
 		inviteHero = std::make_shared<CLabel>(170, 444, EFonts::FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->translate("vcmi.tavernWindow.inviteHero"));
 		inviteHeroImage = std::make_shared<CAnimImage>(AnimationPath::builtin("PortraitsSmall"), imageIndex, 0, 245, 428);
 		inviteHeroImageArea = std::make_shared<LRClickableArea>(Rect(245, 428, 48, 32), [this](){ ENGINE->windows().createAndPushWindow<HeroSelector>(inviteableHeroes, [this](CGHeroInstance* h){ heroToInvite = h; addInvite(); }); }, [this](){ ENGINE->windows().createAndPushWindow<CRClickPopupInt>(std::make_shared<CHeroWindow>(heroToInvite)); });
+		
+		// Set accessibility info for invite hero area
+		inviteHeroImageArea->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(LIBRARY->generaltexth->translate("vcmi.tavernWindow.inviteHero"))
+			.withDescription(heroToInvite ? heroToInvite->getNameTranslated() : LIBRARY->generaltexth->translate("vcmi.tavernWindow.randomHero"))
+			.withTabOrder(6));
 	}
 }
 
@@ -586,6 +625,23 @@ void CTavernWindow::close()
 	CStatusbarWindow::close();
 }
 
+void CTavernWindow::keyPressed(EShortcut key)
+{
+	// Don't handle Tab navigation keys - let the focus system process them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return;
+
+	// Handle arrow keys to switch between heroes
+	if(key == EShortcut::MOVE_LEFT || key == EShortcut::MOVE_RIGHT)
+	{
+		if(h1 && h1->h && h2 && h2->h)
+		{
+			selected = 1 - selected; // Toggle between 0 and 1
+			redraw();
+		}
+	}
+}
+
 void CTavernWindow::show(Canvas & to)
 {
 	CWindowObject::show(to);
@@ -605,6 +661,20 @@ void CTavernWindow::show(Canvas & to)
 			if (!recruit->isBlocked())
 				recruit->addHoverText(EButtonState::NORMAL, boost::str(boost::format(LIBRARY->generaltexth->tavernInfo[3]) % sel->h->getNameTranslated() % sel->h->getClassNameTranslated()));
 
+			// Announce hero selection change to screen reader
+			if(sel->h)
+			{
+				std::string announcement = boost::str(boost::format(LIBRARY->generaltexth->tavernInfo[4]) % sel->h->getNameTranslated()) + ". " + sel->description;
+				AccessibilityManager::getInstance().announce(announcement, true);
+			}
+
+			// Update accessibility state for hero portraits
+			if(h1 && h1->h)
+				h1->setAccessibilityInfo(h1->getAccessibilityInfo() ? *h1->getAccessibilityInfo() : UIAccessibilityInfo()
+					.withState(selected == 0 ? "selected" : ""));
+			if(h2 && h2->h)
+				h2->setAccessibilityInfo(h2->getAccessibilityInfo() ? *h2->getAccessibilityInfo() : UIAccessibilityInfo()
+					.withState(selected == 1 ? "selected" : ""));
 		}
 
 		to.drawBorder(Rect::createAround(sel->pos, 2), Colors::BRIGHT_YELLOW, 2);
@@ -615,6 +685,43 @@ void CTavernWindow::HeroPortrait::clickPressed(const Point & cursorPosition)
 {
 	if(h)
 		*_sel = _id;
+}
+
+void CTavernWindow::HeroPortrait::keyPressed(EShortcut key)
+{
+	// Handle Enter/Space to select hero
+	if(h && (key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::GLOBAL_RETURN))
+	{
+		clickPressed(Point());
+		if(onChoose)
+			onChoose();
+	}
+}
+
+bool CTavernWindow::HeroPortrait::isFocusable() const
+{
+	return h != nullptr;
+}
+
+void CTavernWindow::HeroPortrait::onFocusGained()
+{
+	if(h)
+	{
+		// Select this hero when it gains focus
+		*_sel = _id;
+		// Announce to screen reader
+		AccessibilityManager::getInstance().announceElement(this);
+	}
+}
+
+void CTavernWindow::HeroPortrait::showAll(Canvas & to)
+{
+	CIntObject::showAll(to);
+	// Draw focus indicator when focused
+	if(hasFocus() && h)
+	{
+		to.drawBorder(Rect::createAround(pos, 1), Colors::CYAN, 1);
+	}
 }
 
 void CTavernWindow::HeroPortrait::clickDouble(const Point & cursorPosition)
@@ -635,7 +742,7 @@ void CTavernWindow::HeroPortrait::showPopupWindow(const Point & cursorPosition)
 }
 
 CTavernWindow::HeroPortrait::HeroPortrait(int & sel, int id, int x, int y, const CGHeroInstance * H, std::function<void()> OnChoose)
-	: CIntObject(LCLICK | DOUBLECLICK | SHOW_POPUP | HOVER),
+	: CIntObject(LCLICK | DOUBLECLICK | SHOW_POPUP | HOVER | KEYBOARD),
 	h(H), _sel(&sel), _id(id), onChoose(OnChoose)
 {
 	OBJECT_CONSTRUCTION;
@@ -662,6 +769,14 @@ CTavernWindow::HeroPortrait::HeroPortrait(int & sel, int id, int x, int y, const
 		boost::algorithm::replace_first(description, "%d", std::to_string(artifs));
 
 		portrait = std::make_shared<CAnimImage>(AnimationPath::builtin("portraitsLarge"), h->getIconIndex());
+
+		// Set accessibility info for hero portrait
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(hoverName)
+			.withDescription(description)
+			.withState(*_sel == _id ? "selected" : "")
+			.withTabOrder(-1)); // Tab order will be set by parent
 	}
 }
 
@@ -669,7 +784,14 @@ void CTavernWindow::HeroPortrait::hover(bool on)
 {
 	//Hoverable::hover(on);
 	if(on)
+	{
 		ENGINE->statusbar()->write(hoverName);
+		// Announce hero info to screen reader when hovering
+		if(h && AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			AccessibilityManager::getInstance().announce(hoverName + ". " + description);
+		}
+	}
 	else
 		ENGINE->statusbar()->clear();
 }
@@ -678,6 +800,15 @@ CTavernWindow::HeroSelector::HeroSelector(std::map<HeroTypeID, CGHeroInstance*> 
 	: CWindowObject(BORDERED), inviteableHeroes(InviteableHeroes), onChoose(OnChoose)
 {
 	OBJECT_CONSTRUCTION;
+
+	// Enable keyboard navigation
+	addUsedEvents(KEYBOARD);
+
+	// Set accessibility info for hero selector
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName(LIBRARY->generaltexth->translate("vcmi.tavernWindow.inviteHero"))
+		.withDescription(LIBRARY->generaltexth->translate("vcmi.tavernWindow.selectHeroToInvite")));
 
 	pos = Rect(
 		pos.x,
@@ -693,6 +824,12 @@ CTavernWindow::HeroSelector::HeroSelector(std::map<HeroTypeID, CGHeroInstance*> 
 		slider = std::make_shared<CSlider>(Point(pos.w - 16, 0), pos.h, std::bind(&CTavernWindow::HeroSelector::sliderMove, this, _1), MAX_LINES, std::ceil((double)inviteableHeroes.size() / ELEM_PER_LINES), 0, Orientation::VERTICAL, CSlider::BROWN);
 		slider->setPanningStep(32);
 		slider->setScrollBounds(Rect(-pos.w + slider->pos.w, 0, pos.w, pos.h));
+
+		// Set accessibility info for slider
+		slider->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("slider")
+			.withName(LIBRARY->generaltexth->translate("vcmi.tavernWindow.heroListScroll"))
+			.withValue(std::to_string(slider->getValue()) + " / " + std::to_string((int)std::ceil((double)inviteableHeroes.size() / ELEM_PER_LINES))));
 	}
 
 	recreate();
@@ -705,6 +842,18 @@ void CTavernWindow::HeroSelector::sliderMove(int slidPos)
 		return; // ignore spurious call when slider is being created
 	recreate();
 	redraw();
+
+	// Update slider accessibility value
+	if(slider)
+	{
+		slider->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("slider")
+			.withName(LIBRARY->generaltexth->translate("vcmi.tavernWindow.heroListScroll"))
+			.withValue(std::to_string(slidPos) + " / " + std::to_string((int)std::ceil((double)inviteableHeroes.size() / ELEM_PER_LINES))));
+		
+		// Announce the change
+		AccessibilityManager::getInstance().announce(LIBRARY->generaltexth->translate("vcmi.tavernWindow.scrolledToLine") + " " + std::to_string(slidPos + 1), true);
+	}
 }
 
 void CTavernWindow::HeroSelector::recreate()
@@ -731,6 +880,44 @@ void CTavernWindow::HeroSelector::recreate()
 		}
 		else
 			x++;
+	}
+}
+
+void CTavernWindow::HeroSelector::keyPressed(EShortcut key) 
+{
+	// Handle arrow keys for slider navigation
+	if(slider)
+	{
+		int currentValue = slider->getValue();
+		int maxValue = (int)std::ceil((double)inviteableHeroes.size() / ELEM_PER_LINES) - MAX_LINES;
+		
+		switch(key)
+		{
+		case EShortcut::MOVE_UP:
+			if(currentValue > 0)
+			{
+				slider->scrollTo(currentValue - 1);
+				sliderMove(currentValue - 1);
+			}
+			break;
+		case EShortcut::MOVE_DOWN:
+			if(currentValue < maxValue)
+			{
+				slider->scrollTo(currentValue + 1);
+				sliderMove(currentValue + 1);
+			}
+			break;
+		case EShortcut::MOVE_FIRST:
+			slider->scrollTo(0);
+			sliderMove(0);
+			break;
+		case EShortcut::MOVE_LAST:
+			slider->scrollTo(maxValue);
+			sliderMove(maxValue);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
@@ -1708,6 +1895,10 @@ void CObjectListWindow::changeSelection(size_t which)
 
 void CObjectListWindow::keyPressed(EShortcut key)
 {
+	// Don't handle Tab navigation keys - let the focus system process them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return;
+	
 	int sel = static_cast<int>(selected);
 
 	switch(key)

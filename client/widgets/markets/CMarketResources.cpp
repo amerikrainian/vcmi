@@ -37,6 +37,13 @@ CMarketResources::CMarketResources(const IMarket * market, const CGHeroInstance 
 	labels.emplace_back(std::make_shared<CLabel>(titlePos.x, titlePos.y, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->allTexts[158]));
 	deal = std::make_shared<CButton>(dealButtonPosWithSlider, AnimationPath::builtin("TPMRKB.DEF"),
 		LIBRARY->generaltexth->zelp[595], [this]() {CMarketResources::makeDeal(); }, EShortcut::MARKET_DEAL);
+	
+	// Set accessibility info for deal button
+	UIAccessibilityInfo dealAccessInfo;
+	dealAccessInfo.role = "button";
+	dealAccessInfo.name = "Make Trade";
+	dealAccessInfo.description = "Complete the resource exchange";
+	deal->setAccessibilityInfo(dealAccessInfo);
 
 	// Player's resources
 	assert(bidTradePanel);

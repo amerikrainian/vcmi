@@ -24,6 +24,7 @@
 
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../eventsSDL/InputHandler.h"
 #include "../media/IMusicPlayer.h"
 #include "../media/ISoundPlayer.h"
@@ -82,9 +83,20 @@ CBuildingRect::CBuildingRect(CCastleBuildings * Par, const CGTownInstance * Town
 	  area(nullptr),
 	  stateTimeCounter(BUILD_ANIMATION_FINISHED_TIMEPOINT)
 {
-	addUsedEvents(LCLICK | SHOW_POPUP | MOVE | HOVER | TIME);
+	addUsedEvents(LCLICK | SHOW_POPUP | MOVE | HOVER | TIME | KEYBOARD);
 	pos.x += str->pos.x;
 	pos.y += str->pos.y;
+	
+	// Set accessibility info for the building
+	if(str->building)
+	{
+		auto building = getBuilding();
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(building->getNameTranslated())
+			.withDescription("Building: " + building->getDescriptionTranslated())
+			.withTabOrder(str->pos.z)); // Use z-order as tab order
+	}
 
 	// special animation frame manipulation for castle shipyard with and without ship
 	// done due to .def used in special way, not to animate building - first image is for shipyard without citadel moat, 2nd image is for including moat
@@ -277,6 +289,33 @@ bool CBuildingRect::receiveEvent(const Point & position, int eventType) const
 	return CIntObject::receiveEvent(position, eventType);
 }
 
+void CBuildingRect::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT && area && parent->selectedBuilding == this)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT && area)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
+void CBuildingRect::onFocusGained()
+{
+	hover(true);
+}
+
+void CBuildingRect::onFocusLost()
+{
+	hover(false);
+}
+
+bool CBuildingRect::isFocusable() const
+{
+	return area != nullptr && str->building != nullptr;
+}
+
 CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstance * Town, int level)
 	: CWindowObject(RCLICK_POPUP, ImagePath::builtin("CRTOINFO"), Point(centerX, centerY))
 {
@@ -284,6 +323,14 @@ CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstanc
 	background->setPlayerColor(Town->tempOwner);
 
 	const CCreature * creature = Town->creatures.at(level).second.back().toCreature();
+	
+	// Set accessibility info for the dialog
+	std::string dwellingName = Town->getTown()->buildings.at(BuildingID::getDwellingFromLevel(level, 0))->getNameTranslated();
+	std::string dialogDescription = "Dwelling information: " + dwellingName + " with " + creature->getNamePluralTranslated();
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(dwellingName + " Information")
+		.withDescription(dialogDescription));
 
 	title = std::make_shared<CLabel>(80, 30, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, creature->getNamePluralTranslated());
 	animation = std::make_shared<CCreaturePic>(30, 44, creature, true, true);
@@ -292,6 +339,21 @@ CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstanc
 	available = std::make_shared<CLabel>(80,190, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->allTexts[217] + text);
 	costPerTroop = std::make_shared<CLabel>(80, 227, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->allTexts[346]);
 
+	// Set accessibility info for labels
+	available->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName("Available creatures")
+		.withDescription(LIBRARY->generaltexth->allTexts[217] + text));
+		
+	costPerTroop->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName("Cost per creature")
+		.withDescription(LIBRARY->generaltexth->allTexts[346]));
+
+	// Build cost information string for accessibility
+	std::string costDescription = "Cost per " + creature->getNameSingularTranslated() + ": ";
+	std::vector<std::string> costParts;
+
 	for(int i = 0; i<GameConstants::RESOURCE_QUANTITY; i++)
 	{
 		auto res = static_cast<EGameResID>(i);
@@ -299,7 +361,18 @@ CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstanc
 		{
 			resPicture.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("RESOURCE"), i, 0, 0, 0));
 			resAmount.push_back(std::make_shared<CLabel>(0,0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, std::to_string(creature->getRecruitCost(res))));
+			
+			// Add to cost description for accessibility
+			costParts.push_back(std::to_string(creature->getRecruitCost(res)) + " " + LIBRARY->generaltexth->restypes[i]);
 		}
+	}
+	
+	// Join cost parts for full description
+	if(!costParts.empty())
+	{
+		costDescription += costParts[0];
+		for(size_t i = 1; i < costParts.size(); i++)
+			costDescription += ", " + costParts[i];
 	}
 
 	int posY = 238;
@@ -310,9 +383,20 @@ CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstanc
 		resAmount[i]->moveBy(Point(posX+16, posY+43));
 		posX += 50;
 	}
+	
+	// Announce dialog opening to screen reader
+	AccessibilityManager::getInstance().announce(dialogDescription + ". " + LIBRARY->generaltexth->allTexts[217] + text + ". " + costDescription, true);
 }
 
 CDwellingInfoBox::~CDwellingInfoBox() = default;
+
+void CDwellingInfoBox::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_CANCEL || key == EShortcut::GLOBAL_RETURN)
+	{
+		close();
+	}
+}
 
 CHeroGSlot::CHeroGSlot(int x, int y, int updown, const CGHeroInstance * h, HeroSlots * Owner)
 {
@@ -336,7 +420,7 @@ CHeroGSlot::CHeroGSlot(int x, int y, int updown, const CGHeroInstance * h, HeroS
 
 	set(h);
 
-	addUsedEvents(LCLICK | SHOW_POPUP | GESTURE | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | GESTURE | HOVER | KEYBOARD);
 }
 
 CHeroGSlot::~CHeroGSlot() = default;
@@ -567,6 +651,33 @@ void CHeroGSlot::setHighlight(bool on)
 	}
 }
 
+void CHeroGSlot::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
+void CHeroGSlot::onFocusGained()
+{
+	hover(true);
+}
+
+void CHeroGSlot::onFocusLost()
+{
+	hover(false);
+}
+
+bool CHeroGSlot::isFocusable() const
+{
+	return true; // Hero slots are always focusable even if empty
+}
+
 void CHeroGSlot::set(const CGHeroInstance * newHero)
 {
 	OBJECT_CONSTRUCTION;
@@ -581,11 +692,35 @@ void CHeroGSlot::set(const CGHeroInstance * newHero)
 	{
 		portrait->visible = true;
 		portrait->setFrame(newHero->getIconIndex());
+		
+		// Set accessibility info for hero slot
+		std::string slotType = upg ? "Visiting hero" : "Garrisoned hero";
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(slotType + ": " + newHero->getNameTranslated())
+			.withDescription("Hero " + newHero->getNameTranslated() + " is in the " + (upg ? "visiting" : "garrison") + " slot")
+			.withTabOrder(upg ? 21 : 20));
 	}
 	else if(!upg && owner->showEmpty) //up garrison
 	{
 		flag->visible = true;
 		flag->setFrame(GAME->interface()->castleInt->town->getOwner().getNum());
+		
+		// Set accessibility info for empty slot
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Empty garrison slot")
+			.withDescription("No hero in garrison")
+			.withTabOrder(20));
+	}
+	else
+	{
+		// Set accessibility info for empty slot (visiting)
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Empty visiting slot")
+			.withDescription("No visiting hero")
+			.withTabOrder(21));
 	}
 }
 
@@ -1264,7 +1399,7 @@ CCreaInfo::CCreaInfo(Point position, const CGTownInstance * Town, int Level, boo
 		level = -1;
 		return;//No creature
 	}
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 
 	creature = town->creatures[level].second.back();
 
@@ -1289,6 +1424,21 @@ CCreaInfo::CCreaInfo(Point position, const CGTownInstance * Town, int Level, boo
 		pos.w = 48;
 		pos.h = 48;
 	}
+	
+	// Set accessibility info for creature info
+	auto creatureObj = creature.toEntity(LIBRARY);
+	std::string creatureName = creatureObj->getNamePluralTranslated();
+	std::string description;
+	if(showAvailable)
+		description = "Available: " + std::to_string(town->creatures[level].first) + " " + creatureName;
+	else
+		description = "Weekly growth: " + std::to_string(town->creatureGrowth(level)) + " " + creatureName;
+	
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(creatureName + " dwelling")
+		.withDescription(description)
+		.withTabOrder(30 + level));
 }
 
 void CCreaInfo::update()
@@ -1362,6 +1512,33 @@ bool CCreaInfo::getShowAvailable()
 	return showAvailable;
 }
 
+void CCreaInfo::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
+void CCreaInfo::onFocusGained()
+{
+	hover(true);
+}
+
+void CCreaInfo::onFocusLost()
+{
+	hover(false);
+}
+
+bool CCreaInfo::isFocusable() const
+{
+	return level != -1; // Only focusable if there's a creature
+}
+
 CTownInfo::CTownInfo(int posX, int posY, const CGTownInstance * Town, bool townHall)
 	: town(Town),
 	building(nullptr)
@@ -1419,6 +1596,12 @@ CCastleInterface::CCastleInterface(const CGTownInstance * Town, const CGTownInst
 	GAME->interface()->castleInt = this;
 	addUsedEvents(KEYBOARD);
 
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName(town->getNameTranslated() + " - Town Screen")
+		.withDescription("Town management interface for " + town->getNameTranslated()));
+
 	builds = std::make_shared<CCastleBuildings>(town);
 	panel = std::make_shared<CPicture>(ImagePath::builtin("TOWNSCRN"), 0, builds->pos.h);
 	panel->setPlayerColor(GAME->interface()->playerID);
@@ -1437,9 +1620,19 @@ CCastleInterface::CCastleInterface(const CGTownInstance * Town, const CGTownInst
 
 	exit = std::make_shared<CButton>(Point(744, 544), AnimationPath::builtin("TSBTNS"), CButton::tooltip(LIBRARY->generaltexth->tcommands[8]), [&](){close();}, EShortcut::GLOBAL_RETURN);
 	exit->setImageOrder(4, 5, 6, 7);
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Exit Town")
+		.withDescription("Close the town interface and return to adventure map")
+		.withTabOrder(100));
 
 	auto split = std::make_shared<CButton>(Point(744, 382), AnimationPath::builtin("TSBTNS"), CButton::tooltip(LIBRARY->generaltexth->tcommands[3]), [this]() { garr->splitClick(); }, EShortcut::HERO_ARMY_SPLIT);
 	garr->addSplitBtn(split);
+	split->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Split Army")
+		.withDescription("Split selected stack in garrison")
+		.withTabOrder(90));
 
 	Rect barRect(9, 182, 732, 18);
 	auto statusbarBackground = std::make_shared<CPicture>(panel->getSurface(), barRect, 9, 555);
@@ -1554,12 +1747,28 @@ void CCastleInterface::recreateIcons()
 
 	fastTownHall = std::make_shared<CButton>(Point(80, 413), AnimationPath::builtin("castleInterfaceQuickAccess"), CButton::tooltip(), [this](){ builds->enterTownHall(); }, EShortcut::TOWN_OPEN_HALL);
 	fastTownHall->setOverlay(std::make_shared<CAnimImage>(AnimationPath::builtin("ITMTL"), town->hallLevel()));
+	fastTownHall->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Town Hall")
+		.withDescription("Open town hall to build structures")
+		.withTabOrder(10));
 
 	int imageIndex = town->fortLevel() == CGTownInstance::EFortLevel::NONE ? 3 : town->fortLevel() - 1;
 	fastArmyPurchase = std::make_shared<CButton>(Point(122, 413), AnimationPath::builtin("castleInterfaceQuickAccess"), CButton::tooltip(), [this](){ builds->enterToTheQuickRecruitmentWindow(); }, EShortcut::TOWN_OPEN_RECRUITMENT);
 	fastArmyPurchase->setOverlay(std::make_shared<CAnimImage>(AnimationPath::builtin("itmcl"), imageIndex));
+	fastArmyPurchase->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Recruit Army")
+		.withDescription("Open quick recruitment window to hire creatures")
+		.withTabOrder(11));
 
 	fastMarket = std::make_shared<LRClickableArea>(Rect(163, 410, 64, 42), [this]() { builds->enterAnyMarket(); });
+	fastMarket->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Marketplace")
+		.withDescription("Open marketplace to trade resources")
+		.withTabOrder(12));
+		
 	fastTavern = std::make_shared<LRClickableArea>(Rect(15, 387, 58, 64), [&]()
 	{
 		if(town->hasBuilt(BuildingID::TAVERN))
@@ -1568,6 +1777,11 @@ void CCastleInterface::recreateIcons()
 		if(!town->getFaction()->getDescriptionTranslated().empty())
 			CRClickPopup::createAndPush(town->getFaction()->getDescriptionTranslated());
 	});
+	fastTavern->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Tavern")
+		.withDescription("Visit tavern to hire heroes or view faction information")
+		.withTabOrder(13));
 
 	creainfo.clear();
 
@@ -1584,6 +1798,10 @@ void CCastleInterface::recreateIcons()
 
 void CCastleInterface::keyPressed(EShortcut key)
 {
+	// Don't handle Tab navigation keys - let the focus system process them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return;
+	
 	switch(key)
 	{
 	case EShortcut::MOVE_UP:
@@ -1651,7 +1869,7 @@ CHallInterface::CBuildingBox::CBuildingBox(int x, int y, const CGTownInstance * 
 	building(Building)
 {
 	OBJECT_CONSTRUCTION;
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 	pos.x += x;
 	pos.y += y;
 	pos.w = 154;
@@ -1677,6 +1895,27 @@ CHallInterface::CBuildingBox::CBuildingBox(int x, int y, const CGTownInstance * 
 	//todo: add support for all possible states
 	if(state >= EBuildingState::BUILDING_ERROR)
 		state = EBuildingState::FORBIDDEN;
+	
+	// Set accessibility info
+	std::string stateDescription;
+	if(state == EBuildingState::ALLOWED)
+		stateDescription = "Available to build";
+	else if(state == EBuildingState::ALREADY_PRESENT)
+		stateDescription = "Already built";
+	else if(state == EBuildingState::CANT_BUILD_TODAY)
+		stateDescription = "Cannot build today";
+	else if(state == EBuildingState::NO_RESOURCES)
+		stateDescription = "Not enough resources";
+	else if(state == EBuildingState::PREREQUIRES || state == EBuildingState::MISSING_BASE)
+		stateDescription = "Prerequisites not met";
+	else
+		stateDescription = "Cannot be built";
+		
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(building->getNameTranslated())
+		.withDescription(building->getDescriptionTranslated() + ". Status: " + stateDescription)
+		.withTabOrder(y * 10 + x / 200)); // Order by row then column
 }
 
 void CHallInterface::CBuildingBox::hover(bool on)
@@ -1709,11 +1948,49 @@ void CHallInterface::CBuildingBox::showPopupWindow(const Point & cursorPosition)
 	ENGINE->windows().createAndPushWindow<CBuildWindow>(town,building,state,1);
 }
 
+void CHallInterface::CBuildingBox::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
+void CHallInterface::CBuildingBox::onFocusGained()
+{
+	hover(true);
+	// Visual indicator - brighten the header
+	// Note: CAnimImage doesn't have setAlpha method
+}
+
+void CHallInterface::CBuildingBox::onFocusLost()
+{
+	hover(false);
+	// Remove visual indicator
+	// Note: CAnimImage doesn't have setAlpha method
+}
+
+bool CHallInterface::CBuildingBox::isFocusable() const
+{
+	return true;
+}
+
 CHallInterface::CHallInterface(const CGTownInstance * Town):
 	CWindowObject(PLAYER_COLORED | BORDERED, Town->getTown()->clientInfo.hallBackground),
 	town(Town)
 {
 	OBJECT_CONSTRUCTION;
+
+	// Set accessibility info for the window
+	const auto& hallBuilding = town->getTown()->buildings.at(BuildingID(town->hallLevel()+BuildingID::VILLAGE_HALL));
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(hallBuilding->getNameTranslated())
+		.withDescription("Select buildings to construct in your town"));
 
 	resdatabar = std::make_shared<CMinorResDataBar>();
 	resdatabar->moveBy(pos.topLeft(), true);
@@ -1722,8 +1999,13 @@ CHallInterface::CHallInterface(const CGTownInstance * Town):
 	auto statusbarBackground = std::make_shared<CPicture>(background->getSurface(), barRect, 5, 556);
 	statusbar = CGStatusBar::create(statusbarBackground);
 
-	title = std::make_shared<CLabel>(399, 12, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, town->getTown()->buildings.at(BuildingID(town->hallLevel()+BuildingID::VILLAGE_HALL))->getNameTranslated());
+	title = std::make_shared<CLabel>(399, 12, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, hallBuilding->getNameTranslated());
 	exit = std::make_shared<CButton>(Point(748, 556), AnimationPath::builtin("TPMAGE1.DEF"), CButton::tooltip(LIBRARY->generaltexth->hcommands[8]), [&](){close();}, EShortcut::GLOBAL_RETURN);
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Close")
+		.withDescription("Close town hall window")
+		.withTabOrder(999)); // Last in tab order
 
 	auto & boxList = town->getTown()->clientInfo.hallSlots;
 	boxes.resize(boxList.size());
@@ -1920,6 +2202,13 @@ CFortScreen::CFortScreen(const CGTownInstance * town):
 	CWindowObject(PLAYER_COLORED | BORDERED, getBgName(town))
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Fort Screen")
+		.withDescription("Recruit creatures from " + town->getNameTranslated() + " dwellings"));
+	
 	ui32 fortSize = static_cast<ui32>(town->creatures.size());
 	if(fortSize > town->getTown()->creatures.size() && town->creatures.back().second.empty())
 		fortSize--;
@@ -1930,6 +2219,11 @@ CFortScreen::CFortScreen(const CGTownInstance * town):
 
 	std::string text = boost::str(boost::format(LIBRARY->generaltexth->fcommands[6]) % fortBuilding->getNameTranslated());
 	exit = std::make_shared<CButton>(Point(748, 556), AnimationPath::builtin("TPMAGE1"), CButton::tooltip(text), [&](){ close(); }, EShortcut::GLOBAL_RETURN);
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Close")
+		.withDescription("Close fort screen")
+		.withTabOrder(999));
 
 	std::vector<Point> positions =
 	{
@@ -1976,6 +2270,9 @@ CFortScreen::CFortScreen(const CGTownInstance * town):
 
 	auto statusbarBackground = std::make_shared<CPicture>(background->getSurface(), barRect, 4, 554);
 	statusbar = CGStatusBar::create(statusbarBackground);
+	
+	// Announce to screen reader when dialog opens
+	AccessibilityManager::getInstance().announce("Fort screen opened. " + std::to_string(fortSize) + " dwellings available for recruitment.", true);
 }
 
 ImagePath CFortScreen::getBgName(const CGTownInstance * town)
@@ -2011,9 +2308,9 @@ CFortScreen::RecruitArea::RecruitArea(int posX, int posY, const CGTownInstance *
 	pos.h = 126;
 
 	if(!town->creatures[level].second.empty())
-		addUsedEvents(LCLICK | HOVER);//Activate only if dwelling is present
+		addUsedEvents(LCLICK | HOVER | KEYBOARD);//Activate only if dwelling is present
 
-	addUsedEvents(SHOW_POPUP);
+	addUsedEvents(SHOW_POPUP | KEYBOARD);
 
 	icons = std::make_shared<CPicture>(ImagePath::builtin("TPCAINFO"), 261, 3);
 
@@ -2048,6 +2345,22 @@ CFortScreen::RecruitArea::RecruitArea(int posX, int posY, const CGTownInstance *
 		values.push_back(std::make_shared<LabeledValue>(sizes, LIBRARY->generaltexth->allTexts[193], LIBRARY->generaltexth->fcommands[4], getMyCreature()->valOfBonuses(BonusType::STACKS_SPEED)));
 		sizes.y+=20;
 		values.push_back(std::make_shared<LabeledValue>(sizes, LIBRARY->generaltexth->allTexts[194], LIBRARY->generaltexth->fcommands[5], town->creatureGrowth(level)));
+	}
+	
+	// Set accessibility info for recruit area
+	if(getMyCreature() != nullptr && getMyBuilding() != nullptr)
+	{
+		std::string creatureName = getMyCreature()->getNamePluralTranslated();
+		std::string buildingName = getMyBuilding()->getNameTranslated();
+		ui32 available = town->creatures[level].first;
+		
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(buildingName)
+			.withDescription("Level " + std::to_string(level + 1) + " dwelling: " + creatureName + 
+				". Available: " + std::to_string(available) + 
+				". Weekly growth: " + std::to_string(town->creatureGrowth(level)))
+			.withTabOrder(level + 1));
 	}
 }
 
@@ -2109,10 +2422,43 @@ void CFortScreen::RecruitArea::showPopupWindow(const Point & cursorPosition)
 		ENGINE->windows().createAndPushWindow<CStackWindow>(getMyCreature(), true);
 }
 
+void CFortScreen::RecruitArea::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
+void CFortScreen::RecruitArea::onFocusGained()
+{
+	hover(true);
+}
+
+void CFortScreen::RecruitArea::onFocusLost()
+{
+	hover(false);
+}
+
+bool CFortScreen::RecruitArea::isFocusable() const
+{
+	return !town->creatures[level].second.empty(); // Only focusable if dwelling is built
+}
+
 CMageGuildScreen::CMageGuildScreen(CCastleInterface * owner, const ImagePath & imagename)
 	: CWindowObject(BORDERED, imagename), townId(owner->town->id)
 {
 	OBJECT_CONSTRUCTION;
+
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Mage Guild")
+		.withDescription("View available spells in the mage guild"));
 
 	window = std::make_shared<CPicture>(owner->town->getTown()->clientInfo.guildWindow, 332, 76);
 
@@ -2125,6 +2471,11 @@ CMageGuildScreen::CMageGuildScreen(CCastleInterface * owner, const ImagePath & i
 	statusbar = CGStatusBar::create(statusbarBackground);
 
 	exit = std::make_shared<CButton>(Point(748, 556), AnimationPath::builtin("TPMAGE1.DEF"), CButton::tooltip(LIBRARY->generaltexth->allTexts[593]), [&](){ close(); }, EShortcut::GLOBAL_RETURN);
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Close")
+		.withDescription("Close mage guild window")
+		.withTabOrder(999)); // Last in tab order
 
 	updateSpells(townId);
 }
@@ -2169,10 +2520,17 @@ CMageGuildScreen::Scroll::Scroll(Point position, const CSpell *Spell, ObjectInst
 {
 	OBJECT_CONSTRUCTION;
 
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 	pos += position;
 	image = std::make_shared<CAnimImage>(AnimationPath::builtin("SPELLSCR"), spell->id.getNum());
 	pos = image->pos;
+	
+	// Set accessibility info for the spell scroll
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(spell->getNameTranslated())
+		.withDescription(spell->getDescriptionTranslated(0))
+		.withTabOrder(spell->getLevel() * 10 + spell->id.getNum())); // Order by level then spell ID
 }
 
 void CMageGuildScreen::Scroll::clickPressed(const Point & cursorPosition)
@@ -2248,7 +2606,37 @@ void CMageGuildScreen::Scroll::hover(bool on)
 		ENGINE->statusbar()->write(spell->getNameTranslated());
 	else
 		ENGINE->statusbar()->clear();
+}
 
+void CMageGuildScreen::Scroll::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
+void CMageGuildScreen::Scroll::onFocusGained()
+{
+	hover(true);
+	// Visual indicator - highlight the spell scroll
+	// Note: CAnimImage doesn't have setAlpha method
+}
+
+void CMageGuildScreen::Scroll::onFocusLost()
+{
+	hover(false);
+	// Remove visual indicator
+	// Note: CAnimImage doesn't have setAlpha method
+}
+
+bool CMageGuildScreen::Scroll::isFocusable() const
+{
+	return true;
 }
 
 CBlacksmithDialog::CBlacksmithDialog(bool possible, CreatureID creMachineID, ArtifactID aid, ObjectInstanceID hid):

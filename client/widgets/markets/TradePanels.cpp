@@ -15,6 +15,8 @@
 #include "../../render/Canvas.h"
 #include "../../widgets/TextControls.h"
 #include "../../windows/InfoWindows.h"
+#include "../../gui/AccessibilityManager.h"
+#include "../../gui/Shortcut.h"
 
 #include "../../CPlayerInterface.h"
 
@@ -35,12 +37,16 @@ CTradeableItem::CTradeableItem(const Rect & area, EType Type, int32_t ID, int32_
 	addUsedEvents(LCLICK);
 	addUsedEvents(HOVER);
 	addUsedEvents(SHOW_POPUP);
+	addUsedEvents(KEYBOARD);
 	
 	subtitle = std::make_shared<CLabel>(0, 0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
 	setType(Type);
 
 	this->pos.w = area.w;
 	this->pos.h = area.h;
+	
+	// Set up accessibility info for the tradeable item
+	updateAccessibilityInfo();
 }
 
 void CTradeableItem::setType(EType newType)
@@ -80,6 +86,9 @@ void CTradeableItem::setType(EType newType)
 			image->moveTo(pos.topLeft() + Point(13, 0));
 			break;
 		}
+		
+		// Update accessibility info when type changes
+		updateAccessibilityInfo();
 	}
 }
 
@@ -99,6 +108,9 @@ void CTradeableItem::setID(int32_t newID)
 				image->setFrame(index);
 			}
 		}
+		
+		// Update accessibility info when ID changes
+		updateAccessibilityInfo();
 	}
 }
 
@@ -151,7 +163,11 @@ int CTradeableItem::getIndex()
 void CTradeableItem::clickPressed(const Point & cursorPosition)
 {
 	if(clickPressedCallback)
+	{
 		clickPressedCallback(shared_from_this());
+		// Update accessibility info after selection changes
+		updateAccessibilityInfo();
+	}
 }
 
 void CTradeableItem::hover(bool on)
@@ -197,6 +213,85 @@ void CTradeableItem::showPopupWindow(const Point & cursorPosition)
 	}
 }
 
+void CTradeableItem::updateAccessibilityInfo()
+{
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "Tradeable Slot";
+	accessInfo.isAccessible = (id >= 0);
+	
+	if(id < 0)
+	{
+		accessInfo.name = "Empty slot";
+		accessInfo.state = "empty";
+	}
+	else
+	{
+		// Set name based on type
+		switch(type)
+		{
+		case EType::RESOURCE:
+			accessInfo.name = LIBRARY->generaltexth->restypes[id];
+			accessInfo.description = "Resource for trading";
+			break;
+		case EType::CREATURE:
+			accessInfo.name = LIBRARY->creh->objects[id]->getNamePluralTranslated();
+			accessInfo.description = "Creature for trading";
+			break;
+		case EType::ARTIFACT:
+		case EType::ARTIFACT_TYPE:
+			accessInfo.name = LIBRARY->artifacts()->getByIndex(id)->getNameTranslated();
+			accessInfo.description = LIBRARY->artifacts()->getByIndex(id)->getDescriptionTranslated();
+			break;
+		case EType::PLAYER:
+			accessInfo.name = LIBRARY->generaltexth->capColors[id];
+			accessInfo.description = "Player for resource transfer";
+			break;
+		}
+		
+		// Add quantity info if available
+		if(!subtitle->getText().empty())
+		{
+			accessInfo.value = "Quantity: " + subtitle->getText();
+		}
+		
+		// Add selection state
+		if(isSelected())
+		{
+			accessInfo.state = "selected";
+		}
+		else
+		{
+			accessInfo.state = "available";
+		}
+	}
+	
+	setAccessibilityInfo(accessInfo);
+}
+
+void CTradeableItem::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::SELECT_INDEX_1 || key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+}
+
+void CTradeableItem::onFocusGained()
+{
+	// Announce the item when focused
+	updateAccessibilityInfo();
+	AccessibilityManager::getInstance().announceElement(this);
+	
+	// Visual feedback
+	hover(true);
+}
+
+void CTradeableItem::onFocusLost()
+{
+	// Remove visual feedback
+	hover(false);
+}
+
 void TradePanelBase::update()
 {
 	if(deleteSlotsCheck)
@@ -227,6 +322,9 @@ void TradePanelBase::updateOffer(CTradeableItem & slot, int cost, int qty)
 		subtitle.append(std::to_string(cost));
 	}
 	slot.subtitle->setText(subtitle);
+	
+	// Update accessibility info with new quantity
+	slot.updateAccessibilityInfo();
 }
 
 void TradePanelBase::setShowcaseSubtitle(const std::string & text)
@@ -259,6 +357,126 @@ bool TradePanelBase::isHighlighted() const
 	return highlightedSlot != nullptr;
 }
 
+void TradePanelBase::keyPressed(EShortcut key)
+{
+	if(slots.empty())
+		return;
+	
+	// Find the number of columns based on the panel type
+	int columns = 3; // Default for most panels
+	if(dynamic_cast<const ArtifactsAltarPanel*>(this))
+		columns = 5; // Special case for artifact altar
+		
+	int currentIndex = focusedSlotIndex;
+	
+	// If no slot is focused, start with the first valid slot
+	if(currentIndex < 0)
+	{
+		for(int i = 0; i < slots.size(); i++)
+		{
+			if(slots[i]->id >= 0)
+			{
+				moveFocusToSlot(i);
+				return;
+			}
+		}
+		return;
+	}
+	
+	int newIndex = currentIndex;
+	
+	switch(key)
+	{
+		case EShortcut::MOVE_UP:
+			newIndex = currentIndex - columns;
+			break;
+		case EShortcut::MOVE_DOWN:
+			newIndex = currentIndex + columns;
+			break;
+		case EShortcut::MOVE_LEFT:
+			newIndex = currentIndex - 1;
+			break;
+		case EShortcut::MOVE_RIGHT:
+			newIndex = currentIndex + 1;
+			break;
+		case EShortcut::MOVE_FIRST:
+			newIndex = 0;
+			break;
+		case EShortcut::MOVE_LAST:
+			newIndex = slots.size() - 1;
+			break;
+		default:
+			return;
+	}
+	
+	// Wrap around horizontally
+	if(key == EShortcut::MOVE_LEFT && currentIndex % columns == 0)
+		newIndex = currentIndex + columns - 1;
+	else if(key == EShortcut::MOVE_RIGHT && (currentIndex + 1) % columns == 0)
+		newIndex = currentIndex - columns + 1;
+	
+	// Clamp to valid range
+	if(newIndex >= 0 && newIndex < slots.size())
+	{
+		moveFocusToSlot(newIndex);
+	}
+}
+
+void TradePanelBase::moveFocusToSlot(int newIndex)
+{
+	if(newIndex < 0 || newIndex >= slots.size())
+		return;
+		
+	// Remove focus from current slot
+	if(focusedSlotIndex >= 0 && focusedSlotIndex < slots.size())
+	{
+		slots[focusedSlotIndex]->setFocus(false);
+	}
+	
+	// Set focus to new slot
+	focusedSlotIndex = newIndex;
+	if(slots[focusedSlotIndex]->id >= 0) // Only focus valid slots
+	{
+		slots[focusedSlotIndex]->setFocus(true);
+		
+		// Announce the focused slot
+		AccessibilityManager::getInstance().announceElement(slots[focusedSlotIndex].get());
+	}
+	else
+	{
+		// Skip empty slots and find next valid one
+		int direction = (newIndex > focusedSlotIndex) ? 1 : -1;
+		for(int i = newIndex; i >= 0 && i < slots.size(); i += direction)
+		{
+			if(slots[i]->id >= 0)
+			{
+				focusedSlotIndex = i;
+				slots[focusedSlotIndex]->setFocus(true);
+				AccessibilityManager::getInstance().announceElement(slots[focusedSlotIndex].get());
+				break;
+			}
+		}
+	}
+}
+
+void TradePanelBase::setupKeyboardNavigation()
+{
+	// Enable keyboard events for the panel
+	addUsedEvents(KEYBOARD);
+	
+	// Set tab order for all slots
+	int tabOrder = 0;
+	for(auto & slot : slots)
+	{
+		if(slot->id >= 0) // Only assign tab order to valid slots
+		{
+			UIAccessibilityInfo info = slot->getAccessibilityInfo() ? *slot->getAccessibilityInfo() : UIAccessibilityInfo();
+			info.tabOrder = tabOrder++;
+			slot->setAccessibilityInfo(info);
+		}
+	}
+}
+
 ResourcesPanel::ResourcesPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback,
 	const UpdateSlotsFunctor & updateSubtitles)
 {
@@ -273,6 +491,7 @@ ResourcesPanel::ResourcesPanel(const CTradeableItem::ClickPressedFunctor & click
 	}
 	updateSlotsCallback = updateSubtitles;
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::RESOURCE, 0, 0);
+	setupKeyboardNavigation();
 }
 
 ArtifactsPanel::ArtifactsPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback,
@@ -296,6 +515,7 @@ ArtifactsPanel::ArtifactsPanel(const CTradeableItem::ClickPressedFunctor & click
 	updateSlotsCallback = updateSubtitles;
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::ARTIFACT_TYPE, 0, 0);
 	showcaseSlot->subtitle->moveBy(Point(0, 1));
+	setupKeyboardNavigation();
 }
 
 PlayersPanel::PlayersPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback)
@@ -321,6 +541,7 @@ PlayersPanel::PlayersPanel(const CTradeableItem::ClickPressedFunctor & clickPres
 		slotNum++;
 	}
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::PLAYER, 0, 0);
+	setupKeyboardNavigation();
 }
 
 CreaturesPanel::CreaturesPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback, const slotsData & initialSlots)
@@ -339,6 +560,7 @@ CreaturesPanel::CreaturesPanel(const CTradeableItem::ClickPressedFunctor & click
 		slot->setSelectionWidth(selectionWidth);
 	}
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::CREATURE, 0, 0);
+	setupKeyboardNavigation();
 }
 
 CreaturesPanel::CreaturesPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback,
@@ -356,6 +578,7 @@ CreaturesPanel::CreaturesPanel(const CTradeableItem::ClickPressedFunctor & click
 		slot->setSelectionWidth(selectionWidth);
 	}
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::CREATURE, 0, 0);
+	setupKeyboardNavigation();
 }
 
 ArtifactsAltarPanel::ArtifactsAltarPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback)

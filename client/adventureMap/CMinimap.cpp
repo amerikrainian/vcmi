@@ -12,6 +12,7 @@
 #include "CMinimap.h"
 
 #include "AdventureMapInterface.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../CPlayerInterface.h"
 #include "../GameEngine.h"
@@ -163,6 +164,15 @@ void CMinimap::gesturePanning(const Point & initialPosition, const Point & curre
 void CMinimap::clickPressed(const Point & cursorPosition)
 {
 	moveAdvMapSelection(cursorPosition);
+	
+	// Announce the new position for accessibility
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		int3 tile = pixelToTile(cursorPosition - pos.topLeft());
+		std::string announcement = "Minimap: moved to position " + 
+			std::to_string(tile.x) + ", " + std::to_string(tile.y);
+		AccessibilityManager::getInstance().announce(announcement, false);
+	}
 }
 
 void CMinimap::showPopupWindow(const Point & cursorPosition)

@@ -16,6 +16,7 @@
 #include "CMinimap.h"
 #include "CResDataBar.h"
 #include "AdventureState.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../GameEngine.h"
 #include "../GameInstance.h"
@@ -129,6 +130,14 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildInfobox(const JsonNode & in
 {
 	Rect area = readTargetArea(input["area"]);
 	infoBar = std::make_shared<CInfoBar>(area);
+	
+	// Add accessibility info
+	infoBar->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("panel")
+		.withName("Information bar")
+		.withDescription("Shows current selection, date, and notifications")
+		.withTabOrder(5));
+	
 	return infoBar;
 }
 
@@ -155,6 +164,15 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMapButton(const JsonNode & 
 
 	loadButtonBorderColor(button, input["borderColor"]);
 	loadButtonHotkey(button, input["hotkey"]);
+
+	// Add accessibility info based on button purpose
+	if (!input["accessibilityName"].isNull())
+	{
+		button->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(input["accessibilityName"].String())
+			.withDescription(help.second));
+	}
 
 	return button;
 }
@@ -207,6 +225,14 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMapGameArea(const JsonNode 
 {
 	Rect area = readTargetArea(input["area"]);
 	mapView = std::make_shared<MapView>(area.topLeft(), area.dimensions());
+	
+	// Add accessibility info
+	mapView->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("canvas")
+		.withName("Adventure map")
+		.withDescription("Main game map area. Use arrow keys to navigate")
+		.withTabOrder(1));
+	
 	return mapView;
 }
 
@@ -230,6 +256,13 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMapHeroList(const JsonNode 
 		result->setScrollDownButton(std::dynamic_pointer_cast<CButton>(buildMapButton(input["scrollDown"])));
 
 	subwidgetSizes.pop_back();
+
+	// Add accessibility info
+	result->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Hero list")
+		.withDescription("List of your heroes. Use up/down arrows to navigate")
+		.withTabOrder(2));
 
 	heroList = result;
 	return result;
@@ -264,6 +297,13 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMapTownList(const JsonNode 
 
 	subwidgetSizes.pop_back();
 
+	// Add accessibility info
+	result->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Town list")
+		.withDescription("List of your towns. Use up/down arrows to navigate")
+		.withTabOrder(3));
+
 	townList = result;
 	return result;
 }
@@ -272,6 +312,14 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMinimap(const JsonNode & in
 {
 	Rect area = readTargetArea(input["area"]);
 	minimap = std::make_shared<CMinimap>(area);
+	
+	// Add accessibility info
+	minimap->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("map")
+		.withName("Minimap")
+		.withDescription("Overview of the entire map. Click to move camera")
+		.withTabOrder(4));
+	
 	return minimap;
 }
 
@@ -293,6 +341,13 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildResourceDateBar(const JsonN
 	}
 
 	result->setDatePosition(Point(input["date"]["x"].Integer(), input["date"]["y"].Integer()));
+
+	// Add accessibility info
+	result->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("panel")
+		.withName("Resources and date")
+		.withDescription("Shows your resources and current date")
+		.withTabOrder(6));
 
 	return result;
 }
@@ -433,4 +488,20 @@ void AdventureMapWidget::updateActiveState()
 
 	for (auto entry: shortcuts->getShortcuts())
 		setShortcutBlocked(entry.shortcut, !entry.isEnabled);
+}
+
+bool AdventureMapWidget::captureThisKey(EShortcut key)
+{
+	// Check if MapView wants to capture this key
+	if (mapView && mapView->captureThisKey(key))
+		return true;
+		
+	// Check if any other child wants to capture the key
+	for (auto const & entry : children)
+	{
+		if (entry->captureThisKey(key))
+			return true;
+	}
+	
+	return false;
 }

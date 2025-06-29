@@ -71,6 +71,8 @@ public:
 
 	void onMapViewMoved(const Rect & visibleArea, int mapLevel);
 	void updateActiveState();
+	
+	bool captureThisKey(EShortcut key) override;
 };
 
 /// Small helper class that provides ownership for shared_ptr's of child elements

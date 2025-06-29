@@ -837,3 +837,15 @@ void InterfaceObjectConfigurable::keyPressed(EShortcut key)
 
 	target->second.callback();
 }
+
+bool InterfaceObjectConfigurable::captureThisKey(EShortcut key)
+{
+	// Check if any child widget wants to capture this key
+	for (auto const & entry : children)
+	{
+		if (entry->captureThisKey(key))
+			return true;
+	}
+	
+	return false;
+}

@@ -28,6 +28,7 @@
 #include "../gui/CursorHandler.h"
 #include "../GameEngine.h"
 #include "../GameInstance.h"
+#include "../eventsSDL/InputHandler.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
 #include "../render/Canvas.h"
@@ -49,6 +50,8 @@
 #include "../../lib/pathfinder/TurnInfo.h"
 #include "../../lib/spells/ISpellMechanics.h"
 #include "../../lib/spells/Problem.h"
+
+#include <SDL_keyboard.h>
 
 std::shared_ptr<AdventureMapInterface> adventureInt;
 
@@ -144,6 +147,16 @@ void AdventureMapInterface::activate()
 	// game will correctly invalidate paths but current route will not be updated since verifyPath() is not called for current hero
 	if (GAME->interface()->makingTurn && GAME->interface()->localState->getCurrentHero())
 		GAME->interface()->localState->verifyPath(GAME->interface()->localState->getCurrentHero());
+
+	// Fix for text input remaining active after closing windows with text fields
+	// When returning to adventure map, ensure text input is disabled if no text field has focus
+	if (SDL_IsTextInputActive() == SDL_TRUE)
+	{
+		// Check if there's any text input field with focus
+		// If not, stop text input to prevent key repeat issues
+		ENGINE->input().stopTextInput();
+		logGlobal->trace("Adventure map activated - text input disabled");
+	}
 }
 
 void AdventureMapInterface::deactivate()
@@ -297,6 +310,10 @@ void AdventureMapInterface::keyPressed(EShortcut key)
 {
 	if (key == EShortcut::GLOBAL_CANCEL && spellBeingCasted)
 		hotkeyAbortCastingMode();
+
+	// Forward keyboard events to MapView for cursor handling
+	if (widget && widget->getMapView())
+		widget->getMapView()->keyPressed(key);
 
 	//fake mouse use to trigger onTileHovered()
 	ENGINE->fakeMouseMove();
@@ -944,4 +961,9 @@ bool AdventureMapInterface::isValidAdventureSpellTarget(int3 targetPosition) con
 	spells::detail::ProblemImpl problem;
 
 	return spellBeingCasted->getAdventureMechanics().canBeCastAt(problem, GAME->interface()->cb.get(), GAME->interface()->localState->getCurrentHero(), targetPosition);
+}
+
+void AdventureMapInterface::scrollMap(const Point & delta)
+{
+	widget->getMapView()->onMapScrolled(delta);
 }

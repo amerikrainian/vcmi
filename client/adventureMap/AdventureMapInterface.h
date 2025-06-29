@@ -191,6 +191,9 @@ public:
 
 	/// opens world view with specific info, e.g. after View Earth/Air is shown
 	void openWorldView(const std::vector<ObjectPosInfo>& objectPositions, bool showTerrain);
+
+	/// scrolls the map view by the specified delta
+	void scrollMap(const Point & delta);
 };
 
 extern std::shared_ptr<AdventureMapInterface> adventureInt;

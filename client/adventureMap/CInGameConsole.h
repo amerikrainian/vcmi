@@ -59,4 +59,5 @@ public:
 	void refreshEnteredText();
 
 	CInGameConsole();
+	~CInGameConsole();
 };

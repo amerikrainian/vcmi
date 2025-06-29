@@ -14,6 +14,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../widgets/Buttons.h"
 #include "../widgets/TextControls.h"
@@ -44,6 +45,45 @@ CMarketWindow::CMarketWindow(const IMarket * market, const CGHeroInstance * hero
 		mode == EMarketMode::CREATURE_EXP);
 	
 	OBJECT_CONSTRUCTION;
+	
+	// Set up accessibility information for the market window
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "Market Window";
+	
+	// Set specific name based on market mode
+	switch(mode)
+	{
+		case EMarketMode::RESOURCE_RESOURCE:
+			accessInfo.name = "Resource Exchange Market";
+			accessInfo.description = "Trade resources for other resources";
+			break;
+		case EMarketMode::RESOURCE_PLAYER:
+			accessInfo.name = "Resource Transfer Market";
+			accessInfo.description = "Transfer resources to another player";
+			break;
+		case EMarketMode::CREATURE_RESOURCE:
+			accessInfo.name = "Freelancer's Guild";
+			accessInfo.description = "Sell creatures for resources";
+			break;
+		case EMarketMode::RESOURCE_ARTIFACT:
+			accessInfo.name = "Artifact Purchase Market";
+			accessInfo.description = "Buy artifacts with resources";
+			break;
+		case EMarketMode::ARTIFACT_RESOURCE:
+			accessInfo.name = "Artifact Sale Market";
+			accessInfo.description = "Sell artifacts for resources";
+			break;
+		case EMarketMode::ARTIFACT_EXP:
+			accessInfo.name = "Artifact Altar";
+			accessInfo.description = "Sacrifice artifacts for experience";
+			break;
+		case EMarketMode::CREATURE_EXP:
+			accessInfo.name = "Creature Altar";
+			accessInfo.description = "Sacrifice creatures for experience";
+			break;
+	}
+	
+	setAccessibilityInfo(accessInfo);
 
 	if(mode == EMarketMode::RESOURCE_RESOURCE)
 		createMarketResources(market, hero);
@@ -61,6 +101,9 @@ CMarketWindow::CMarketWindow(const IMarket * market, const CGHeroInstance * hero
 		createAltarCreatures(market, hero);
 
 	statusbar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(8, pos.h - 26, pos.w - 16, 19), 8, pos.h - 26));
+	
+	// Announce market window opening
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void CMarketWindow::updateArtifacts()
@@ -180,6 +223,29 @@ void CMarketWindow::initWidgetInternals(const EMarketMode mode, const std::pair<
 	createChangeModeButtons(mode, marketWidget->market, marketWidget->hero);
 	quitButton = std::make_shared<CButton>(quitButtonPos, AnimationPath::builtin("IOK6432.DEF"),
 		quitButtonHelpContainer, [this](){close();}, EShortcut::GLOBAL_RETURN);
+		
+	// Set accessibility info for quit button
+	UIAccessibilityInfo quitAccessInfo;
+	quitAccessInfo.role = "button";
+	quitAccessInfo.name = "Close Market";
+	quitAccessInfo.description = quitButtonHelpContainer.first;
+	quitAccessInfo.tabOrder = 1000; // High tab order to be at the end
+	quitButton->setAccessibilityInfo(quitAccessInfo);
+	
+	// Set tab order for mode change buttons
+	int tabOrder = 900;
+	for(auto & button : changeModeButtons)
+	{
+		if(button && !button->isBlocked())
+		{
+			UIAccessibilityInfo buttonAccessInfo;
+			buttonAccessInfo.role = "button";
+			buttonAccessInfo.name = "Change Market Mode";
+			buttonAccessInfo.tabOrder = tabOrder++;
+			button->setAccessibilityInfo(buttonAccessInfo);
+		}
+	}
+	
 	redraw();
 }
 

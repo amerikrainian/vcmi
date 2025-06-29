@@ -17,6 +17,7 @@
 #include "GameEngine.h"
 #include "GameInstance.h"
 #include "gui/CursorHandler.h"
+#include "gui/AccessibilityManager.h"
 #include "mapView/mapHandler.h"
 #include "media/ISoundPlayer.h"
 
@@ -172,6 +173,44 @@ void HeroMovementController::onTryMoveHero(const CGHeroInstance * hero, const Tr
 	};
 	adventureInt->onMapTilesChanged(changedTiles);
 	adventureInt->onHeroMovementStarted(hero);
+
+	// Announce hero's new position if it's our hero and they actually moved
+	if (hero->tempOwner == GAME->interface()->playerID && details.start != details.end)
+	{
+		int3 newPos = hero->convertToVisitablePos(details.end);
+		std::string announcement = "Hero at " + std::to_string(newPos.x) + ", " + std::to_string(newPos.y);
+		
+		// Get terrain type
+		auto terrain = GAME->interface()->cb->getTile(newPos, false);
+		if (terrain && terrain->getTerrain())
+		{
+			announcement += ", " + terrain->getTerrain()->getNameTranslated();
+		}
+		
+		// Get object at position if any
+		auto objects = GAME->interface()->cb->getVisitableObjs(newPos);
+		for (auto obj : objects)
+		{
+			if (obj != hero) // Don't announce the hero itself
+			{
+				announcement += ", " + obj->getObjectName();
+				break;
+			}
+		}
+		
+		// Add remaining movement points
+		announcement += ", " + std::to_string(hero->movementPointsRemaining()) + " movement points remaining";
+		
+		// Special cases
+		if (details.result == TryMoveHero::EMBARK)
+			announcement += ", embarked on boat";
+		else if (details.result == TryMoveHero::DISEMBARK)
+			announcement += ", disembarked from boat";
+		else if (directlyAttackingCreature)
+			announcement += ", engaging in combat";
+		
+		AccessibilityManager::getInstance().announce(announcement, false);
+	}
 
 	updatePath(hero, details);
 

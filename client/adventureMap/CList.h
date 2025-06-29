@@ -106,6 +106,9 @@ public:
 	void announceSelection();
 
 	void showAll(Canvas & to) override;
+	
+	/// Override focus handling to announce selection when list gains focus
+	void onFocusGained() override;
 };
 
 /// List of heroes which is shown at the right of the adventure map screen

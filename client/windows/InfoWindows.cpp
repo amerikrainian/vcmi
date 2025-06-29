@@ -73,7 +73,7 @@ CSelWindow::CSelWindow( const std::string & Text, PlayerColor player, int charpe
 
 	text = std::make_shared<CTextBox>(Text, Rect(0, 0, 250, 100), 0, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE);
 	
-	// Set accessibility for text
+	// Set accessibility for text - make it focusable and accessible
 	text->setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("text")
 		.withName(content)
@@ -185,7 +185,7 @@ CInfoWindow::CInfoWindow(const std::string & Text, PlayerColor player, const TCo
 		text->resize(Point(finalWidth, finalHeight));
 	}
 	
-	// Set accessibility for text
+	// Set accessibility for text - make it focusable and accessible
 	text->setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("text")
 		.withName(content)

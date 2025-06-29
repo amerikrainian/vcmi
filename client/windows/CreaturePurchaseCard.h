@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../widgets/Images.h"
+#include "../gui/AccessibilityManager.h"
 
 class CCreaturePic;
 class CSlider;
@@ -19,6 +20,9 @@ class QuickRecruitmentWindow;
 
 class CreaturePurchaseCard : public CIntObject
 {
+protected:
+	void onFocusGained() override;
+	void onFocusLost() override;
 public:
 	const CCreature * creatureOnTheCard;
 	std::shared_ptr<CSlider> slider;
@@ -27,6 +31,15 @@ public:
 	void sliderMoved(int to);
 
 	CreaturePurchaseCard(const std::vector<CreatureID> & creaturesID, Point position, int creaturesMaxAmount, QuickRecruitmentWindow * parents);
+	
+	bool isFocusable() const override { return true; }
+	void keyPressed(EShortcut key) override;
+	
+	/// Get current recruitment amount
+	int getCurrentAmount() const;
+	
+	/// Set focus to this card
+	void setCardFocus();
 private:
 	void initView();
 
@@ -42,6 +55,9 @@ private:
 	void initSlider();
 
 	void initCostBox();
+	
+	/// Update accessibility info when state changes
+	void updateAccessibilityInfo();
 
 	// This just wraps a clickeable area. There's a weird layout scheme in the file and
 	// it's easier to just add a separate invisible box on top

@@ -371,6 +371,10 @@ void SelectionTab::clickReleased(const Point & cursorPosition)
 
 void SelectionTab::keyPressed(EShortcut key)
 {
+	// Don't handle Tab navigation keys - let the focus system process them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return;
+	
 	int moveBy = 0;
 	switch(key)
 	{

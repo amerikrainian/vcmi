@@ -24,6 +24,7 @@
 #include "../render/Graphics.h"
 #include "../render/IFont.h"
 #include "../render/IRenderHandler.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../../lib/texts/TextOperations.h"
 
@@ -381,6 +382,9 @@ CTextBox::CTextBox(std::string Text, const Rect & rect, int SliderStyle, EFonts 
 	pos.h = rect.h;
 	pos.w = rect.w;
 
+	// Add keyboard events to make this focusable
+	addUsedEvents(KEYBOARD);
+
 	assert(pos.w >= 40); //we need some space
 	setText(Text);
 }
@@ -445,6 +449,37 @@ void CTextBox::setText(const std::string & text)
 		slider->setPanningStep(1);
 		slider->setScrollBounds(pos - slider->pos.topLeft());
 	}
+}
+
+bool CTextBox::isFocusable() const
+{
+	// CTextBox is focusable if it has accessibility info with valid tab order
+	auto info = getAccessibilityInfo();
+	return info && info->isAccessible && info->tabOrder >= 0 && isActive() && !isDisabled();
+}
+
+void CTextBox::onFocusGained()
+{
+	// Call base class implementation to handle visual focus indicator
+	CIntObject::onFocusGained();
+	
+	// Announce text content to screen reader when focused
+	if (label && getAccessibilityInfo())
+	{
+		auto info = getAccessibilityInfo();
+		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			// Announce the role and text content
+			std::string announcement = info->role + ". " + label->getText();
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
+	}
+}
+
+void CTextBox::onFocusLost()
+{
+	// Call base class implementation to remove visual focus indicator
+	CIntObject::onFocusLost();
 }
 
 void CGStatusBar::setEnteringMode(bool on)

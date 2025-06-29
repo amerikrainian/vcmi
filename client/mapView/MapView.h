@@ -21,6 +21,7 @@ class MapViewActions;
 class MapViewController;
 class MapViewModel;
 class MapViewCache;
+class MapCursor;
 
 /// Internal class that contains logic shared between all map views
 class BasicMapView : public CIntObject
@@ -50,6 +51,7 @@ public:
 class MapView : public BasicMapView
 {
 	std::shared_ptr<MapViewActions> actions;
+	std::shared_ptr<MapCursor> cursor;
 
 	std::vector<std::pair<uint32_t, Point>> swipeHistory;
 	double postSwipeAngle = 0.0;
@@ -93,6 +95,13 @@ public:
 
 	/// Switches view from View World mode back to standard view
 	void onViewMapActivated();
+	
+	/// Handle keyboard input for cursor control
+	void keyPressed(EShortcut key) override;
+	bool captureThisKey(EShortcut key) override;
+	
+	/// Get cursor object for external access
+	std::shared_ptr<MapCursor> getMapCursor() { return cursor; }
 };
 
 /// Main class that represents map view for puzzle map

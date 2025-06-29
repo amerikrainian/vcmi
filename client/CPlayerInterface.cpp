@@ -1509,6 +1509,11 @@ void CPlayerInterface::update()
 	}
 }
 
+bool CPlayerInterface::isHeroMoving() const
+{
+	return movementController->isHeroMoving();
+}
+
 void CPlayerInterface::endNetwork()
 {
 	showingDialog->requestTermination();

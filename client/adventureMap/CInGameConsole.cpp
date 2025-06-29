@@ -39,6 +39,13 @@ CInGameConsole::CInGameConsole()
 	setRedrawParent(true);
 }
 
+CInGameConsole::~CInGameConsole()
+{
+	// Ensure text input is stopped when console is destroyed
+	if (isEnteringText())
+		endEnteringText(false);
+}
+
 void CInGameConsole::showAll(Canvas & to)
 {
 	show(to);

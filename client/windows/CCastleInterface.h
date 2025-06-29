@@ -74,6 +74,10 @@ public:
 	void tick(uint32_t msPassed) override;
 	void show(Canvas & to) override;
 	void showAll(Canvas & to) override;
+	void keyPressed(EShortcut key) override;
+	void onFocusGained() override;
+	void onFocusLost() override;
+	bool isFocusable() const override;
 };
 
 /// Dwelling info box - right-click screen for dwellings
@@ -89,6 +93,10 @@ class CDwellingInfoBox : public CWindowObject
 public:
 	CDwellingInfoBox(int centerX, int centerY, const CGTownInstance * Town, int level);
 	~CDwellingInfoBox();
+	
+	// Make dialog keyboard navigable
+	void keyPressed(EShortcut key) override;
+	bool isFocusable() const override { return true; }
 };
 
 class HeroSlots;
@@ -119,6 +127,10 @@ public:
 	void clickPressed(const Point & cursorPosition) override;
 	void showPopupWindow(const Point & cursorPosition) override;
 	void deactivate() override;
+	void keyPressed(EShortcut key) override;
+	void onFocusGained() override;
+	void onFocusLost() override;
+	bool isFocusable() const override;
 };
 
 /// Two hero slots that can interact with each other
@@ -206,6 +218,10 @@ public:
 	void clickPressed(const Point & cursorPosition) override;
 	void showPopupWindow(const Point & cursorPosition) override;
 	bool getShowAvailable();
+	void keyPressed(EShortcut key) override;
+	void onFocusGained() override;
+	void onFocusLost() override;
+	bool isFocusable() const override;
 };
 
 /// Town hall and fort icons for town screen
@@ -290,6 +306,10 @@ class CHallInterface : public CStatusbarWindow
 		void hover(bool on) override;
 		void clickPressed(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
+		void keyPressed(EShortcut key) override;
+		void onFocusGained() override;
+		void onFocusLost() override;
+		bool isFocusable() const override;
 	};
 	const CGTownInstance * town;
 
@@ -362,6 +382,10 @@ class CFortScreen : public CStatusbarWindow
 		void hover(bool on) override;
 		void clickPressed(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
+		void keyPressed(EShortcut key) override;
+		void onFocusGained() override;
+		void onFocusLost() override;
+		bool isFocusable() const override;
 
 	};
 	std::shared_ptr<CLabel> title;
@@ -391,6 +415,10 @@ class CMageGuildScreen : public CStatusbarWindow
 		void clickPressed(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
 		void hover(bool on) override;
+		void keyPressed(EShortcut key) override;
+		void onFocusGained() override;
+		void onFocusLost() override;
+		bool isFocusable() const override;
 	};
 	std::shared_ptr<CPicture> window;
 	std::shared_ptr<CButton> exit;

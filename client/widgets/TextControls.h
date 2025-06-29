@@ -122,6 +122,11 @@ public:
 	void trimToFit();
 	void setText(const std::string & Txt);
 	void sliderMoved(int to);
+	
+	/// Focus handling overrides
+	bool isFocusable() const override;
+	void onFocusGained() override;
+	void onFocusLost() override;
 };
 
 /// Status bar which is shown at the bottom of the in-game screens

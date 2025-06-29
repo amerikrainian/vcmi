@@ -36,10 +36,15 @@ public:
 	void setType(EType newType);
 	void setID(int32_t newID);
 	void clear();
+	void updateAccessibilityInfo();
 
 	void showPopupWindow(const Point & cursorPosition) override;
 	void hover(bool on) override;
 	void clickPressed(const Point & cursorPosition) override;
+	void keyPressed(EShortcut key) override;
+	bool isFocusable() const override { return id >= 0; }
+	void onFocusGained() override;
+	void onFocusLost() override;
 	CTradeableItem(const Rect & area, EType Type, int32_t ID, int32_t serial);
 };
 
@@ -55,6 +60,7 @@ public:
 	const int selectionWidth = 2;
 	std::shared_ptr<CTradeableItem> showcaseSlot;		// Separate slot that displays the contents for trading
 	std::shared_ptr<CTradeableItem> highlightedSlot;	// One of the slots highlighted by a frame
+	int focusedSlotIndex = -1;  // Currently focused slot for keyboard navigation
 
 	virtual void update();
 	virtual void deselect();
@@ -64,6 +70,12 @@ public:
 	int32_t getHighlightedItemId() const;
 	void onSlotClickPressed(const std::shared_ptr<CTradeableItem> & newSlot);
 	bool isHighlighted() const;
+	
+	// Keyboard navigation support
+	void keyPressed(EShortcut key) override;
+	void moveFocusToSlot(int newIndex);
+	void setupKeyboardNavigation();
+	bool isFocusable() const override { return !slots.empty(); }
 };
 
 class ResourcesPanel : public TradePanelBase

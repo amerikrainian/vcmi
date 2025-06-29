@@ -207,6 +207,9 @@ public: // public interface for use by client via GAME->interface() access
 
 	///returns true if all events are processed internally
 	bool capturedAllEvents();
+	
+	///returns true if hero movement is currently in progress
+	bool isHeroMoving() const;
 
 	void registerBattleInterface(std::shared_ptr<CBattleGameInterface> battleEvents);
 	void unregisterBattleInterface(std::shared_ptr<CBattleGameInterface> battleEvents);

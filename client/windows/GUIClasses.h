@@ -237,6 +237,10 @@ public:
 		void clickDouble(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
 		void hover (bool on) override;
+		void keyPressed(EShortcut key) override;
+		bool isFocusable() const override;
+		void onFocusGained() override;
+		void showAll(Canvas & to) override;
 		HeroPortrait(int & sel, int id, int x, int y, const CGHeroInstance * H, std::function<void()> OnChoose = nullptr);
 
 	private:
@@ -266,6 +270,7 @@ public:
 
 		void recreate();
 		void sliderMove(int slidPos);
+		void keyPressed(EShortcut key) override;
 	};
 
 	//recruitable heroes
@@ -302,6 +307,7 @@ public:
 	void recruitb();
 	void thievesguildb();
 	void show(Canvas & to) override;
+	void keyPressed(EShortcut key) override;
 };
 
 /// Here you can buy ships

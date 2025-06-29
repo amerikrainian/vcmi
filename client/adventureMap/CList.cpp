@@ -218,7 +218,15 @@ void CList::selectPrev()
 
 void CList::keyPressed(EShortcut key)
 {
+	// Don't handle Tab navigation keys - let the focus system process them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return;
+	
 	if (!AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
+		return;
+		
+	// Only handle keyboard input when this list has focus
+	if (!hasFocus())
 		return;
 		
 	switch(key)
@@ -245,7 +253,15 @@ void CList::keyPressed(EShortcut key)
 
 bool CList::captureThisKey(EShortcut key)
 {
+	// Don't capture Tab navigation keys - let the focus system handle them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return false;
+		
 	if (!AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
+		return false;
+		
+	// Only capture arrow keys and accept when this list has focus
+	if (!hasFocus())
 		return false;
 		
 	return key == EShortcut::MOVE_UP || 
@@ -269,6 +285,21 @@ void CList::announceSelection()
 			% totalItems);
 		
 		AccessibilityManager::getInstance().announce(announcement, true);
+	}
+}
+
+void CList::onFocusGained()
+{
+	// Call base implementation first to handle focus indicator
+	CIntObject::onFocusGained();
+	
+	// When the list receives focus, announce the current selection
+	// Use non-interrupting speech so it doesn't cut off the list announcement
+	if (selected && AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		// Small delay to ensure the list announcement completes first
+		// The accessibility system should queue this after the list announcement
+		announceSelection();
 	}
 }
 

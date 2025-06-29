@@ -12,6 +12,8 @@
 #include "CInfoBar.h"
 
 #include "AdventureMapInterface.h"
+#include "../gui/AccessibilityManager.h"
+#include "../mapView/mapHandler.h"
 
 #include "../widgets/CComponent.h"
 #include "../widgets/Images.h"
@@ -259,6 +261,11 @@ void CInfoBar::reset()
 void CInfoBar::showSelection()
 {
 	OBJECT_CONSTRUCTION;
+	// Don't update selection display during hero movement
+	// This prevents multiple selection announcements
+	if (GAME->interface()->isHeroMoving())
+		return;
+		
 	if(GAME->interface()->localState->getCurrentHero())
 	{
 		showHeroSelection(GAME->interface()->localState->getCurrentHero());
@@ -339,7 +346,9 @@ CInfoBar::CInfoBar(const Point & position): CInfoBar(Rect(position.x, position.y
 
 void CInfoBar::OnInfoBarCreatureManagementChanged()
 {
-	showSelection();
+	// Don't refresh selection during hero movement
+	if (!GAME->interface()->isHeroMoving())
+		showSelection();
 }
 
 void CInfoBar::setTimer(uint32_t msToTrigger)
@@ -356,6 +365,15 @@ void CInfoBar::showDate()
 	visibleInfo = std::make_shared<VisibleDateInfo>();
 	setTimer(3000); // confirmed to match H3
 	redraw();
+	
+	// Announce date change to screen reader
+	std::string dateAnnouncement;
+	if(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK) == 1 && GAME->interface()->cb->getDate(Date::DAY) != 1)
+		dateAnnouncement = "New week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+	else
+		dateAnnouncement = "Day " + std::to_string(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK)) + " of week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+	
+	AccessibilityManager::getInstance().announce(dateAnnouncement, true);
 }
 
 void CInfoBar::pushComponents(const std::vector<Component> & components, std::string message, int timer)
@@ -460,6 +478,12 @@ void CInfoBar::prepareComponents(const std::vector<Component> & components, std:
 	else
 		pushComponents(components, "", 0, false, timer);
 
+	// Announce component pickup to screen reader
+	if(!components.empty() && !message.empty())
+	{
+		AccessibilityManager::getInstance().announce(message, false);
+	}
+
 	return;
 }
 
@@ -508,6 +532,10 @@ void CInfoBar::startEnemyTurn(PlayerColor color)
 	state = EState::AITURN;
 	visibleInfo = std::make_shared<VisibleEnemyTurnInfo>(color);
 	redraw();
+	
+	// Announce enemy turn
+	std::string turnAnnouncement = "Player " + std::to_string(color.getNum() + 1) + " turn";
+	AccessibilityManager::getInstance().announce(turnAnnouncement, true);
 }
 
 void CInfoBar::showHeroSelection(const CGHeroInstance * hero)
@@ -521,6 +549,19 @@ void CInfoBar::showHeroSelection(const CGHeroInstance * hero)
 	{
 		state = EState::HERO;
 		visibleInfo = std::make_shared<VisibleHeroInfo>(hero);
+		
+		// Only announce hero selection if not during movement
+		// Movement announcements are handled by HeroMovementController
+		// Check both animation state and movement controller state
+		if (!GAME->map().hasOngoingAnimations() && !GAME->interface()->isHeroMoving())
+		{
+			std::string heroAnnouncement = "Selected hero: " + hero->getNameTranslated();
+			if(hero->level > 0)
+				heroAnnouncement += ", level " + std::to_string(hero->level);
+			heroAnnouncement += ", " + hero->getClassNameTranslated();
+			
+			AccessibilityManager::getInstance().announce(heroAnnouncement, false);
+		}
 	}
 	redraw();
 }
@@ -536,6 +577,12 @@ void CInfoBar::showTownSelection(const CGTownInstance * town)
 	{
 		state = EState::TOWN;
 		visibleInfo = std::make_shared<VisibleTownInfo>(town);
+		
+		// Announce town selection
+		std::string townAnnouncement = "Selected town: " + town->getNameTranslated();
+		townAnnouncement += ", " + town->getFaction()->getNameTranslated();
+		
+		AccessibilityManager::getInstance().announce(townAnnouncement, false);
 	}
 	redraw();
 }

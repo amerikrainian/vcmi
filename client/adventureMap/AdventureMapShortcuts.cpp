@@ -19,8 +19,11 @@
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
+#include "../eventsSDL/InputHandler.h"
 #include "../lobby/CSavingScreen.h"
 #include "../mapView/mapHandler.h"
+#include "../mapView/MapViewModel.h"
 #include "../windows/CKingdomInterface.h"
 #include "../windows/CSpellWindow.h"
 #include "../windows/CMarketWindow.h"
@@ -29,6 +32,8 @@
 #include "AdventureMapInterface.h"
 #include "AdventureOptions.h"
 #include "AdventureState.h"
+#include "AdventureMapWidget.h"
+#include "../mapView/MapView.h"
 
 #include "../../lib/CConfigHandler.h"
 #include "../../lib/CPlayerState.h"
@@ -78,6 +83,10 @@ std::vector<AdventureMapShortcutState> AdventureMapShortcuts::getShortcuts()
 		{ EShortcut::ADVENTURE_TOGGLE_GRID,      optionInMapView(),      [this]() { this->toggleGrid(); } },
 		{ EShortcut::ADVENTURE_TOGGLE_VISITABLE, optionInMapView(),      [this]() { this->toggleVisitable(); } },
 		{ EShortcut::ADVENTURE_TOGGLE_BLOCKED,   optionInMapView(),      [this]() { this->toggleBlocked(); } },
+		{ EShortcut::ADVENTURE_SCROLL_LEFT,      optionMapScrollingActive(), [this]() { this->scrollMap({-1, 0}); } },
+		{ EShortcut::ADVENTURE_SCROLL_RIGHT,     optionMapScrollingActive(), [this]() { this->scrollMap({+1, 0}); } },
+		{ EShortcut::ADVENTURE_SCROLL_UP,        optionMapScrollingActive(), [this]() { this->scrollMap({0, -1}); } },
+		{ EShortcut::ADVENTURE_SCROLL_DOWN,      optionMapScrollingActive(), [this]() { this->scrollMap({0, +1}); } },
 		{ EShortcut::ADVENTURE_TRACK_HERO,       optionInMapView(),      [this]() { this->toggleTrackHero(); } },
 		{ EShortcut::ADVENTURE_SET_HERO_ASLEEP,  optionHeroAwake(),      [this]() { this->setHeroSleeping(); } },
 		{ EShortcut::ADVENTURE_SET_HERO_AWAKE,   optionHeroSleeping(),   [this]() { this->setHeroAwake(); } },
@@ -545,11 +554,42 @@ void AdventureMapShortcuts::moveHeroDirectional(const Point & direction)
 
 	const CGPath & path = GAME->interface()->localState->getPath(h);
 
-	if (path.nodes.size() > 2)
-		owner.onHeroChanged(h);
-	else
-		if(path.nodes[0].turns == 0)
-			GAME->interface()->moveHero(h, path);
+	// For directional movement, we want to move only one tile at a time
+	// Check if we can move (no turns required for next node)
+	if (path.nodes.size() >= 2 && path.nextNode().turns == 0)
+	{
+		// Create a simple two-node path for single tile movement
+		CGPath singleStepPath;
+		// Path nodes are stored in reverse order (destination first, current position last)
+		singleStepPath.nodes.push_back(path.nodes[path.nodes.size()-2]); // next position (destination)
+		singleStepPath.nodes.push_back(path.nodes[path.nodes.size()-1]); // current position
+		
+		// Clear any existing path to prevent continuous movement after this single step
+		GAME->interface()->localState->erasePath(h);
+		
+		// Remove the "Moving to position" announcement - the HeroMovementController will handle the proper announcement
+		
+		// Move hero one tile
+		GAME->interface()->moveHero(h, singleStepPath);
+	}
+}
+
+void AdventureMapShortcuts::scrollMap(const Point & direction)
+{
+	// Calculate scroll distance based on settings
+	int32_t scrollSpeedPixels = settings["adventure"]["scrollSpeedPixels"].Float();
+	// Use a fixed scroll distance for keyboard scrolling (roughly 100ms worth of scrolling)
+	int32_t scrollDistance = scrollSpeedPixels / 10;
+	
+	Point scrollDelta = direction * scrollDistance;
+	
+	// Scroll the map
+	owner.scrollMap(scrollDelta);
+	
+	// Note: We cannot access the map view's model directly as it's not exposed through the public interface.
+	// The position announcement functionality has been removed to fix compilation errors.
+	// If position announcements are needed, the AdventureMapInterface would need to expose
+	// a public method to get the current map center or visible area.
 }
 
 bool AdventureMapShortcuts::optionCanViewQuests()
@@ -592,6 +632,10 @@ bool AdventureMapShortcuts::optionCanVisitObject()
 
 bool AdventureMapShortcuts::optionHeroSelected()
 {
+	// Don't allow hero movement shortcuts when Ctrl is pressed (cursor mode)
+	if (ENGINE->input().isKeyboardCtrlDown())
+		return false;
+		
 	return optionInMapView() && GAME->interface()->localState->getCurrentHero() != nullptr;
 }
 

@@ -44,6 +44,9 @@ class CTutorialWindow : public CWindowObject
 	void next();
 	void previous();
 	void setContent();
+	
+	// Announce content changes when window is activated
+	void activate() override;
 
 public:
 	CTutorialWindow(const TutorialMode & m);
