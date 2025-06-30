@@ -418,11 +418,40 @@ void CGarrisonSlot::update()
 
 		stackCount->enable();
 		stackCount->setText(TextOperations::formatMetric(myStack->getCount(), 4));
+		
+		// Add accessibility info for occupied slots
+		std::string creatureName = creature->getNameSingularTranslated();
+		if(myStack->getCount() > 1)
+			creatureName = creature->getNamePluralTranslated();
+		
+		std::string slotName = "Army slot " + std::to_string(ID.getNum() + 1);
+		std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
+		std::string fullName = slotName + " - " + std::to_string(myStack->getCount()) + " " + creatureName;
+		std::string description = std::to_string(myStack->getCount()) + " " + creatureName + " in " + garrisonType + " army";
+		
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("army_slot")
+			.withName(fullName)
+			.withDescription(description)
+			.withState("occupied")
+			.withTabOrder(60 + ID.getNum() + (upg == EGarrisonType::UPPER ? 0 : 10)));
 	}
 	else
 	{
 		creatureImage->disable();
 		stackCount->disable();
+		
+		// Add accessibility info for empty slots
+		std::string slotName = "Army slot " + std::to_string(ID.getNum() + 1);
+		std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
+		std::string description = "Empty " + garrisonType + " army slot";
+		
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("army_slot")
+			.withName(slotName)
+			.withDescription(description)
+			.withState("empty")
+			.withTabOrder(60 + ID.getNum() + (upg == EGarrisonType::UPPER ? 0 : 10)));
 	}
 }
 
@@ -472,6 +501,8 @@ CGarrisonSlot::CGarrisonSlot(CGarrisonInt * Owner, int x, int y, SlotID IID, EGa
 
 	stackCount = std::make_shared<CLabel>(labelPosW, labelPosH, owner->smallIcons ? FONT_TINY : FONT_MEDIUM, labelAlignment, Colors::WHITE);
 
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
+	
 	update();
 }
 
@@ -723,6 +754,14 @@ CGarrisonInt::CGarrisonInt(const Point & position, int inx, const Point & garsOf
 	setArmy(s1, EGarrisonType::UPPER);
 	setArmy(s2, EGarrisonType::LOWER);
 	pos += position;
+	
+	// Add accessibility info for garrison
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("army_panel")
+		.withName("Army garrison")
+		.withDescription("Army slots for managing hero's creatures. Use Tab to navigate between slots")
+		.withTabOrder(60));
+	
 	createSlots();
 }
 

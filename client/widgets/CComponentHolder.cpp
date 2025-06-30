@@ -289,6 +289,10 @@ CSecSkillPlace::CSecSkillPlace(const Point & position, const ImageSize & imageSi
 	component.type = ComponentType::SEC_SKILL;
 	pos.w = image->pos.w;
 	pos.h = image->pos.h;
+	
+	// Enable accessibility events
+	addUsedEvents(KEYBOARD);
+	
 	setSkill(newSkillId, level);
 }
 

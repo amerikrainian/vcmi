@@ -68,6 +68,19 @@ CHeroSwitcher::CHeroSwitcher(CHeroWindow * owner_, Point pos_, const CGHeroInsta
 	image = std::make_shared<CAnimImage>(AnimationPath::builtin("PortraitsSmall"), hero->getIconIndex());
 	pos.w = image->pos.w;
 	pos.h = image->pos.h;
+	
+	// Add accessibility info for hero switcher
+	std::string heroName = hero->getNameTranslated();
+	std::string heroClass = hero->getClassNameTranslated();
+	std::string description = "Switch to " + heroName + ", level " + std::to_string(hero->level) + " " + heroClass;
+	
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(heroName + " - Level " + std::to_string(hero->level))
+		.withDescription(description)
+		.withTabOrder(80 + (pos_.y - 87) / 54)); // Calculate tab order based on position
+	
+	addUsedEvents(HOVER | KEYBOARD);
 }
 
 CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
@@ -90,7 +103,18 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 
 	banner = std::make_shared<CAnimImage>(AnimationPath::builtin("CREST58"), GAME->interface()->playerID.getNum(), 0, 606, 8);
 	name = std::make_shared<CLabel>(190, 38, EFonts::FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW);
+	name->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("heading")
+		.withName("Hero name")
+		.withDescription("Current hero's name")
+		.withTabOrder(1));
+	
 	title = std::make_shared<CLabel>(190, 65, EFonts::FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE);
+	title->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("heading")
+		.withName("Hero level and class")
+		.withDescription("Current hero's level and class")
+		.withTabOrder(2));
 
 	statusbar = CGStatusBar::create(7, 559, ImagePath::builtin("ADROLLVR.bmp"), 660);
 
@@ -146,8 +170,21 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 	}
 
 	formations = std::make_shared<CToggleGroup>(0);
-	formations->addToggle(0, std::make_shared<CToggleButton>(Point(481, 483), AnimationPath::builtin("hsbtns6.def"), std::make_pair(heroscrn[23], heroscrn[29]), 0, EShortcut::HERO_TIGHT_FORMATION));
-	formations->addToggle(1, std::make_shared<CToggleButton>(Point(481, 519), AnimationPath::builtin("hsbtns7.def"), std::make_pair(heroscrn[24], heroscrn[30]), 0, EShortcut::HERO_LOOSE_FORMATION));
+	auto tightFormation = std::make_shared<CToggleButton>(Point(481, 483), AnimationPath::builtin("hsbtns6.def"), std::make_pair(heroscrn[23], heroscrn[29]), 0, EShortcut::HERO_TIGHT_FORMATION);
+	tightFormation->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("radio")
+		.withName("Tight formation")
+		.withDescription("Set army to tight formation")
+		.withTabOrder(93));
+	formations->addToggle(0, tightFormation);
+	
+	auto looseFormation = std::make_shared<CToggleButton>(Point(481, 519), AnimationPath::builtin("hsbtns7.def"), std::make_pair(heroscrn[24], heroscrn[30]), 0, EShortcut::HERO_LOOSE_FORMATION);
+	looseFormation->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("radio")
+		.withName("Loose formation")
+		.withDescription("Set army to loose formation")
+		.withTabOrder(94));
+	formations->addToggle(1, looseFormation);
 
 	if(hero->getCommander())
 	{
@@ -166,6 +203,12 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 
 	//areas
 	portraitArea = std::make_shared<LRClickableAreaWText>(Rect(18, 18, 58, 64));
+	portraitArea->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Hero portrait")
+		.withDescription("Click to view hero biography")
+		.withTabOrder(3));
+	portraitArea->addUsedEvents(KEYBOARD);
 	portraitImage = std::make_shared<CAnimImage>(AnimationPath::builtin("PortraitsLarge"), 0, 0, 19, 19);
 
 	for(int v = 0; v < GameConstants::PRIMARY_SKILLS; ++v)
@@ -181,6 +224,9 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 			.withName(LIBRARY->generaltexth->primarySkillNames[v])
 			.withDescription(area->text)
 			.withTabOrder(10 + v));
+		
+		// Make primary skill areas focusable
+		area->addUsedEvents(KEYBOARD);
 		
 		primSkillAreas.push_back(area);
 
@@ -202,6 +248,7 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 		.withName("Special ability")
 		.withDescription(LIBRARY->generaltexth->heroscrn[27])
 		.withTabOrder(15));
+	specArea->addUsedEvents(KEYBOARD);
 	specName = std::make_shared<CLabel>(69, 205);
 
 	expArea = std::make_shared<LRClickableAreaWText>(Rect(18, 228, 136, 42), LIBRARY->generaltexth->heroscrn[9]);
@@ -210,18 +257,21 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 		.withName("Experience")
 		.withDescription(LIBRARY->generaltexth->heroscrn[9])
 		.withTabOrder(16));
+	expArea->addUsedEvents(KEYBOARD);
 	
 	morale = std::make_shared<MoraleLuckBox>(true, Rect(175, 179, 53, 45));
 	morale->setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("status")
 		.withName("Morale")
 		.withTabOrder(17));
+	morale->addUsedEvents(KEYBOARD);
 	
 	luck = std::make_shared<MoraleLuckBox>(false, Rect(233, 179, 53, 45));
 	luck->setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("status")
 		.withName("Luck")
 		.withTabOrder(18));
+	luck->addUsedEvents(KEYBOARD);
 	
 	spellPointsArea = std::make_shared<LRClickableAreaWText>(Rect(162,228, 136, 42), LIBRARY->generaltexth->heroscrn[22]);
 	spellPointsArea->setAccessibilityInfo(UIAccessibilityInfo()
@@ -229,6 +279,7 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 		.withName("Spell points")
 		.withDescription(LIBRARY->generaltexth->heroscrn[22])
 		.withTabOrder(19));
+	spellPointsArea->addUsedEvents(KEYBOARD);
 
 	expValue = std::make_shared<CLabel>(68, 252);
 	manaValue = std::make_shared<CLabel>(211, 252);
@@ -240,6 +291,13 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 		secSkillSlider = std::make_shared<CSlider>(Point(284, 276), 189, [this](int val){ CHeroWindow::update(); }, 4, lines, 0, Orientation::VERTICAL, CSlider::BROWN);
 		secSkillSlider->setPanningStep(48);
 		secSkillSlider->setScrollBounds(Rect(-266, 0, secSkillSlider->pos.x - pos.x + secSkillSlider->pos.w, secSkillSlider->pos.h));
+		
+		// Add accessibility to skills slider
+		secSkillSlider->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("slider")
+			.withName("Skills scroll")
+			.withDescription("Scroll to view additional secondary skills")
+			.withTabOrder(25));
 	}
 
 	for(int i = 0; i < std::min<size_t>(hero->secSkills.size(), 8u); ++i)
@@ -266,6 +324,17 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 	labels.push_back(std::make_shared<CLabel>(69, 232, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[6]));
 	labels.push_back(std::make_shared<CLabel>(213, 232, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[7]));
 
+	// Add Movement points display (placed in lower area near buttons)
+	movementArea = std::make_shared<LRClickableAreaWText>(Rect(314, 395, 100, 30), "Movement Points");
+	movementArea->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Movement Points")
+		.withDescription("Hero's current and maximum movement points")
+		.withTabOrder(89));
+	movementArea->addUsedEvents(KEYBOARD);
+	movementValue = std::make_shared<CLabel>(365, 399, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
+	labels.push_back(std::make_shared<CLabel>(365, 383, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, "Movement"));
+
 	CHeroWindow::update();
 }
 
@@ -278,19 +347,58 @@ void CHeroWindow::update()
 	assert(curHero);
 
 	name->setText(curHero->getNameTranslated());
+	if(name->getAccessibilityInfo())
+	{
+		auto currentInfo = name->getAccessibilityInfo();
+		name->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withValue(curHero->getNameTranslated()));
+	}
+	
 	title->setText((boost::format(LIBRARY->generaltexth->allTexts[342]) % curHero->level % curHero->getClassNameTranslated()).str());
+	if(title->getAccessibilityInfo())
+	{
+		auto currentInfo = title->getAccessibilityInfo();
+		title->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withValue(title->getText()));
+	}
 
 	specArea->text = curHero->getHeroType()->getSpecialtyDescriptionTranslated();
 	specImage->setFrame(curHero->getHeroType()->imageIndex);
 	specName->setText(curHero->getHeroType()->getSpecialtyNameTranslated());
+	
+	// Update special ability accessibility
+	{
+		auto currentInfo = specArea->getAccessibilityInfo();
+		if(currentInfo)
+		{
+			specArea->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(curHero->getHeroType()->getSpecialtyNameTranslated())
+				.withDescription("Special ability: " + curHero->getHeroType()->getSpecialtyNameTranslated() + ". " + specArea->text));
+		}
+	}
 
 	tacticsButton = std::make_shared<CToggleButton>(Point(539, 483), AnimationPath::builtin("hsbtns8.def"), std::make_pair(heroscrn[26], heroscrn[31]), 0, EShortcut::HERO_TOGGLE_TACTICS);
 	tacticsButton->addHoverText(EButtonState::HIGHLIGHTED, LIBRARY->generaltexth->heroscrn[25]);
+	tacticsButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("checkbox")
+		.withName("Tactics")
+		.withDescription("Toggle tactics mode for battles")
+		.withTabOrder(95));
+	tacticsButton->setSelected(curHero->tacticFormationEnabled);
 
 	dismissButton->addHoverText(EButtonState::NORMAL, boost::str(boost::format(LIBRARY->generaltexth->heroscrn[16]) % curHero->getNameTranslated() % curHero->getClassNameTranslated()));
 	portraitArea->hoverText = boost::str(boost::format(LIBRARY->generaltexth->allTexts[15]) % curHero->getNameTranslated() % curHero->getClassNameTranslated());
 	portraitArea->text = curHero->getBiographyTranslated();
 	portraitImage->setFrame(curHero->getIconIndex());
+	
+	// Update portrait area accessibility
+	if(portraitArea->getAccessibilityInfo())
+	{
+		auto currentInfo = portraitArea->getAccessibilityInfo();
+		portraitArea->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withValue(curHero->getNameTranslated())
+			.withDescription("Portrait of " + curHero->getNameTranslated() + ". Click to view biography"));
+	}
 
 	{
 		if(!garr)
@@ -327,6 +435,17 @@ void CHeroWindow::update()
 		int value = curHero->getPrimSkillLevel(static_cast<PrimarySkill>(g));
 		primSkillAreas[g]->component.value = value;
 		primSkillValues[g]->setText(std::to_string(value));
+		
+		// Update accessibility info with current value
+		std::string skillName = LIBRARY->generaltexth->primarySkillNames[g];
+		std::string description = skillName + ": " + std::to_string(value);
+		auto currentInfo = primSkillAreas[g]->getAccessibilityInfo();
+		if(currentInfo)
+		{
+			primSkillAreas[g]->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(std::to_string(value))
+				.withDescription(description));
+		}
 	}
 
 	//secondary skills support
@@ -338,6 +457,14 @@ void CHeroWindow::update()
 			secSkillNames[g]->setText("");
 			secSkillValues[g]->setText("");
 			secSkills[g]->setSkill(SecondarySkill::NONE);
+			
+			// Clear accessibility info for empty slots
+			secSkills[g]->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("skill_slot")
+				.withName("Empty skill slot")
+				.withDescription("No skill learned in this slot")
+				.withState("empty")
+				.withTabOrder(20 + g));
 			break;
 		}
 		SecondarySkill skill = curHero->secSkills[g + offset].first;
@@ -348,6 +475,16 @@ void CHeroWindow::update()
 		secSkillNames[g]->setText(skillName);
 		secSkillValues[g]->setText(skillValue);
 		secSkills[g]->setSkill(skill, level);
+		
+		// Add accessibility info for secondary skills
+		std::string fullSkillName = skillName + " - " + skillValue;
+		std::string skillDescription = skill.toSkill()->getDescriptionTranslated(level);
+		
+		secSkills[g]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("skill_slot")
+			.withName(fullSkillName)
+			.withDescription(skillDescription)
+			.withTabOrder(20 + g));
 	}
 
 	std::ostringstream expstr;
@@ -363,12 +500,34 @@ void CHeroWindow::update()
 	boost::replace_first(expArea->text, "%d", std::to_string(curHero->level));
 	boost::replace_first(expArea->text, "%d", std::to_string(LIBRARY->heroh->reqExp(curHero->level+1)));
 	boost::replace_first(expArea->text, "%d", std::to_string(curHero->exp));
+	
+	// Update experience accessibility
+	{
+		auto currentInfo = expArea->getAccessibilityInfo();
+		if(currentInfo)
+		{
+			expArea->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(std::to_string(curHero->exp))
+				.withDescription("Experience: " + std::to_string(curHero->exp) + ". " + expArea->text));
+		}
+	}
 
 	//printing spell points, boost::format can't be used due to locale issues
 	spellPointsArea->text = LIBRARY->generaltexth->allTexts[205];
 	boost::replace_first(spellPointsArea->text, "%s", curHero->getNameTranslated());
 	boost::replace_first(spellPointsArea->text, "%d", std::to_string(curHero->mana));
 	boost::replace_first(spellPointsArea->text, "%d", std::to_string(curHero->manaLimit()));
+	
+	// Update spell points accessibility
+	{
+		auto currentInfo = spellPointsArea->getAccessibilityInfo();
+		if(currentInfo)
+		{
+			spellPointsArea->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(std::to_string(curHero->mana) + "/" + std::to_string(curHero->manaLimit()))
+				.withDescription("Spell points: " + std::to_string(curHero->mana) + " of " + std::to_string(curHero->manaLimit()) + ". " + spellPointsArea->text));
+		}
+	}
 
 	//if we have exchange window with this curHero open
 	bool noDismiss=false;
@@ -396,15 +555,81 @@ void CHeroWindow::update()
 	{
 		tacticsButton->block(false);
 		tacticsButton->addCallback([&](bool on){curHero->tacticFormationEnabled = on;});
+		
+		// Update tactics button accessibility state
+		if(tacticsButton->getAccessibilityInfo())
+		{
+			auto currentInfo = tacticsButton->getAccessibilityInfo();
+			tacticsButton->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withState(curHero->tacticFormationEnabled ? "checked" : ""));
+		}
 	}
 
 	formations->resetCallback();
 	//setting formations
 	formations->setSelected(curHero->formation == EArmyFormation::TIGHT ? 1 : 0);
 	formations->addCallback([this](int value){ GAME->interface()->cb->setFormation(curHero, static_cast<EArmyFormation>(value));});
+	
+	// Update formation buttons accessibility state
+	auto tightFormationButton = std::dynamic_pointer_cast<CToggleButton>(formations->buttons[0]);
+	auto looseFormationButton = std::dynamic_pointer_cast<CToggleButton>(formations->buttons[1]);
+	
+	if(tightFormationButton && tightFormationButton->getAccessibilityInfo())
+	{
+		auto currentInfo = tightFormationButton->getAccessibilityInfo();
+		tightFormationButton->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withState(curHero->formation == EArmyFormation::TIGHT ? "checked" : ""));
+	}
+	if(looseFormationButton && looseFormationButton->getAccessibilityInfo())
+	{
+		auto currentInfo = looseFormationButton->getAccessibilityInfo();
+		looseFormationButton->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withState(curHero->formation == EArmyFormation::LOOSE ? "checked" : ""));
+	}
 
 	morale->set(curHero);
 	luck->set(curHero);
+	
+	// Update morale and luck accessibility with current values
+	if(morale)
+	{
+		auto currentInfo = morale->getAccessibilityInfo();
+		if(currentInfo)
+		{
+			int moraleValue = morale->component.value.value_or(0);
+			morale->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(std::to_string(moraleValue))
+				.withDescription("Morale: " + std::to_string(moraleValue) + ". " + morale->hoverText));
+		}
+	}
+	if(luck)
+	{
+		auto currentInfo = luck->getAccessibilityInfo();
+		if(currentInfo)
+		{
+			int luckValue = luck->component.value.value_or(0);
+			luck->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(std::to_string(luckValue))
+				.withDescription("Luck: " + std::to_string(luckValue) + ". " + luck->hoverText));
+		}
+	}
+
+	// Update movement points
+	if(movementValue)
+	{
+		std::ostringstream moveStr;
+		moveStr << curHero->movementPointsRemaining() << "/" << curHero->movementPointsLimit(true);
+		movementValue->setText(moveStr.str());
+		
+		// Update movement points accessibility info
+		if(movementArea->getAccessibilityInfo())
+		{
+			auto currentInfo = movementArea->getAccessibilityInfo();
+			movementArea->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withValue(moveStr.str())
+				.withDescription("Movement Points: " + moveStr.str() + " remaining"));
+		}
+	}
 
 	redraw();
 }

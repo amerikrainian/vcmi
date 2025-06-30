@@ -24,6 +24,7 @@
 #include "../../lib/entities/artifact/CArtifactFittingSet.h"
 #include "../../lib/mapObjects/CGHeroInstance.h"
 #include "../../lib/networkPacks/ArtifactLocation.h"
+#include "../../lib/texts/CGeneralTextHandler.h"
 
 CArtifactsOfHeroBase::CArtifactsOfHeroBase()
 	: curHero(nullptr)
@@ -68,10 +69,33 @@ void CArtifactsOfHeroBase::init(
 	{
 		artPlace.second->slot = artPlace.first;
 		artPlace.second->setArtifact(ArtifactID(ArtifactID::NONE));
+		
+		// Add accessibility info for equipment slots
+		std::string slotName = getSlotName(artPlace.first);
+		artPlace.second->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("artifact_slot")
+			.withName(slotName)
+			.withDescription("Equipment slot for " + slotName + ". Empty slot")
+			.withState("empty")
+			.withTabOrder(31 + artPlace.first.num));
+		
+		// Make artifact slots focusable
+		artPlace.second->addUsedEvents(KEYBOARD);
 	}
-	for(const auto & artPlace : backpack)
+	for(size_t i = 0; i < backpack.size(); ++i)
 	{
-		artPlace->setArtifact(ArtifactID(ArtifactID::NONE));
+		backpack[i]->setArtifact(ArtifactID(ArtifactID::NONE));
+		
+		// Add accessibility info for backpack slots
+		backpack[i]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("artifact_slot")
+			.withName("Backpack slot " + std::to_string(i + 1))
+			.withDescription("Backpack storage slot " + std::to_string(i + 1) + ". Empty slot")
+			.withState("empty")
+			.withTabOrder(50 + i));
+		
+		// Make backpack slots focusable
+		backpack[i]->addUsedEvents(KEYBOARD);
 	}
 	leftBackpackRoll = std::make_shared<CButton>(Point(379, 364), AnimationPath::builtin("hsbtns3.def"), CButton::tooltip(),
 		[scrollCallback](){scrollCallback(true);}, EShortcut::MOVE_LEFT);
@@ -79,6 +103,19 @@ void CArtifactsOfHeroBase::init(
 		[scrollCallback](){scrollCallback(false);}, EShortcut::MOVE_RIGHT);
 	leftBackpackRoll->block(true);
 	rightBackpackRoll->block(true);
+	
+	// Add accessibility to backpack scroll buttons
+	leftBackpackRoll->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Scroll backpack left")
+		.withDescription("Scroll to see previous backpack artifacts")
+		.withTabOrder(56));
+		
+	rightBackpackRoll->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Scroll backpack right")
+		.withDescription("Scroll to see next backpack artifacts")
+		.withTabOrder(57));
 
 	backpackScroller = std::make_shared<BackpackScroller>(this, Rect(380, 30, 278, 382));
 	backpackScroller->setScrollingEnabled(false);
@@ -273,6 +310,20 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 
 		artPlace->lockSlot(slotInfo->locked);
 		artPlace->setArtifact(curArt->getTypeId(), curArt->getScrollSpellID());
+		
+		// Update accessibility info with artifact
+		std::string slotName = getSlotName(slot);
+		std::string artifactName = curArt->getType()->getNameTranslated();
+		std::string state = slotInfo->locked ? "locked" : "equipped";
+		std::string description = slotName + " slot equipped with " + artifactName;
+		
+		artPlace->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("artifact_slot")
+			.withName(slotName + " - " + artifactName)
+			.withDescription(description)
+			.withState(state)
+			.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num));
+		
 		if(slotInfo->locked)
 			return;
 
@@ -305,6 +356,15 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 	else
 	{
 		artPlace->setArtifact(ArtifactID(ArtifactID::NONE));
+		
+		// Update accessibility info for empty slot
+		std::string slotName = getSlotName(slot);
+		artPlace->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("artifact_slot")
+			.withName(slotName)
+			.withDescription(slotName + " slot. Empty slot")
+			.withState("empty")
+			.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num));
 	}
 }
 
@@ -320,4 +380,35 @@ void BackpackScroller::scrollBy(int distance)
 {
 	if (distance != 0)
 		owner->scrollBackpack(distance < 0);
+}
+
+std::string CArtifactsOfHeroBase::getSlotName(const ArtifactPosition & slot) const
+{
+	// Map artifact positions to human-readable names
+	switch(slot.num)
+	{
+		case ArtifactPosition::HEAD: return "Head";
+		case ArtifactPosition::SHOULDERS: return "Shoulders";
+		case ArtifactPosition::NECK: return "Neck";
+		case ArtifactPosition::RIGHT_HAND: return "Right Hand";
+		case ArtifactPosition::LEFT_HAND: return "Left Hand";
+		case ArtifactPosition::TORSO: return "Torso";
+		case ArtifactPosition::RIGHT_RING: return "Right Ring";
+		case ArtifactPosition::LEFT_RING: return "Left Ring";
+		case ArtifactPosition::FEET: return "Feet";
+		case ArtifactPosition::MISC1: return "Misc 1";
+		case ArtifactPosition::MISC2: return "Misc 2";
+		case ArtifactPosition::MISC3: return "Misc 3";
+		case ArtifactPosition::MISC4: return "Misc 4";
+		case ArtifactPosition::MISC5: return "Misc 5";
+		case ArtifactPosition::MACH1: return "War Machine 1";
+		case ArtifactPosition::MACH2: return "War Machine 2";
+		case ArtifactPosition::MACH3: return "War Machine 3";
+		case ArtifactPosition::MACH4: return "War Machine 4";
+		case ArtifactPosition::SPELLBOOK: return "Spellbook";
+		default:
+			if(ArtifactUtils::isSlotBackpack(slot))
+				return "Backpack slot " + std::to_string(slot.num - ArtifactPosition::BACKPACK_START + 1);
+			return "Unknown slot";
+	}
 }

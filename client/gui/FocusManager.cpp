@@ -136,11 +136,10 @@ void FocusManager::setFocus(CIntObject* element)
     {
         focusedElement->onFocusGained();
         
-        // Announce to accessibility manager
+        // Set focus in accessibility manager
         if (AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
         {
             AccessibilityManager::getInstance().setFocus(focusedElement);
-            AccessibilityManager::getInstance().announceElement(focusedElement);
         }
     }
 }

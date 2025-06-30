@@ -69,6 +69,9 @@ class CHeroWindow : public CStatusbarWindow, public IGarrisonHolder, public CWin
 
 	std::shared_ptr<CLabel> manaValue;
 	std::shared_ptr<LRClickableAreaWText> spellPointsArea;
+	
+	std::shared_ptr<CLabel> movementValue;
+	std::shared_ptr<LRClickableAreaWText> movementArea;
 
 	std::shared_ptr<LRClickableAreaWText> specArea;
 	std::shared_ptr<CAnimImage> specImage;

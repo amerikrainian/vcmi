@@ -223,6 +223,13 @@ CSpellWindow::CSpellWindow(const CGHeroInstance * _myHero, CPlayerInterface * _m
 	setCurrentPage(cp);
 	computeSpellsPerArea();
 	addUsedEvents(KEYBOARD);
+	
+	// Add accessibility info for spell window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName("Spellbook")
+		.withDescription("Hero spellbook. Use Tab to navigate between spells, arrow keys to change pages and schools")
+		.withTabOrder(0));
 }
 
 CSpellWindow::~CSpellWindow()
@@ -589,7 +596,7 @@ CSpellWindow::SpellArea::SpellArea(Rect pos, CSpellWindow * owner)
 {
 	this->pos = pos;
 	this->owner = owner;
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 
 	schoolLevel = -1;
 	mySpell = nullptr;
@@ -788,5 +795,29 @@ void CSpellWindow::SpellArea::setSpell(const CSpell * spell)
 		boost::format costfmt("%s: %d");
 		costfmt % LIBRARY->generaltexth->allTexts[387] % spellCost;
 		cost->setText(costfmt.str());
+		
+		// Add accessibility info for spell slots
+		std::string spellName = mySpell->getNameTranslated();
+		std::string levelText = LIBRARY->generaltexth->allTexts[171 + mySpell->getLevel()];
+		std::string fullName = spellName + " - " + levelText;
+		std::string description = mySpell->getDescriptionTranslated(schoolLevel) + " Cost: " + std::to_string(spellCost);
+		std::string state = (spellCost > owner->myHero->mana && !owner->onSpellSelect) ? "insufficient_mana" : "available";
+		
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("spell_slot")
+			.withName(fullName)
+			.withDescription(description)
+			.withState(state)
+			.withTabOrder(100 + (pos.x / 65) + (pos.y / 97) * 10)); // Calculate tab order based on position
+	}
+	else
+	{
+		// Add accessibility info for empty spell slots
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("spell_slot")
+			.withName("Empty spell slot")
+			.withDescription("No spell available in this slot")
+			.withState("empty")
+			.withTabOrder(100 + (pos.x / 65) + (pos.y / 97) * 10));
 	}
 }

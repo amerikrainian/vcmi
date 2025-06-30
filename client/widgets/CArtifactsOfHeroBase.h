@@ -75,6 +75,8 @@ protected:
 	virtual void init(const Point & position, const BpackScrollFunctor & scrollCallback);
 	// Assigns an artifacts to an artifact place depending on it's new slot ID
 	virtual void setSlotData(ArtPlacePtr artPlace, const ArtifactPosition & slot);
+	// Helper function to get human-readable slot names for accessibility
+	std::string getSlotName(const ArtifactPosition & slot) const;
 };
 
 class BackpackScroller : public Scrollable

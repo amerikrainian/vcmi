@@ -24,6 +24,13 @@ CArtifactsOfHeroMain::CArtifactsOfHeroMain(const Point & position)
 	setClickPressedArtPlacesCallback(std::bind(&CArtifactsOfHeroBase::clickPressedArtPlace, this, _1, _2));
 	setShowPopupArtPlacesCallback(std::bind(&CArtifactsOfHeroBase::showPopupArtPlace, this, _1, _2));
 	enableGesture();
+	
+	// Set accessibility for main artifact panel
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("artifact_panel")
+		.withName("Hero Equipment")
+		.withDescription("Artifact equipment slots and backpack. Use Tab to navigate between slots")
+		.withTabOrder(30));
 }
 
 CArtifactsOfHeroMain::~CArtifactsOfHeroMain()

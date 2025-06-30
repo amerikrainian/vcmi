@@ -463,17 +463,9 @@ void CTextBox::onFocusGained()
 	// Call base class implementation to handle visual focus indicator
 	CIntObject::onFocusGained();
 	
-	// Announce text content to screen reader when focused
-	if (label && getAccessibilityInfo())
-	{
-		auto info = getAccessibilityInfo();
-		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
-		{
-			// Announce the role and text content
-			std::string announcement = info->role + ". " + label->getText();
-			AccessibilityManager::getInstance().announce(announcement, true);
-		}
-	}
+	// The accessibility announcement is already handled by AccessibilityManager::setFocus()
+	// which is called by FocusManager when this element gains focus.
+	// No need for additional announcement here.
 }
 
 void CTextBox::onFocusLost()

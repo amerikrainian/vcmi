@@ -327,7 +327,7 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 		return "";
 	
 	std::string text;
-	
+
 	// Build accessible text from available information
 	// Start with the role if no name is provided
 	if (info->name.empty() && !info->role.empty())
@@ -338,7 +338,7 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 	{
 		text = info->name;
 		// Add role after name
-		if (!info->role.empty())
+		if (!info->role.empty() && info->role != "text")
 		{
 			text += ", ";
 			text += info->role;
