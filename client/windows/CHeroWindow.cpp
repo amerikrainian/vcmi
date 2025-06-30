@@ -117,6 +117,12 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 		.withTabOrder(2));
 
 	statusbar = CGStatusBar::create(7, 559, ImagePath::builtin("ADROLLVR.bmp"), 660);
+	statusbar->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Status Bar")
+		.withDescription("Displays information about various UI elements on hover")
+		.withTabOrder(100));
+	statusbar->addUsedEvents(KEYBOARD);
 
 	quitButton = std::make_shared<CButton>(Point(609, 516), AnimationPath::builtin("hsbtns.def"), CButton::tooltip(heroscrn[17]), [this](){ close(); }, EShortcut::GLOBAL_RETURN);
 	quitButton->setAccessibilityInfo(UIAccessibilityInfo()
@@ -152,7 +158,17 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 	else
 	{
 		dismissLabel = std::make_shared<CTextBox>(LIBRARY->generaltexth->jktexts[8], Rect(370, 430, 65, 35), 0, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE);
+		dismissLabel->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Dismiss label")
+			.withDescription(LIBRARY->generaltexth->jktexts[8])
+			.withTabOrder(88));
 		questlogLabel = std::make_shared<CTextBox>(LIBRARY->generaltexth->jktexts[9], Rect(510, 430, 65, 35), 0, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE);
+		questlogLabel->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Quest log label")
+			.withDescription(LIBRARY->generaltexth->jktexts[9])
+			.withTabOrder(89));
 		
 		dismissButton = std::make_shared<CButton>(Point(454, 429), AnimationPath::builtin("hsbtns2.def"), CButton::tooltip(heroscrn[28]), [this](){ dismissCurrent(); }, EShortcut::HERO_DISMISS);
 		dismissButton->setAccessibilityInfo(UIAccessibilityInfo()
@@ -315,14 +331,61 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 	}
 
 	// various texts
-	labels.push_back(std::make_shared<CLabel>(52, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[1]));
-	labels.push_back(std::make_shared<CLabel>(123, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[2]));
-	labels.push_back(std::make_shared<CLabel>(193, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[3]));
-	labels.push_back(std::make_shared<CLabel>(262, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[4]));
+	auto attackLabel = std::make_shared<CLabel>(52, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[1]);
+	attackLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Attack label")
+		.withDescription("Label for attack skill")
+		.withTabOrder(6));
+	labels.push_back(attackLabel);
+	
+	auto defenseLabel = std::make_shared<CLabel>(123, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[2]);
+	defenseLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Defense label")
+		.withDescription("Label for defense skill")
+		.withTabOrder(7));
+	labels.push_back(defenseLabel);
+	
+	auto powerLabel = std::make_shared<CLabel>(193, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[3]);
+	powerLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Power label")
+		.withDescription("Label for spell power")
+		.withTabOrder(8));
+	labels.push_back(powerLabel);
+	
+	auto knowledgeLabel = std::make_shared<CLabel>(262, 99, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[4]);
+	knowledgeLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Knowledge label")
+		.withDescription("Label for knowledge skill")
+		.withTabOrder(9));
+	labels.push_back(knowledgeLabel);
 
-	labels.push_back(std::make_shared<CLabel>(69, 183, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[5]));
-	labels.push_back(std::make_shared<CLabel>(69, 232, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[6]));
-	labels.push_back(std::make_shared<CLabel>(213, 232, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[7]));
+	auto specialtyLabel = std::make_shared<CLabel>(69, 183, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[5]);
+	specialtyLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Specialty label")
+		.withDescription("Label for hero specialty")
+		.withTabOrder(14));
+	labels.push_back(specialtyLabel);
+	
+	auto experienceLabel = std::make_shared<CLabel>(69, 232, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[6]);
+	experienceLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Experience label")
+		.withDescription("Label for experience points")
+		.withTabOrder(15));
+	labels.push_back(experienceLabel);
+	
+	auto manaLabel = std::make_shared<CLabel>(213, 232, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::YELLOW, LIBRARY->generaltexth->jktexts[7]);
+	manaLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Mana label")
+		.withDescription("Label for mana points")
+		.withTabOrder(18));
+	labels.push_back(manaLabel);
 
 	// Add Movement points display (placed in lower area near buttons)
 	movementArea = std::make_shared<LRClickableAreaWText>(Rect(314, 395, 100, 30), "Movement Points");
@@ -410,6 +473,13 @@ void CHeroWindow::update()
 			garr = std::make_shared<CGarrisonInt>(Point(15, 485), 8, Point(), curHero, nullptr, removableTroops);
 			auto split = std::make_shared<CButton>(Point(539, 519), AnimationPath::builtin("hsbtns9.def"), CButton::tooltip(LIBRARY->generaltexth->allTexts[256], helpBox), [this](){ garr->splitClick(); }, EShortcut::HERO_ARMY_SPLIT);
 			garr->addSplitBtn(split);
+			
+			// Add accessibility info to garrison
+			garr->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("group")
+				.withName("Hero army")
+				.withDescription("Hero's army units")
+				.withTabOrder(70));
 		}
 		if(!arts)
 		{
@@ -674,6 +744,22 @@ void CHeroWindow::commanderWindow()
 void CHeroWindow::updateGarrisons()
 {
 	garr->recreateSlots();
+	
+	// Update garrison accessibility info
+	if(garr && garr->getAccessibilityInfo())
+	{
+		auto currentInfo = garr->getAccessibilityInfo();
+		int totalUnits = 0;
+		for(const auto & slot : curHero->Slots())
+		{
+			if(slot.second)
+				totalUnits++;
+		}
+		garr->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withValue(std::to_string(totalUnits) + " army slots occupied")
+			.withDescription("Hero's army units: " + std::to_string(totalUnits) + " slots occupied"));
+	}
+	
 	morale->set(curHero);
 }
 
