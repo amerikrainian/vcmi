@@ -43,7 +43,6 @@ void FocusManager::buildFocusableList(CIntObject* root)
         auto* accInfo = root->getAccessibilityInfo();
         if (accInfo)
         {
-            logGlobal->trace("Added focusable element: %s (tabOrder=%d)", 
                 accInfo->name.c_str(), accInfo->tabOrder);
         }
     }
@@ -134,7 +133,6 @@ void FocusManager::setFocus(CIntObject* element)
     if (focusedElement)
     {
         focusedElement->onFocusLost();
-        logGlobal->trace("Focus lost from element");
     }
     
     focusedElement = element;
@@ -150,8 +148,6 @@ void FocusManager::setFocus(CIntObject* element)
             AccessibilityManager::getInstance().setFocus(focusedElement);
             AccessibilityManager::getInstance().announceElement(focusedElement);
         }
-        
-        logGlobal->trace("Focus set to element");
     }
 }
 
@@ -188,7 +184,6 @@ void FocusManager::updateFocusableElements()
 {
     focusableElements.clear();
     
-    logGlobal->info("FocusManager: Updating focusable elements list");
     
     // Get the topmost window or the main interface
     auto windows = ENGINE->windows().getWindowsArray();
@@ -207,24 +202,13 @@ void FocusManager::updateFocusableElements()
             // Check if it's a blocking window (usually dialogs are)
             // For now, assume all windows are blocking
             hasModalWindow = true;
-            logGlobal->info("FocusManager: Building focus list from window (windows count: %d)", windows.size());
             rootObject = intObject;
         }
     }
-    else
-    {
-        logGlobal->info("FocusManager: No windows open, checking for adventure interface");
-    }
     
-    // If no modal window, try to get the adventure interface
     if (!hasModalWindow && adventureInt)
     {
-        logGlobal->info("FocusManager: Building focus list from adventure interface");
         rootObject = adventureInt.get();
-    }
-    else if (!rootObject && !hasModalWindow)
-    {
-        logGlobal->info("FocusManager: adventureInt is %s", adventureInt ? "valid" : "null");
     }
     
     if (rootObject)
@@ -238,23 +222,7 @@ void FocusManager::updateFocusableElements()
     
     // Sort by tab order
     sortFocusableElements();
-    
-    logGlobal->info("FocusManager: Found %d focusable elements", focusableElements.size());
-    
-    // Log what elements were found if there are few
-    if (focusableElements.size() <= 10)
-    {
-        for (auto* elem : focusableElements)
-        {
-            auto* info = elem->getAccessibilityInfo();
-            if (info)
-            {
-                logGlobal->info("  - %s (tabOrder: %d)", info->name.c_str(), info->tabOrder);
-            }
-        }
-    }
-    
-    // If current focus is no longer valid, clear it
+
     if (focusedElement && !canReceiveFocus(focusedElement))
     {
         clearFocus();
