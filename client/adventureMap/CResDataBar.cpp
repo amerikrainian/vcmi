@@ -36,6 +36,15 @@ CResDataBar::CResDataBar(const ImagePath & imageName, const Point & position)
 
 	pos.w = background->pos.w;
 	pos.h = background->pos.h;
+	
+	// Set up accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("resource bar")
+		.withName("Resource Bar")
+		.withDescription("Displays current player resources and date"));
+	
+	// Enable hover events for accessibility
+	addUsedEvents(HOVER);
 }
 
 CResDataBar::CResDataBar(const ImagePath & defname, int x, int y, int offx, int offy, int resdist, int datedist):
@@ -44,7 +53,7 @@ CResDataBar::CResDataBar(const ImagePath & defname, int x, int y, int offx, int 
 	for (int i = 0; i < 7 ; i++)
 		resourcePositions[GameResID(i)] = Point( offx + resdist*i, offy );
 
-	datePosition = resourcePositions[EGameResID::GOLD] + Point(datedist, 0);
+	datePosition = resourcePositions[GameResID::GOLD] + Point(datedist, 0);
 }
 
 void CResDataBar::setDatePosition(const Point & position)
@@ -88,4 +97,47 @@ void CResDataBar::showAll(Canvas & to)
 void CResDataBar::setPlayerColor(PlayerColor player)
 {
 	background->setPlayerColor(player);
+}
+
+void CResDataBar::hover(bool on)
+{
+	if (on && AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		// Build resource announcement string
+		std::vector<std::string> resourceStrings;
+		
+		// Order of resources: Wood, Mercury, Ore, Sulfur, Crystal, Gems, Gold
+		const std::vector<std::pair<GameResID, std::string>> resourceNames = {
+			{GameResID(GameResID::WOOD), "Wood"},
+			{GameResID(GameResID::MERCURY), "Mercury"},
+			{GameResID(GameResID::ORE), "Ore"},
+			{GameResID(GameResID::SULFUR), "Sulfur"},
+			{GameResID(GameResID::CRYSTAL), "Crystal"},
+			{GameResID(GameResID::GEMS), "Gems"},
+			{GameResID(GameResID::GOLD), "Gold"}
+		};
+		
+		for (const auto & [resId, resName] : resourceNames)
+		{
+			int amount = GAME->interface()->cb->getResourceAmount(resId);
+			resourceStrings.push_back(resName + ": " + std::to_string(amount));
+		}
+		
+		// Join all resources with commas
+		std::string announcement = "Resources: ";
+		for (size_t i = 0; i < resourceStrings.size(); ++i)
+		{
+			announcement += resourceStrings[i];
+			if (i < resourceStrings.size() - 1)
+				announcement += ", ";
+		}
+		
+		// Also announce the date
+		if (datePosition)
+		{
+			announcement += ". " + buildDateString();
+		}
+		
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }

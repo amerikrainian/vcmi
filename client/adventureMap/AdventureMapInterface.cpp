@@ -75,9 +75,15 @@ AdventureMapInterface::AdventureMapInterface():
 	widget->getMapView()->onViewMapActivated();
 
 	if(GAME->interface()->cb->getStartInfo()->turnTimerInfo.turnTimer != 0)
+	{
 		watches = std::make_shared<TurnTimerWidget>(Point(24, 24));
+		addChild(watches.get());
+	}
 	
 	addUsedEvents(KEYBOARD | TIME);
+	
+	// Add the widget as a child so focus traversal can find it
+	addChild(widget.get());
 }
 
 void AdventureMapInterface::onMapViewMoved(const Rect & visibleArea, int mapLevel)

@@ -15,6 +15,8 @@
 #include "WindowHandler.h"
 #include "EventDispatcher.h"
 #include "GameEngine.h"
+#include "../CPlayerInterface.h"
+#include "../adventureMap/AdventureMapInterface.h"
 #include "../../lib/logging/CLogger.h"
 
 #include <algorithm>
@@ -37,6 +39,13 @@ void FocusManager::buildFocusableList(CIntObject* root)
     if (canReceiveFocus(root))
     {
         focusableElements.push_back(root);
+        
+        auto* accInfo = root->getAccessibilityInfo();
+        if (accInfo)
+        {
+            logGlobal->trace("Added focusable element: %s (tabOrder=%d)", 
+                accInfo->name.c_str(), accInfo->tabOrder);
+        }
     }
     
     // Recursively process children
@@ -179,21 +188,71 @@ void FocusManager::updateFocusableElements()
 {
     focusableElements.clear();
     
+    logGlobal->info("FocusManager: Updating focusable elements list");
+    
     // Get the topmost window or the main interface
     auto windows = ENGINE->windows().getWindowsArray();
     
+    CIntObject* rootObject = nullptr;
+    
+    bool hasModalWindow = false;
+    
     if (!windows.empty())
     {
+        // Check if the topmost window is modal (blocks interaction with adventure map)
         // Build list from topmost window
         // IShowActivatable is the base interface, CIntObject inherits from it
         if (auto* intObject = dynamic_cast<CIntObject*>(windows.back()))
         {
-            buildFocusableList(intObject);
+            // Check if it's a blocking window (usually dialogs are)
+            // For now, assume all windows are blocking
+            hasModalWindow = true;
+            logGlobal->info("FocusManager: Building focus list from window (windows count: %d)", windows.size());
+            rootObject = intObject;
         }
+    }
+    else
+    {
+        logGlobal->info("FocusManager: No windows open, checking for adventure interface");
+    }
+    
+    // If no modal window, try to get the adventure interface
+    if (!hasModalWindow && adventureInt)
+    {
+        logGlobal->info("FocusManager: Building focus list from adventure interface");
+        rootObject = adventureInt.get();
+    }
+    else if (!rootObject && !hasModalWindow)
+    {
+        logGlobal->info("FocusManager: adventureInt is %s", adventureInt ? "valid" : "null");
+    }
+    
+    if (rootObject)
+    {
+        buildFocusableList(rootObject);
+    }
+    else
+    {
+        logGlobal->warn("FocusManager: No root object found for focus traversal");
     }
     
     // Sort by tab order
     sortFocusableElements();
+    
+    logGlobal->info("FocusManager: Found %d focusable elements", focusableElements.size());
+    
+    // Log what elements were found if there are few
+    if (focusableElements.size() <= 10)
+    {
+        for (auto* elem : focusableElements)
+        {
+            auto* info = elem->getAccessibilityInfo();
+            if (info)
+            {
+                logGlobal->info("  - %s (tabOrder: %d)", info->name.c_str(), info->tabOrder);
+            }
+        }
+    }
     
     // If current focus is no longer valid, clear it
     if (focusedElement && !canReceiveFocus(focusedElement))

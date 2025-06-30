@@ -34,6 +34,35 @@
 #include "../../lib/constants/StringConstants.h"
 #include "../../lib/filesystem/ResourcePath.h"
 
+// Button accessibility info mapping
+static const std::unordered_map<std::string, std::pair<std::string, int>> buttonAccessibilityInfo = {
+	// Button name -> {Accessible name, Tab order}
+	{"buttonKingdomOverview", {"Kingdom Overview", 50}},
+	{"buttonUnderground", {"View Underground", 51}},
+	{"buttonSurface", {"View Surface", 51}},
+	{"buttonQuestLog", {"Quest Log", 52}},
+	{"buttonSleep", {"Sleep Hero", 53}},
+	{"buttonWake", {"Wake Hero", 53}},
+	{"buttonMove", {"Move Hero", 54}},
+	{"buttonCast", {"Cast Spell", 55}},
+	{"buttonAdventureOptions", {"Adventure Options", 56}},
+	{"buttonSystemOptions", {"System Options", 57}},
+	{"buttonRevisit", {"Revisit Object", 58}},
+	{"buttonSearch", {"Search Map", 59}},
+	{"buttonNextHero", {"Next Hero", 60}},
+	{"buttonEndTurn", {"End Turn", 61}},
+	{"townListScrollUp", {"Scroll Town List Up", 70}},
+	{"townListScrollDown", {"Scroll Town List Down", 71}},
+	// World view buttons
+	{"worldViewZoom1", {"World View 1x", 80}},
+	{"worldViewZoom2", {"World View 2x", 81}},
+	{"worldViewZoom4", {"World View 4x", 82}},
+	{"worldViewSurface", {"World View Surface", 83}},
+	{"worldViewUnderground", {"World View Underground", 84}},
+	{"worldViewPuzzle", {"View Puzzle Map", 85}},
+	{"worldViewExit", {"Exit World View", 86}}
+};
+
 AdventureMapWidget::AdventureMapWidget( std::shared_ptr<AdventureMapShortcuts> shortcuts )
 	: shortcuts(shortcuts)
 	, mapLevel(0)
@@ -64,6 +93,12 @@ AdventureMapWidget::AdventureMapWidget( std::shared_ptr<AdventureMapShortcuts> s
 		playerColoredImages.push_back(ImagePath::fromJson(entry));
 
 	build(config);
+	addUsedEvents(KEYBOARD);
+}
+
+CAdventureMapContainerWidget::CAdventureMapContainerWidget()
+{
+	// Enable keyboard events to allow focus traversal through container children
 	addUsedEvents(KEYBOARD);
 }
 
@@ -168,10 +203,39 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMapButton(const JsonNode & 
 	// Add accessibility info based on button purpose
 	if (!input["accessibilityName"].isNull())
 	{
-		button->setAccessibilityInfo(UIAccessibilityInfo()
+		// Check if tabOrder is specified in JSON, otherwise use default
+		int tabOrder = 100; // Default tab order for buttons
+		if (!input["tabOrder"].isNull())
+		{
+			tabOrder = input["tabOrder"].Integer();
+		}
+		
+		UIAccessibilityInfo newInfo = UIAccessibilityInfo()
 			.withRole("button")
 			.withName(input["accessibilityName"].String())
-			.withDescription(help.second));
+			.withDescription(help.second)
+			.withTabOrder(tabOrder);
+			
+		button->setAccessibilityInfo(newInfo);
+	}
+	else
+	{
+		// Fallback: Auto-generate accessibility info based on button name
+		std::string buttonName = input["name"].String();
+		
+		auto it = buttonAccessibilityInfo.find(buttonName);
+		if (it != buttonAccessibilityInfo.end())
+		{
+			const auto& [accessibleName, tabOrder] = it->second;
+			
+			UIAccessibilityInfo newInfo = UIAccessibilityInfo()
+				.withRole("button")
+				.withName(accessibleName)
+				.withDescription(help.second)
+				.withTabOrder(tabOrder);
+				
+			button->setAccessibilityInfo(newInfo);
+		}
 	}
 
 	return button;
@@ -200,6 +264,15 @@ std::shared_ptr<CIntObject> AdventureMapWidget::buildMapContainer(const JsonNode
 		result = std::make_shared<CAdventureMapContainerWidget>();
 
 	result->disableCondition = input["hideWhen"].String();
+
+	// Add accessibility info for containers to help with debugging
+	if (!input["name"].isNull())
+	{
+		result->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("group")
+			.withName(input["name"].String() + " container")
+			.withTabOrder(-1)); // Containers themselves shouldn't be focusable
+	}
 
 	result->moveBy(position.topLeft());
 	subwidgetSizes.push_back(position);
@@ -459,24 +532,31 @@ void AdventureMapWidget::updateActiveStateChildden(CIntObject * widget)
 
 		if (container)
 		{
+			bool oldEnabled = !container->isDisabled();
+			bool newEnabled = oldEnabled;
+			
 			if (container->disableCondition == "heroAwake")
-				container->setEnabled(!shortcuts->optionHeroSleeping());
+				newEnabled = !shortcuts->optionHeroSleeping();
 
 			if (container->disableCondition == "heroSleeping")
-				container->setEnabled(shortcuts->optionHeroSleeping());
+				newEnabled = shortcuts->optionHeroSleeping();
 
 			if (container->disableCondition == "mapLayerSurface")
-				container->setEnabled(shortcuts->optionMapLevelSurface());
+				newEnabled = shortcuts->optionMapLevelSurface();
 
 			if (container->disableCondition == "mapLayerUnderground")
-				container->setEnabled(!shortcuts->optionMapLevelSurface());
+				newEnabled = !shortcuts->optionMapLevelSurface();
 
 			if (container->disableCondition == "mapViewMode")
-				container->setEnabled(shortcuts->optionInWorldView());
+				newEnabled = shortcuts->optionInWorldView();
 
 			if (container->disableCondition == "worldViewMode")
-				container->setEnabled(!shortcuts->optionInWorldView());
-
+			{
+				bool inWorldView = shortcuts->optionInWorldView();
+				newEnabled = !inWorldView;
+			}
+			
+			container->setEnabled(newEnabled);
 			updateActiveStateChildden(container);
 		}
 	}

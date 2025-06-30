@@ -11,6 +11,7 @@
 
 #include "../gui/CIntObject.h"
 #include "../../lib/filesystem/ResourcePath.h"
+#include "../gui/AccessibilityManager.h"
 
 /// Resources bar which shows information about how many gold, crystals,... you have
 /// Current date is displayed too
@@ -36,5 +37,8 @@ public:
 
 	void setPlayerColor(PlayerColor player);
 	void showAll(Canvas & to) override;
+	
+	/// Accessibility: announce resource values when hovering
+	void hover(bool on) override;
 };
 

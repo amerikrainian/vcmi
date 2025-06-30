@@ -22,6 +22,7 @@
 #include "../gui/TextAlignment.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/Images.h"
 #include "../widgets/MiscWidgets.h"
 #include "../widgets/CComponent.h"
@@ -76,6 +77,16 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 
 	OBJECT_CONSTRUCTION;
 	curHero = hero;
+	
+	// Enable keyboard navigation for the window
+	addUsedEvents(KEYBOARD);
+	
+	// Set up accessibility info for the main window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName(hero->getNameTranslated())
+		.withDescription(boost::str(boost::format("Hero window for %s, level %d %s") % hero->getNameTranslated() % hero->level % hero->getClassNameTranslated()))
+		.withTabOrder(0));
 
 	banner = std::make_shared<CAnimImage>(AnimationPath::builtin("CREST58"), GAME->interface()->playerID.getNum(), 0, 606, 8);
 	name = std::make_shared<CLabel>(190, 38, EFonts::FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW);
@@ -84,20 +95,54 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 	statusbar = CGStatusBar::create(7, 559, ImagePath::builtin("ADROLLVR.bmp"), 660);
 
 	quitButton = std::make_shared<CButton>(Point(609, 516), AnimationPath::builtin("hsbtns.def"), CButton::tooltip(heroscrn[17]), [this](){ close(); }, EShortcut::GLOBAL_RETURN);
+	quitButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Close")
+		.withDescription("Close hero window")
+		.withTabOrder(99));
 
 	if(settings["general"]["enableUiEnhancements"].Bool())
 	{
 		questlogButton = std::make_shared<CButton>(Point(314, 429), AnimationPath::builtin("hsbtns4.def"), CButton::tooltip(heroscrn[0]), [](){ GAME->interface()->showQuestLog(); }, EShortcut::ADVENTURE_QUEST_LOG);
+		questlogButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Quest Log")
+			.withDescription("Open quest log")
+			.withTabOrder(90));
+		
 		backpackButton = std::make_shared<CButton>(Point(424, 429), AnimationPath::builtin("heroBackpack"), CButton::tooltipLocalized("vcmi.heroWindow.openBackpack"), [this](){ createBackpackWindow(); }, EShortcut::HERO_BACKPACK);
 		backpackButton->setOverlay(std::make_shared<CPicture>(ImagePath::builtin("heroWindow/backpackButtonIcon")));
+		backpackButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Backpack")
+			.withDescription("Open hero backpack")
+			.withTabOrder(91));
+		
 		dismissButton = std::make_shared<CButton>(Point(534, 429), AnimationPath::builtin("hsbtns2.def"), CButton::tooltip(heroscrn[28]), [this](){ dismissCurrent(); }, EShortcut::HERO_DISMISS);
+		dismissButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Dismiss")
+			.withDescription("Dismiss this hero")
+			.withTabOrder(92));
 	}
 	else
 	{
 		dismissLabel = std::make_shared<CTextBox>(LIBRARY->generaltexth->jktexts[8], Rect(370, 430, 65, 35), 0, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE);
 		questlogLabel = std::make_shared<CTextBox>(LIBRARY->generaltexth->jktexts[9], Rect(510, 430, 65, 35), 0, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE);
+		
 		dismissButton = std::make_shared<CButton>(Point(454, 429), AnimationPath::builtin("hsbtns2.def"), CButton::tooltip(heroscrn[28]), [this](){ dismissCurrent(); }, EShortcut::HERO_DISMISS);
+		dismissButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Dismiss")
+			.withDescription("Dismiss this hero")
+			.withTabOrder(92));
+		
 		questlogButton = std::make_shared<CButton>(Point(314, 429), AnimationPath::builtin("hsbtns4.def"), CButton::tooltip(heroscrn[0]), [](){ GAME->interface()->showQuestLog(); }, EShortcut::ADVENTURE_QUEST_LOG);
+		questlogButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Quest Log")
+			.withDescription("Open quest log")
+			.withTabOrder(90));
 	}
 
 	formations = std::make_shared<CToggleGroup>(0);
@@ -108,6 +153,11 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 	{
 		commanderButton = std::make_shared<CButton>(Point(317, 18), AnimationPath::builtin("heroCommander"), CButton::tooltipLocalized("vcmi.heroWindow.openCommander"), [&](){ commanderWindow(); }, EShortcut::HERO_COMMANDER);
 		commanderButton->setOverlay(std::make_shared<CPicture>(ImagePath::builtin("heroWindow/commanderButtonIcon")));
+		commanderButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Commander")
+			.withDescription("Open commander window")
+			.withTabOrder(5));
 	}
 
 	//right list of heroes
@@ -124,6 +174,14 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 		area->text = LIBRARY->generaltexth->arraytxt[2+v];
 		area->component.subType = PrimarySkill(v);
 		area->hoverText = boost::str(boost::format(LIBRARY->generaltexth->heroscrn[1]) % LIBRARY->generaltexth->primarySkillNames[v]);
+		
+		// Add accessibility info for primary skill areas
+		area->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("status")
+			.withName(LIBRARY->generaltexth->primarySkillNames[v])
+			.withDescription(area->text)
+			.withTabOrder(10 + v));
+		
 		primSkillAreas.push_back(area);
 
 		auto value = std::make_shared<CLabel>(53 + 70 * v, 166, FONT_SMALL, ETextAlignment::CENTER);
@@ -139,12 +197,38 @@ CHeroWindow::CHeroWindow(const CGHeroInstance * hero)
 
 	specImage = std::make_shared<CAnimImage>(AnimationPath::builtin("UN44"), 0, 0, 18, 180);
 	specArea = std::make_shared<LRClickableAreaWText>(Rect(18, 180, 136, 42), LIBRARY->generaltexth->heroscrn[27]);
+	specArea->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Special ability")
+		.withDescription(LIBRARY->generaltexth->heroscrn[27])
+		.withTabOrder(15));
 	specName = std::make_shared<CLabel>(69, 205);
 
 	expArea = std::make_shared<LRClickableAreaWText>(Rect(18, 228, 136, 42), LIBRARY->generaltexth->heroscrn[9]);
+	expArea->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Experience")
+		.withDescription(LIBRARY->generaltexth->heroscrn[9])
+		.withTabOrder(16));
+	
 	morale = std::make_shared<MoraleLuckBox>(true, Rect(175, 179, 53, 45));
+	morale->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Morale")
+		.withTabOrder(17));
+	
 	luck = std::make_shared<MoraleLuckBox>(false, Rect(233, 179, 53, 45));
+	luck->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Luck")
+		.withTabOrder(18));
+	
 	spellPointsArea = std::make_shared<LRClickableAreaWText>(Rect(162,228, 136, 42), LIBRARY->generaltexth->heroscrn[22]);
+	spellPointsArea->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName("Spell points")
+		.withDescription(LIBRARY->generaltexth->heroscrn[22])
+		.withTabOrder(19));
 
 	expValue = std::make_shared<CLabel>(68, 252);
 	manaValue = std::make_shared<CLabel>(211, 252);

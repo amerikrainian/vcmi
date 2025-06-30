@@ -81,6 +81,8 @@ class CAdventureMapContainerWidget : public CIntObject
 	friend class AdventureMapWidget;
 	std::vector<std::shared_ptr<CIntObject>> ownedChildren;
 	std::string disableCondition;
+public:
+	CAdventureMapContainerWidget();
 };
 
 class CAdventureMapOverlayWidget : public CAdventureMapContainerWidget

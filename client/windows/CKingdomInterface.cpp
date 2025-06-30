@@ -21,6 +21,7 @@
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/CComponent.h"
 #include "../widgets/CGarrisonInt.h"
 #include "../widgets/TextControls.h"
@@ -92,6 +93,21 @@ InfoBox::InfoBox(Point position, InfoPos Pos, InfoSize Size, std::shared_ptr<IIn
 	hover = std::make_shared<CHoverableArea>();
 	hover->hoverText = data->getHoverText();
 	hover->pos = pos;
+	
+	// Set up accessibility info based on the data type
+	std::string accessibleName = data->getNameText();
+	if (accessibleName.empty())
+		accessibleName = "Info box";
+	
+	std::string accessibleValue = data->getValueText();
+	std::string accessibleDescription = data->getHoverText();
+	
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("status")
+		.withName(accessibleName)
+		.withValue(accessibleValue)
+		.withDescription(accessibleDescription)
+		.withTabOrder(-1)); // InfoBoxes typically aren't directly focusable
 }
 
 InfoBox::~InfoBox() = default;
@@ -467,6 +483,16 @@ CKingdomInterface::CKingdomInterface()
 {
 	OBJECT_CONSTRUCTION;
 	ui32 footerPos = OVERVIEW_SIZE * 116;
+	
+	// Enable keyboard navigation for the window
+	addUsedEvents(KEYBOARD);
+	
+	// Set up accessibility info for the main window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName("Kingdom Overview")
+		.withDescription("Displays overview of all owned heroes and towns")
+		.withTabOrder(0));
 
 	tabArea = std::make_shared<CTabbedInt>(std::bind(&CKingdomInterface::createMainTab, this, _1), Point(4,4));
 
@@ -620,25 +646,60 @@ void CKingdomInterface::generateButtons()
 	btnHeroes = std::make_shared<CButton>(Point(748, 28+footerPos), AnimationPath::builtin("OVBUTN1.DEF"), CButton::tooltip(LIBRARY->generaltexth->overview[11], LIBRARY->generaltexth->overview[6]),
 		std::bind(&CKingdomInterface::activateTab, this, 0), EShortcut::KINGDOM_HEROES_TAB);
 	btnHeroes->block(true);
+	btnHeroes->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Heroes")
+		.withDescription("Switch to heroes view")
+		.withTabOrder(1));
 
 	btnTowns = std::make_shared<CButton>(Point(748, 64+footerPos), AnimationPath::builtin("OVBUTN6.DEF"), CButton::tooltip(LIBRARY->generaltexth->overview[12], LIBRARY->generaltexth->overview[7]),
 		std::bind(&CKingdomInterface::activateTab, this, 1), EShortcut::KINGDOM_TOWNS_TAB);
+	btnTowns->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Towns")
+		.withDescription("Switch to towns view")
+		.withTabOrder(2));
 
 	btnExit = std::make_shared<CButton>(Point(748,99+footerPos), AnimationPath::builtin("OVBUTN1.DEF"), CButton::tooltip(LIBRARY->generaltexth->allTexts[600]),
 		std::bind(&CKingdomInterface::close, this), EShortcut::GLOBAL_RETURN);
 	btnExit->setImageOrder(3, 4, 5, 6);
+	btnExit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Exit")
+		.withDescription("Close Kingdom Overview")
+		.withTabOrder(3));
 
 	//Object list control buttons
 	dwellTop = std::make_shared<CButton>(Point(733, 4), AnimationPath::builtin("OVBUTN4.DEF"), CButton::tooltip(), [&](){ dwellingsList->moveToPos(0);});
+	dwellTop->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Dwellings scroll to top")
+		.withDescription("Scroll dwellings list to top")
+		.withTabOrder(10));
 
 	dwellBottom = std::make_shared<CButton>(Point(733, footerPos+2), AnimationPath::builtin("OVBUTN4.DEF"), CButton::tooltip(), [&](){ dwellingsList->moveToPos(-1); });
 	dwellBottom->setImageOrder(2, 3, 4, 5);
+	dwellBottom->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Dwellings scroll to bottom")
+		.withDescription("Scroll dwellings list to bottom")
+		.withTabOrder(13));
 
 	dwellUp = std::make_shared<CButton>(Point(733, 24), AnimationPath::builtin("OVBUTN4.DEF"), CButton::tooltip(), [&](){ dwellingsList->moveToPrev(); });
 	dwellUp->setImageOrder(4, 5, 6, 7);
+	dwellUp->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Dwellings scroll up")
+		.withDescription("Scroll dwellings list up")
+		.withTabOrder(11));
 
 	dwellDown = std::make_shared<CButton>(Point(733, footerPos-18), AnimationPath::builtin("OVBUTN4.DEF"), CButton::tooltip(), [&](){ dwellingsList->moveToNext(); });
 	dwellDown->setImageOrder(6, 7, 8, 9);
+	dwellDown->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Dwellings scroll down")
+		.withDescription("Scroll dwellings list down")
+		.withTabOrder(12));
 }
 
 void CKingdomInterface::activateTab(size_t which)
@@ -681,6 +742,17 @@ bool CKingdomInterface::holdsGarrison(const CArmedInstance * army)
 CKingdHeroList::CKingdHeroList(size_t maxSize, const CreateHeroItemFunctor & onCreateHeroItemCallback)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Enable keyboard navigation
+	addUsedEvents(KEYBOARD);
+	
+	// Set up accessibility info for hero list tab
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("tabpanel")
+		.withName("Heroes")
+		.withDescription("List of all your heroes with their skills and armies")
+		.withTabOrder(4));
+	
 	title = std::make_shared<CPicture>(ImagePath::builtin("OVTITLE"),16,0);
 	title->setPlayerColor(GAME->interface()->playerID);
 	heroLabel = std::make_shared<CLabel>(150, 10, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->overview[0]);
@@ -702,6 +774,13 @@ CKingdHeroList::CKingdHeroList(size_t maxSize, const CreateHeroItemFunctor & onC
 				return std::make_shared<CAnimImage>(AnimationPath::builtin("OVSLOT"), (idx - 2) % GameConstants::KINGDOM_WINDOW_HEROES_SLOTS);
 			}
 		}, Point(19,21), Point(0,116), maxSize, townCount, 0, 1, Rect(-19, -21, size, size));
+	
+	// Set accessibility for the hero list
+	heroes->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Hero list")
+		.withDescription("List of all your heroes")
+		.withTabOrder(5));
 }
 
 void CKingdHeroList::updateGarrisons()
@@ -725,6 +804,17 @@ bool CKingdHeroList::holdsGarrison(const CArmedInstance * army)
 CKingdTownList::CKingdTownList(size_t maxSize)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Enable keyboard navigation
+	addUsedEvents(KEYBOARD);
+	
+	// Set up accessibility info for town list tab
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("tabpanel")
+		.withName("Towns")
+		.withDescription("List of all your towns with their garrisons and income")
+		.withTabOrder(4));
+	
 	title = std::make_shared<CPicture>(ImagePath::builtin("OVTITLE"), 16, 0);
 	title->setPlayerColor(GAME->interface()->playerID);
 	townLabel = std::make_shared<CLabel>(146, 10,FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->overview[3]);
@@ -735,6 +825,13 @@ CKingdTownList::CKingdTownList(size_t maxSize)
 	ui32 size = OVERVIEW_SIZE*116 + 19;
 	towns = std::make_shared<CListBox>(std::bind(&CKingdTownList::createTownItem, this, _1),
 		Point(19,21), Point(0,116), maxSize, townCount, 0, 1, Rect(-19, -21, size, size));
+	
+	// Set accessibility for the town list
+	towns->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Town list")
+		.withDescription("List of all your towns")
+		.withTabOrder(5));
 }
 
 void CKingdTownList::townChanged(const CGTownInstance * town)
@@ -781,6 +878,17 @@ CTownItem::CTownItem(const CGTownInstance * Town)
 	: town(Town)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Enable keyboard navigation for town item
+	addUsedEvents(KEYBOARD);
+	
+	// Set up accessibility info for town item
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("listitem")
+		.withName(Town->getNameTranslated())
+		.withDescription(boost::str(boost::format("%s, daily income: %d gold") % Town->getTown()->faction->getNameTranslated() % Town->dailyIncome()[EGameResID::GOLD]))
+		.withTabOrder(20));
+	
 	background = std::make_shared<CAnimImage>(AnimationPath::builtin("OVSLOT"), 6);
 	name = std::make_shared<CLabel>(74, 8, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, town->getNameTranslated());
 
@@ -907,6 +1015,16 @@ CHeroItem::CHeroItem(const CGHeroInstance * Hero)
 	: hero(Hero)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Enable keyboard navigation for hero item
+	addUsedEvents(KEYBOARD);
+	
+	// Set up accessibility info for hero item
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("listitem")
+		.withName(Hero->getNameTranslated())
+		.withDescription(boost::str(boost::format("Level %d %s") % Hero->level % Hero->getClassNameTranslated()))
+		.withTabOrder(20));
 
 	artTabs.resize(3);
 	auto arts1 = std::make_shared<ArtSlotsTab>(this);
