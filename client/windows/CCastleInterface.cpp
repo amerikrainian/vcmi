@@ -351,8 +351,8 @@ CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstanc
 		.withDescription(LIBRARY->generaltexth->allTexts[346]));
 
 	// Build cost information string for accessibility
-	std::string costDescription = "Cost per " + creature->getNameSingularTranslated() + ": ";
-	std::vector<std::string> costParts;
+	std::string costDescription = "Cost per " + creature->getNameSingularTranslated() + ": " + 
+		creature->getFullRecruitCost().toHumanReadable();
 
 	for(int i = 0; i<GameConstants::RESOURCE_QUANTITY; i++)
 	{
@@ -361,18 +361,7 @@ CDwellingInfoBox::CDwellingInfoBox(int centerX, int centerY, const CGTownInstanc
 		{
 			resPicture.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("RESOURCE"), i, 0, 0, 0));
 			resAmount.push_back(std::make_shared<CLabel>(0,0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, std::to_string(creature->getRecruitCost(res))));
-			
-			// Add to cost description for accessibility
-			costParts.push_back(std::to_string(creature->getRecruitCost(res)) + " " + LIBRARY->generaltexth->restypes[i]);
 		}
-	}
-	
-	// Join cost parts for full description
-	if(!costParts.empty())
-	{
-		costDescription += costParts[0];
-		for(size_t i = 1; i < costParts.size(); i++)
-			costDescription += ", " + costParts[i];
 	}
 
 	int posY = 238;

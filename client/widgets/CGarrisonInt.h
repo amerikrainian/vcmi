@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../gui/CIntObject.h"
+#include "../gui/AccessibilityManager.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -22,6 +23,7 @@ class CGarrisonInt;
 class CButton;
 class CAnimImage;
 class CLabel;
+class Canvas;
 
 enum class EGarrisonType
 {
@@ -69,6 +71,7 @@ public:
 	void clickPressed(const Point & cursorPosition) override;
 	void hover (bool on) override; //call-in
 	void gesture(bool on, const Point & initialPosition, const Point & finalPosition) override;
+	void showAll(Canvas & to) override;
 
 	void update();
 	CGarrisonSlot(CGarrisonInt *Owner, int x, int y, SlotID IID, EGarrisonType Upg, const CStackInstance * creature_);
@@ -76,12 +79,20 @@ public:
 	void splitIntoParts(EGarrisonType type, int amount);
 	bool handleSplittingShortcuts(); /// Returns true when some shortcut is pressed, false otherwise
 
+	// Accessibility and focus methods
+	void onFocusGained() override;
+	void onFocusLost() override;
+	bool isFocusable() const override;
+	void keyPressed(EShortcut key) override;
+	bool isOwnSlot() const;
+
 	friend class CGarrisonInt;
 };
 
 /// Class which manages slots of upper and lower garrison, splitting of units
 class CGarrisonInt :public CIntObject
 {
+	friend class CGarrisonSlot;
 	/// Chosen slot. Should be changed only via selectSlot.
 	CGarrisonSlot * highlighted;
 	bool inSplittingMode;
@@ -150,4 +161,11 @@ public:
 				 bool _removableUnits = true,
 				 bool smallImgs = false,
 				 ESlotsLayout _layout = ESlotsLayout::ONE_ROW);
+
+	// Keyboard navigation
+	void keyPressed(EShortcut key) override;
+	void moveFocus(bool next);
+	void setFocusToSlot(CGarrisonSlot * slot);
+	CGarrisonSlot * getNextSlot(CGarrisonSlot * current, bool next);
+	CGarrisonSlot * focusedSlot;
 };

@@ -174,6 +174,7 @@ set(vcmiclientcommon_SRCS
 	windows/CTutorialWindow.cpp
 	windows/CWindowObject.cpp
 	windows/CreaturePurchaseCard.cpp
+	windows/CThievesGuildWindow.cpp
 	windows/GUIClasses.cpp
 	windows/InfoWindows.cpp
 	windows/QuickRecruitmentWindow.cpp
@@ -399,6 +400,7 @@ set(vcmiclientcommon_HEADERS
 	windows/CTutorialWindow.h
 	windows/CWindowObject.h
 	windows/CreaturePurchaseCard.h
+	windows/CThievesGuildWindow.h
 	windows/GUIClasses.h
 	windows/InfoWindows.h
 	windows/QuickRecruitmentWindow.h

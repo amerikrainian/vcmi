@@ -68,7 +68,7 @@
 #include <boost/lexical_cast.hpp>
 
 CRecruitmentWindow::CCreatureCard::CCreatureCard(CRecruitmentWindow * window, const CCreature * crea, int totalAmount)
-	: CIntObject(LCLICK | SHOW_POPUP),
+	: CIntObject(LCLICK | SHOW_POPUP | KEYBOARD),
 	parent(window),
 	selected(false),
 	creature(crea),
@@ -79,17 +79,49 @@ CRecruitmentWindow::CCreatureCard::CCreatureCard(CRecruitmentWindow * window, co
 	// 1 + 1 px for borders
 	pos.w = animation->pos.w + 2;
 	pos.h = animation->pos.h + 2;
+	
+	// Set accessibility info for creature card
+	std::string description = boost::str(boost::format("%s. Available: %d. Cost: %s") % 
+		creature->getNameSingularTranslated() % amount % creature->getFullRecruitCost().toHumanReadable());
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(creature->getNameSingularTranslated())
+		.withDescription(description)
+		.withTabOrder(10));
 }
 
 void CRecruitmentWindow::CCreatureCard::select(bool on)
 {
 	selected = on;
+	
+	// Update accessibility state when selection changes
+	auto currentInfo = getAccessibilityInfo();
+	if(currentInfo)
+	{
+		setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+			.withState(on ? "selected" : ""));
+		
+		// Announce selection change if we're gaining focus
+		if(on && hasFocus())
+		{
+			AccessibilityManager::getInstance().announceElement(this);
+		}
+	}
+	
 	redraw();
 }
 
 void CRecruitmentWindow::CCreatureCard::clickPressed(const Point & cursorPosition)
 {
 	parent->select(this->shared_from_this());
+}
+
+void CRecruitmentWindow::CCreatureCard::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::GLOBAL_RETURN)
+	{
+		parent->select(this->shared_from_this());
+	}
 }
 
 void CRecruitmentWindow::CCreatureCard::showPopupWindow(const Point & cursorPosition)
@@ -143,6 +175,16 @@ void CRecruitmentWindow::select(std::shared_ptr<CCreatureCard> card)
 
 		maxButton->block(maxAmount == 0);
 		slider->block(maxAmount == 0);
+		
+		// Announce creature selection with cost info
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			std::string announcement = card->creature->getNamePluralTranslated() + 
+				". Available: " + std::to_string(card->amount) +
+				". Cost per unit: " + card->creature->getFullRecruitCost().toHumanReadable();
+			
+			AccessibilityManager::getInstance().announce(announcement);
+		}
 	}
 }
 
@@ -223,13 +265,41 @@ CRecruitmentWindow::CRecruitmentWindow(const CGDwelling * Dwelling, int Level, c
 
 	OBJECT_CONSTRUCTION;
 
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Recruitment Window")
+		.withDescription("Recruit creatures from dwelling"));
+
 	statusbar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(8, pos.h - 26, pos.w - 16, 19), 8, pos.h - 26));
 
 	slider = std::make_shared<CSlider>(Point(176, 279), 135, std::bind(&CRecruitmentWindow::sliderMoved, this, _1), 0, 0, 0, Orientation::HORIZONTAL);
+	slider->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("slider")
+		.withName("Recruitment amount")
+		.withDescription("Select number of creatures to recruit")
+		.withTabOrder(20));
 
 	maxButton = std::make_shared<CButton>(Point(134, 313), AnimationPath::builtin("IRCBTNS.DEF"), LIBRARY->generaltexth->zelp[553], std::bind(&CSlider::scrollToMax, slider), EShortcut::RECRUITMENT_MAX);
+	maxButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Max")
+		.withDescription("Set to maximum available creatures")
+		.withTabOrder(25));
+	
 	buyButton = std::make_shared<CButton>(Point(212, 313), AnimationPath::builtin("IBY6432.DEF"), LIBRARY->generaltexth->zelp[554], std::bind(&CRecruitmentWindow::buy, this), EShortcut::GLOBAL_ACCEPT);
+	buyButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Buy")
+		.withDescription("Recruit selected creatures")
+		.withTabOrder(30));
+	
 	cancelButton = std::make_shared<CButton>(Point(290, 313), AnimationPath::builtin("ICN6432.DEF"), LIBRARY->generaltexth->zelp[555], std::bind(&CRecruitmentWindow::close, this), EShortcut::GLOBAL_CANCEL);
+	cancelButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Cancel")
+		.withDescription("Close without recruiting")
+		.withTabOrder(35));
 
 	title = std::make_shared<CLabel>(243, 32, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW);
 	availableValue = std::make_shared<CLabel>(205, 253, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
@@ -242,6 +312,9 @@ CRecruitmentWindow::CRecruitmentWindow(const CGDwelling * Dwelling, int Level, c
 	toRecruitTitle = std::make_shared<CLabel>(279, 233, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->allTexts[16]);
 
 	availableCreaturesChanged();
+	
+	// Announce window opening
+	AccessibilityManager::getInstance().announce("Recruitment window opened", true);
 }
 
 void CRecruitmentWindow::availableCreaturesChanged()
@@ -314,6 +387,27 @@ void CRecruitmentWindow::sliderMoved(int to)
 	toRecruitValue->setText(std::to_string(to));
 
 	totalCostValue->set(selected->creature->getFullRecruitCost() * to);
+	
+	// Update slider accessibility value
+	auto sliderInfo = slider->getAccessibilityInfo();
+	if(sliderInfo)
+	{
+		slider->setAccessibilityInfo(UIAccessibilityInfo(*sliderInfo)
+			.withValue(std::to_string(to)));
+	}
+	
+	// Announce the change if slider is focused
+	if(slider->hasFocus() && to > 0)
+	{
+		std::string announcement = boost::str(boost::format("Recruiting %d %s") % to % 
+			(to == 1 ? selected->creature->getNameSingularTranslated() : selected->creature->getNamePluralTranslated()));
+		
+		// Add total cost info
+		TResources totalCost = selected->creature->getFullRecruitCost() * to;
+		announcement += ". Total cost: " + totalCost.toHumanReadable();
+		
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 CSplitWindow::CSplitWindow(const CCreature * creature, std::function<void(int, int)> callback_, int leftMin_, int rightMin_, int leftAmount_, int rightAmount_)
@@ -348,14 +442,64 @@ CSplitWindow::CSplitWindow(const CCreature * creature, std::function<void(int, i
 	leftInput->setText(std::to_string(leftAmount));
 	rightInput->setText(std::to_string(rightAmount));
 
+	// Set up accessibility info for input fields
+	leftInput->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Left stack amount")
+		.withDescription("Amount of creatures to keep in the original stack")
+		.withValue(std::to_string(leftAmount))
+		.withTabOrder(1));
+	
+	rightInput->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Right stack amount")
+		.withDescription("Amount of creatures to move to the new stack")
+		.withValue(std::to_string(rightAmount))
+		.withTabOrder(2));
+
 	animLeft = std::make_shared<CCreaturePic>(20, 54, creature, true, false);
 	animRight = std::make_shared<CCreaturePic>(177, 54,creature, true, false);
 
 	slider = std::make_shared<CSlider>(Point(21, 194), 257, std::bind(&CSplitWindow::sliderMoved, this, _1), 0, sliderPosition, rightAmount - rightMin, Orientation::HORIZONTAL);
 
+	// Set up accessibility info for slider
+	slider->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("slider")
+		.withName("Split amount slider")
+		.withDescription("Adjust the split between left and right stacks")
+		.withValue(std::to_string(rightAmount))
+		.withTabOrder(3));
+
 	std::string titleStr = LIBRARY->generaltexth->allTexts[256];
 	boost::algorithm::replace_first(titleStr,"%s", creature->getNamePluralTranslated());
 	title = std::make_shared<CLabel>(150, 34, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, titleStr);
+	
+	// Set up accessibility info for buttons
+	ok->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("OK")
+		.withDescription("Confirm the split")
+		.withTabOrder(4));
+	
+	cancel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Cancel")
+		.withDescription("Cancel the split")
+		.withTabOrder(5));
+	
+	// Set up accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Split " + creature->getNamePluralTranslated())
+		.withDescription("Split creatures between two stacks. Total: " + std::to_string(total)));
+	
+	// Announce the window opening
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = "Split window opened. Total " + std::to_string(total) + " " + creature->getNamePluralTranslated();
+		announcement += ". Left stack: " + std::to_string(leftAmount) + ", Right stack: " + std::to_string(rightAmount);
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 void CSplitWindow::setAmountText(std::string text, bool left)
@@ -389,10 +533,38 @@ void CSplitWindow::setAmount(int value, bool left)
 
 	leftInput->setText(std::to_string(leftAmount));
 	rightInput->setText(std::to_string(rightAmount));
+	
+	// Update accessibility info
+	if(leftInput->getAccessibilityInfo())
+	{
+		UIAccessibilityInfo leftInfo = *leftInput->getAccessibilityInfo();
+		leftInfo.value = std::to_string(leftAmount);
+		leftInput->setAccessibilityInfo(leftInfo);
+	}
+	if(rightInput->getAccessibilityInfo())
+	{
+		UIAccessibilityInfo rightInfo = *rightInput->getAccessibilityInfo();
+		rightInfo.value = std::to_string(rightAmount);
+		rightInput->setAccessibilityInfo(rightInfo);
+	}
+	
+	// Announce the change
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = "Left: " + std::to_string(leftAmount) + ", Right: " + std::to_string(rightAmount);
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 void CSplitWindow::apply()
 {
+	// Announce the action
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = "Split confirmed. Left stack: " + std::to_string(leftAmount) + ", Right stack: " + std::to_string(rightAmount);
+		AccessibilityManager::getInstance().announce(announcement);
+	}
+	
 	callback(leftAmount, rightAmount);
 	close();
 }
@@ -1507,154 +1679,6 @@ CHillFortWindow::State CHillFortWindow::getState(SlotID slot)
 		return State::UNAFFORDABLE;
 
 	return State::MAKE_UPGRADE;
-}
-
-CThievesGuildWindow::CThievesGuildWindow(const CGObjectInstance * _owner):
-	CWindowObject(PLAYER_COLORED | BORDERED, ImagePath::builtin("TpRank")),
-	owner(_owner)
-{
-	OBJECT_CONSTRUCTION;
-
-	SThievesGuildInfo tgi; //info to be displayed
-	GAME->interface()->cb->getThievesGuildInfo(tgi, owner);
-
-	exitb = std::make_shared<CButton>(Point(748, 556), AnimationPath::builtin("TPMAGE1"), CButton::tooltip(LIBRARY->generaltexth->allTexts[600]), [&](){ close();}, EShortcut::GLOBAL_RETURN);
-	statusbar = CGStatusBar::create(3, 555, ImagePath::builtin("TStatBar.bmp"), 742);
-
-	resdatabar = std::make_shared<CMinorResDataBar>();
-	resdatabar->moveBy(pos.topLeft(), true);
-
-	//data for information table:
-	// fields[row][column] = list of id's of players for this box
-	constexpr std::vector< std::vector< PlayerColor > > SThievesGuildInfo::* fields[] =
-		{ &SThievesGuildInfo::numOfTowns, &SThievesGuildInfo::numOfHeroes,       &SThievesGuildInfo::gold,
-		  &SThievesGuildInfo::woodOre,    &SThievesGuildInfo::mercSulfCrystGems, &SThievesGuildInfo::obelisks,
-		  &SThievesGuildInfo::artifacts,  &SThievesGuildInfo::army,              &SThievesGuildInfo::income };
-
-	for(int g=0; g<12; ++g)
-	{
-		int posY[] = {400, 460, 510};
-		int y;
-		if(g < 9)
-			y = 52 + 32*g;
-		else
-			y = posY[g-9];
-
-		std::string text = LIBRARY->generaltexth->jktexts[24+g];
-		boost::algorithm::trim_if(text,boost::algorithm::is_any_of("\""));
-		if(settings["general"]["enableUiEnhancements"].Bool() && g >= 2 && g <= 4) // add icons instead of text (text is OH3 behavior)
-		{
-			auto addicon = [this, y](GameResID res, int x){ columnHeaderIcons.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("SMALRES"), res.getNum(), 0, x, y - 10)); };
-			if(g == 2) // gold
-				addicon(GameResID::GOLD, 125);
-			else if(g == 3) // wood, ore
-			{
-				addicon(GameResID::WOOD, 110);
-				addicon(GameResID::ORE, 140);
-			}
-			else if(g == 4) // mercury, sulfur, crystal, gems
-			{
-				addicon(GameResID::MERCURY, 80);
-				addicon(GameResID::SULFUR, 110);
-				addicon(GameResID::CRYSTAL, 140);
-				addicon(GameResID::GEMS, 170);
-			}
-		}
-		else
-			rowHeaders.push_back(std::make_shared<CLabel>(135, y, FONT_MEDIUM, ETextAlignment::CENTER, Colors::YELLOW, text, 220));
-	}
-
-	for(int g=1; g<tgi.playerColors.size(); ++g)
-		columnBackgrounds.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("PRSTRIPS"), g-1, 0, 250 + 66*g, 7));
-
-	for(int g=0; g<tgi.playerColors.size(); ++g)
-		columnHeaders.push_back(std::make_shared<CLabel>(283 + 66*g, 21, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[16+g]));
-
-	//printing flags
-	for(int g = 0; g < std::size(fields); ++g) //by lines
-	{
-		for(int b=0; b<(tgi .* fields[g]).size(); ++b) //by places (1st, 2nd, ...)
-		{
-			std::vector<PlayerColor> &players = (tgi .* fields[g])[b]; //get players with this place in this line
-
-			//position of box
-			int xpos = 259 + 66 * b;
-			int ypos = 41 +  32 * g;
-
-			size_t rowLength[2]; //size of each row
-			rowLength[0] = std::min<size_t>(players.size(), 4);
-			rowLength[1] = players.size() - rowLength[0];
-
-			for(size_t j=0; j < 2; j++)
-			{
-				// origin of this row | offset for 2nd row| shift right for short rows
-				//if we have 2 rows, start either from mid or beginning (depending on count), otherwise center the flags
-				int rowStartX = xpos + (j ? 6 + ((int)rowLength[j] < 3 ? 12 : 0) : 24 - 6 * (int)rowLength[j]);
-				int rowStartY = ypos + (j ? 4 : 0);
-
-				for(size_t i=0; i < rowLength[j]; i++)
-					cells.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("itgflags"), players[i + j*4].getNum(), 0, rowStartX + (int)i*12, rowStartY));
-			}
-		}
-	}
-
-	static const std::string colorToBox[] = {"PRRED.BMP", "PRBLUE.BMP", "PRTAN.BMP", "PRGREEN.BMP", "PRORANGE.BMP", "PRPURPLE.BMP", "PRTEAL.BMP", "PRROSE.bmp"};
-
-	//printing best hero
-	int counter = 0;
-	for(auto & iter : tgi.colorToBestHero)
-	{
-		banners.push_back(std::make_shared<CPicture>(ImagePath::builtin(colorToBox[iter.first.getNum()]), 253 + 66 * counter, 334));
-		if(iter.second.portraitSource.isValid())
-		{
-			bestHeroes.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("PortraitsSmall"), iter.second.getIconIndex(), 0, 260 + 66 * counter, 360));
-			//TODO: r-click info:
-			// - r-click on hero
-			if(iter.second.details)
-			{
-				std::vector<std::string> lines;
-				boost::split(lines, LIBRARY->generaltexth->allTexts[184], boost::is_any_of("\n"));
-				for(int i=0; i<GameConstants::PRIMARY_SKILLS; ++i)
-				{
-					primSkillHeaders.push_back(std::make_shared<CLabel>(260 + 66 * counter, 407 + 11 * i, FONT_TINY, ETextAlignment::BOTTOMLEFT, Colors::WHITE, lines[i]));
-					primSkillHeadersArea.push_back(std::make_shared<LRClickableArea>(Rect(primSkillHeaders.back()->pos.x - pos.x, primSkillHeaders.back()->pos.y - pos.y - 11, 50, 11), nullptr, [i]{
-						CRClickPopup::createAndPush(LIBRARY->generaltexth->arraytxt[2 + i]);
-					}));
-					primSkillValues.push_back(std::make_shared<CLabel>(310 + 66 * counter, 407 + 11 * i, FONT_TINY, ETextAlignment::BOTTOMRIGHT, Colors::WHITE,
-							   std::to_string(iter.second.details->primskills[i])));
-				}
-			}
-		}
-		counter++;
-	}
-
-	//printing best creature
-	counter = 0;
-	for(auto & it : tgi.bestCreature)
-	{
-		if(it.second != CreatureID::NONE)
-			bestCreatures.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("TWCRPORT"), it.second+2, 0, 255 + 66 * counter, 479));
-		counter++;
-	}
-
-	//printing personality
-	counter = 0;
-	for(auto & it : tgi.personality)
-	{
-		std::string text;
-		if(it.second == EAiTactic::NONE)
-		{
-			text = LIBRARY->generaltexth->arraytxt[172];
-		}
-		else if(it.second != EAiTactic::RANDOM)
-		{
-			text = LIBRARY->generaltexth->arraytxt[168 + static_cast<int>(it.second)];
-		}
-
-		personalities.push_back(std::make_shared<CLabel>(283 + 66*counter, 459, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, text));
-
-		counter++;
-	}
 }
 
 CObjectListWindow::CItem::CItem(CObjectListWindow * _parent, size_t _id, std::string _text)

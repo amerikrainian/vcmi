@@ -243,7 +243,7 @@ void CreaturePurchaseCard::onFocusGained()
 			", Level " + std::to_string(creatureOnTheCard->getLevel()) +
 			". Available: " + std::to_string(maxAmount - slider->getValue()) +
 			", Selected: " + std::to_string(slider->getValue()) +
-			". Cost per unit: " + creatureOnTheCard->getFullRecruitCost().toString();
+			". Cost per unit: " + creatureOnTheCard->getFullRecruitCost().toHumanReadable();
 		
 		AccessibilityManager::getInstance().announce(announcement);
 	}

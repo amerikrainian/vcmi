@@ -26,6 +26,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../battle/BattleInterface.h"
 
 #include "../../lib/CBonusTypeHandler.h"
@@ -108,11 +109,13 @@ private:
 };
 
 CCommanderSkillIcon::CCommanderSkillIcon(std::shared_ptr<CIntObject> object_, bool isMasterAbility_, std::function<void()> callback)
-	: object(),
+	: LRClickableAreaWText(Rect(object_->pos)),
+	  object(),
 	  isMasterAbility(isMasterAbility_),
 	  isSelected(false),
 	  callback(callback)
 {
+	addUsedEvents(KEYBOARD);
 	pos = object_->pos;
 	this->isMasterAbility = isMasterAbility_;
 	setObject(object_);
@@ -132,6 +135,15 @@ void CCommanderSkillIcon::clickPressed(const Point & cursorPosition)
 {
 	callback();
 	isSelected = true;
+}
+
+void CCommanderSkillIcon::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::GLOBAL_RETURN)
+	{
+		callback();
+		isSelected = true;
+	}
 }
 
 void CCommanderSkillIcon::deselect()
@@ -427,11 +439,24 @@ CStackWindow::ButtonsSection::ButtonsSection(CStackWindow * owner, int yOffset)
 			std::string tooltipText = "vcmi.creatureWindow." + btnIDs[buttonIndex];
 			parent->switchButtons[buttonIndex] = std::make_shared<CButton>(Point(302 + (int)buttonIndex*40, 5), AnimationPath::builtin("stackWindow/upgradeButton"), CButton::tooltipLocalized(tooltipText), onSwitch);
 			parent->switchButtons[buttonIndex]->setOverlay(std::make_shared<CAnimImage>(AnimationPath::builtin("stackWindow/switchModeIcons"), buttonIndex));
+			
+			// Set accessibility info for tab buttons
+			std::string tabName = buttonIndex == 0 ? "Skills" : "Bonuses";
+			parent->switchButtons[buttonIndex]->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("button")
+				.withName(tabName + " tab")
+				.withDescription("Switch to " + tabName + " view")
+				.withTabOrder(40 + buttonIndex));
 		}
 		parent->switchButtons[parent->activeTab]->disable();
 	}
 
 	exit = std::make_shared<CButton>(Point(382, 5), AnimationPath::builtin("hsbtns.def"), LIBRARY->generaltexth->zelp[447], [this](){ parent->close(); }, EShortcut::GLOBAL_RETURN);
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Exit")
+		.withDescription("Close this window")
+		.withTabOrder(50));
 }
 
 CStackWindow::CommanderMainSection::CommanderMainSection(CStackWindow * owner, int yOffset)
@@ -465,6 +490,28 @@ CStackWindow::CommanderMainSection::CommanderMainSection(CStackWindow * owner, i
 		});
 
 		icon->text = getSkillDescription(index); //used to handle right click description via LRClickableAreaWText::ClickRight()
+		
+		// Set accessibility info for commander skills
+		std::string skillName;
+		switch(index)
+		{
+			case ECommander::ATTACK: skillName = "Attack"; break;
+			case ECommander::DEFENSE: skillName = "Defense"; break;
+			case ECommander::HEALTH: skillName = "Health"; break;
+			case ECommander::DAMAGE: skillName = "Damage"; break;
+			case ECommander::SPEED: skillName = "Speed"; break;
+			case ECommander::SPELL_POWER: skillName = "Spell Power"; break;
+		}
+		
+		int skillLevel = parent->info->commander->secondarySkills[index];
+		std::string levelText = skillLevel > 0 ? "Level " + std::to_string(skillLevel) : "Not learned";
+		bool isUpgradeable = parent->info->levelupInfo && vstd::contains(parent->info->levelupInfo->skills, index);
+		
+		icon->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(skillName + " skill")
+			.withDescription(levelText + (isUpgradeable ? ", upgradeable" : ""))
+			.withTabOrder(10 + index));
 
 		if(parent->selectedSkill == index)
 			parent->selectedIcon = icon;
@@ -828,6 +875,28 @@ CStackWindow::~CStackWindow()
 void CStackWindow::init()
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Set accessibility info for the window
+	std::string windowTitle;
+	if(info->commander)
+	{
+		windowTitle = "Commander Window";
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("dialog")
+			.withName(windowTitle)
+			.withDescription("View and manage commander skills and abilities"));
+	}
+	else
+	{
+		windowTitle = info->creature->getNameSingularTranslated() + " Window";
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("dialog")
+			.withName(windowTitle)
+			.withDescription("View creature statistics and abilities"));
+	}
+	
+	// Announce window opening
+	AccessibilityManager::getInstance().announce(windowTitle + " opened", true);
 
 	if(!info->stackNode)
 	{

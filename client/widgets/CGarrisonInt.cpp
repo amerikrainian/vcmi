@@ -17,7 +17,11 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
+#include "../gui/Shortcut.h"
 #include "../render/IImage.h"
+#include "../render/Canvas.h"
+#include "../render/Colors.h"
 #include "../windows/CCreatureWindow.h"
 #include "../windows/CWindowWithArtifacts.h"
 #include "../windows/GUIClasses.h"
@@ -304,6 +308,18 @@ void CGarrisonSlot::showPopupWindow(const Point & cursorPosition)
 	}
 }
 
+void CGarrisonSlot::showAll(Canvas & to)
+{
+	CIntObject::showAll(to);
+	
+	// Draw focus indicator
+	if(hasFocus() && !owner->inSplittingMode)
+	{
+		// Draw yellow border around focused slot
+		to.drawBorder(pos, Colors::YELLOW, 2);
+	}
+}
+
 void CGarrisonSlot::clickPressed(const Point & cursorPosition)
 {
 		bool refr = false;
@@ -344,13 +360,31 @@ void CGarrisonSlot::clickPressed(const Point & cursorPosition)
 				refr = split();
 			}
 			else if(!creature && lastHeroStackSelected) // split all except last creature
+			{
 				GAME->interface()->cb->splitStack(selectedObj, owner->army(upg), selection->ID, ID, selection->myStack->getCount() - 1);
+				if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+					AccessibilityManager::getInstance().announce("Moved all but one creature to empty slot");
+			}
 			else if(creature != selection->creature) // swap
+			{
 				GAME->interface()->cb->swapCreatures(owner->army(upg), selectedObj, ID, selection->ID);
+				if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+				{
+					std::string msg = "Swapped " + selection->creature->getNamePluralTranslated() + " with " + creature->getNamePluralTranslated();
+					AccessibilityManager::getInstance().announce(msg);
+				}
+			}
 			else if(lastHeroStackSelected) // merge last stack to other hero stack
 				refr = split();
 			else // merge
+			{
 				GAME->interface()->cb->mergeStacks(selectedObj, owner->army(upg), selection->ID, ID);
+				if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+				{
+					std::string msg = "Merged " + std::to_string(selection->myStack->getCount()) + " " + selection->creature->getNamePluralTranslated();
+					AccessibilityManager::getInstance().announce(msg);
+				}
+			}
 		}
 		if(refr)
 		{
@@ -506,6 +540,126 @@ CGarrisonSlot::CGarrisonSlot(CGarrisonInt * Owner, int x, int y, SlotID IID, EGa
 	update();
 }
 
+void CGarrisonSlot::onFocusGained()
+{
+	setHighlight(true);
+	
+	// Announce the slot contents when focused
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement;
+		if(creature)
+		{
+			announcement = std::to_string(myStack->getCount()) + " ";
+			if(myStack->getCount() > 1)
+				announcement += creature->getNamePluralTranslated();
+			else
+				announcement += creature->getNameSingularTranslated();
+			
+			std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
+			announcement += " in " + garrisonType + " army, slot " + std::to_string(ID.getNum() + 1);
+		}
+		else
+		{
+			std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
+			announcement = "Empty " + garrisonType + " army slot " + std::to_string(ID.getNum() + 1);
+		}
+		AccessibilityManager::getInstance().announce(announcement);
+	}
+	
+	redraw();
+}
+
+void CGarrisonSlot::onFocusLost()
+{
+	if(!owner->getSelection() || owner->getSelection() != this)
+		setHighlight(false);
+	redraw();
+}
+
+bool CGarrisonSlot::isFocusable() const
+{
+	// Slot is focusable if it's active and either has a creature or can receive one
+	return isActive() && getObj() != nullptr;
+}
+
+void CGarrisonSlot::keyPressed(EShortcut key)
+{
+	if(!isFocusable())
+		return;
+	
+	switch(key)
+	{
+	case EShortcut::GLOBAL_RETURN:
+	case EShortcut::GLOBAL_ACCEPT:
+		// Activate slot - same as clicking
+		clickPressed(pos.center());
+		break;
+		
+	case EShortcut::MOVE_UP:
+		if(upg == EGarrisonType::LOWER && owner->upperArmy())
+		{
+			// Move focus to upper garrison
+			owner->moveFocus(false);
+		}
+		break;
+		
+	case EShortcut::MOVE_DOWN:
+		if(upg == EGarrisonType::UPPER && owner->lowerArmy())
+		{
+			// Move focus to lower garrison
+			owner->moveFocus(true);
+		}
+		break;
+		
+	case EShortcut::MOVE_LEFT:
+		owner->moveFocus(false);
+		break;
+		
+	case EShortcut::MOVE_RIGHT:
+		owner->moveFocus(true);
+		break;
+		
+	case EShortcut::SELECT_INDEX_1:
+	case EShortcut::SELECT_INDEX_2:
+	case EShortcut::SELECT_INDEX_3:
+	case EShortcut::SELECT_INDEX_4:
+	case EShortcut::SELECT_INDEX_5:
+	case EShortcut::SELECT_INDEX_6:
+	case EShortcut::SELECT_INDEX_7:
+		{
+			// Direct slot selection via number keys
+			int slotIndex = static_cast<int>(key) - static_cast<int>(EShortcut::SELECT_INDEX_1);
+			if(slotIndex >= 0 && slotIndex < 7)
+			{
+				auto targetSlot = owner->availableSlots[static_cast<int>(upg) * 7 + slotIndex];
+				if(targetSlot && targetSlot->isFocusable())
+					owner->setFocusToSlot(targetSlot.get());
+			}
+		}
+		break;
+		
+	case EShortcut::GLOBAL_CANCEL:
+		// Clear selection on ESC
+		if(owner->getSelection())
+		{
+			owner->selectSlot(nullptr);
+			owner->setSplittingMode(false);
+			if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+				AccessibilityManager::getInstance().announce("Selection cleared");
+		}
+		break;
+		
+	default:
+		break;
+	}
+}
+
+bool CGarrisonSlot::isOwnSlot() const
+{
+	return our();
+}
+
 void CGarrisonSlot::splitIntoParts(EGarrisonType type, int amount)
 {
 	auto empty = owner->getEmptySlot(type);
@@ -629,6 +783,16 @@ void CGarrisonInt::splitClick()
 void CGarrisonInt::splitStacks(const CGarrisonSlot * from, const CArmedInstance * armyDest, SlotID slotDest, int amount )
 {
 	GAME->interface()->cb->splitStack(armedObjs[from->upg], armyDest, from->ID, slotDest, amount);
+	
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string msg = "Split " + std::to_string(amount) + " creatures to ";
+		if(armyDest == armedObjs[from->upg])
+			msg += "slot " + std::to_string(slotDest.getNum() + 1);
+		else
+			msg += "the other army";
+		AccessibilityManager::getInstance().announce(msg);
+	}
 }
 
 bool CGarrisonInt::checkSelected(const CGarrisonSlot * selected, TQuantity min) const
@@ -678,6 +842,12 @@ void CGarrisonInt::moveStackToAnotherArmy(const CGarrisonSlot * selected)
 	{
 		GAME->interface()->cb->swapCreatures(srcArmy, destArmy, srcSlot, destSlot);
 	}
+	
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string msg = "Moved " + std::to_string(srcAmount) + " " + selected->creature->getNamePluralTranslated() + " to the other army";
+		AccessibilityManager::getInstance().announce(msg);
+	}
 }
 
 void CGarrisonInt::bulkMoveArmy(const CGarrisonSlot * selected)
@@ -698,6 +868,9 @@ void CGarrisonInt::bulkMoveArmy(const CGarrisonSlot * selected)
 
 	const auto srcSlot = selected->ID;
 	GAME->interface()->cb->bulkMoveArmy(srcArmy->id, destArmy->id, srcSlot);
+	
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+		AccessibilityManager::getInstance().announce("Moved all creatures to the other army");
 }
 
 void CGarrisonInt::bulkMergeStacks(const CGarrisonSlot * selected)
@@ -711,6 +884,12 @@ void CGarrisonInt::bulkMergeStacks(const CGarrisonSlot * selected)
 		return;
 
 	GAME->interface()->cb->bulkMergeStacks(armedObjs[type]->id, selected->ID);
+	
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string msg = "Merged all " + selected->creature->getNamePluralTranslated() + " into one stack";
+		AccessibilityManager::getInstance().announce(msg);
+	}
 }
 
 void CGarrisonInt::bulkSplitStack(const CGarrisonSlot * selected)
@@ -724,6 +903,9 @@ void CGarrisonInt::bulkSplitStack(const CGarrisonSlot * selected)
 		return;
 
 	GAME->interface()->cb->bulkSplitStack(armedObjs[type]->id, selected->ID);
+	
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+		AccessibilityManager::getInstance().announce("Split stack into single creatures");
 }
 
 void CGarrisonInt::bulkSplitAndRebalanceStack(const CGarrisonSlot * selected)
@@ -738,6 +920,9 @@ void CGarrisonInt::bulkSplitAndRebalanceStack(const CGarrisonSlot * selected)
 		return;
 
 	GAME->interface()->cb->bulkSplitAndRebalanceStack(armedObjs[type]->id, selected->ID);
+	
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+		AccessibilityManager::getInstance().announce("Split and rebalanced stacks equally");
 }
 
 CGarrisonInt::CGarrisonInt(const Point & position, int inx, const Point & garsOffset, const CArmedInstance * s1, const CArmedInstance * s2, bool _removableUnits, bool smallImgs, ESlotsLayout _layout)
@@ -748,6 +933,7 @@ CGarrisonInt::CGarrisonInt(const Point & position, int inx, const Point & garsOf
 	, smallIcons(smallImgs)
 	, removableUnits(_removableUnits)
 	, layout(_layout)
+	, focusedSlot(nullptr)
 {
 	OBJECT_CONSTRUCTION;
 
@@ -761,6 +947,8 @@ CGarrisonInt::CGarrisonInt(const Point & position, int inx, const Point & garsOf
 		.withName("Army garrison")
 		.withDescription("Army slots for managing hero's creatures. Use Tab to navigate between slots")
 		.withTabOrder(60));
+	
+	addUsedEvents(KEYBOARD);
 	
 	createSlots();
 }
@@ -853,4 +1041,90 @@ bool CGarrisonInt::isArmyOwned(EGarrisonType which) const
 void CGarrisonInt::setArmy(const CArmedInstance * army, EGarrisonType type)
 {
 	armedObjs[type] = army;
+}
+
+void CGarrisonInt::keyPressed(EShortcut key)
+{
+	// The garrison itself doesn't handle keyboard input
+	// Individual slots handle their own keyboard navigation
+}
+
+void CGarrisonInt::moveFocus(bool next)
+{
+	if(availableSlots.empty())
+		return;
+	
+	// Find current focused slot
+	CGarrisonSlot * current = focusedSlot;
+	if(!current)
+	{
+		// No slot has focus - focus the first focusable slot
+		for(auto & slot : availableSlots)
+		{
+			if(slot->isFocusable())
+			{
+				setFocusToSlot(slot.get());
+				return;
+			}
+		}
+		return;
+	}
+	
+	// Find next focusable slot
+	auto nextSlot = getNextSlot(current, next);
+	if(nextSlot)
+		setFocusToSlot(nextSlot);
+}
+
+void CGarrisonInt::setFocusToSlot(CGarrisonSlot * slot)
+{
+	if(focusedSlot == slot)
+		return;
+	
+	if(focusedSlot)
+	{
+		focusedSlot->setFocus(false);
+		focusedSlot->onFocusLost();
+	}
+	
+	focusedSlot = slot;
+	
+	if(focusedSlot)
+	{
+		focusedSlot->setFocus(true);
+		focusedSlot->onFocusGained();
+	}
+}
+
+CGarrisonSlot * CGarrisonInt::getNextSlot(CGarrisonSlot * current, bool next)
+{
+	if(!current || availableSlots.empty())
+		return nullptr;
+	
+	// Find current slot index
+	int currentIndex = -1;
+	for(int i = 0; i < availableSlots.size(); i++)
+	{
+		if(availableSlots[i].get() == current)
+		{
+			currentIndex = i;
+			break;
+		}
+	}
+	
+	if(currentIndex == -1)
+		return nullptr;
+	
+	// Search for next focusable slot
+	int direction = next ? 1 : -1;
+	int slotCount = availableSlots.size();
+	
+	for(int i = 1; i < slotCount; i++)
+	{
+		int nextIndex = (currentIndex + i * direction + slotCount) % slotCount;
+		if(availableSlots[nextIndex]->isFocusable())
+			return availableSlots[nextIndex].get();
+	}
+	
+	return nullptr;
 }

@@ -115,6 +115,39 @@ std::string ResourceSet::toString() const
 	return out.str();
 }
 
+std::string ResourceSet::toHumanReadable() const
+{
+	std::vector<std::string> resourceStrings;
+	
+	// Use nziterator to iterate only over non-zero resources
+	nziterator iter(*this);
+	while(iter.valid())
+	{
+		// Get the resource name with proper capitalization
+		std::string resourceName = GameConstants::RESOURCE_NAMES[iter->resType.getNum()];
+		resourceName[0] = std::toupper(resourceName[0]); // Capitalize first letter
+		
+		// Add "ResourceName: amount" to the list
+		resourceStrings.push_back(resourceName + ": " + std::to_string(iter->resVal));
+		iter++;
+	}
+	
+	// If no resources, return "Free"
+	if(resourceStrings.empty())
+		return "Free";
+	
+	// Join all resource strings with ", "
+	std::ostringstream result;
+	for(size_t i = 0; i < resourceStrings.size(); ++i)
+	{
+		result << resourceStrings[i];
+		if(i < resourceStrings.size() - 1)
+			result << ", ";
+	}
+	
+	return result.str();
+}
+
 bool ResourceSet::nziterator::valid() const
 {
 	return cur.resType < GameResID::COUNT && cur.resVal;

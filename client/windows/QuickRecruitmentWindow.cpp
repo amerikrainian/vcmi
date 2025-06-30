@@ -173,8 +173,16 @@ void QuickRecruitmentWindow::updateAllSliders()
 			i->slider->setAmount(i->maxAmount);
 		i->slider->scrollTo(i->slider->getValue());
 	}
-	totalCost->createItems(GAME->interface()->cb->getResourceAmount() - allAvailableResources);
-	totalCost->set(GAME->interface()->cb->getResourceAmount() - allAvailableResources);
+	TResources totalCostResources = GAME->interface()->cb->getResourceAmount() - allAvailableResources;
+	totalCost->createItems(totalCostResources);
+	totalCost->set(totalCostResources);
+	
+	// Announce total cost when it changes
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled() && !totalCostResources.empty())
+	{
+		std::string announcement = "Total cost: " + totalCostResources.toHumanReadable();
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 QuickRecruitmentWindow::QuickRecruitmentWindow(const CGTownInstance * townd, Rect startupPosition)

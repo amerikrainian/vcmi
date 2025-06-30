@@ -44,6 +44,7 @@ public:
 	std::function<void()> callback;
 
 	void clickPressed(const Point & cursorPosition) override;
+	void keyPressed(EShortcut key) override;
 
 	void setObject(std::shared_ptr<CIntObject> object);
 	void deselect(); //TODO: consider using observer pattern instead?

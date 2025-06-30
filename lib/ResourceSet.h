@@ -206,6 +206,7 @@ public:
 	DLL_LINKAGE TResourceCap marketValue() const;
 
 	DLL_LINKAGE std::string toString() const;
+	DLL_LINKAGE std::string toHumanReadable() const;
 
 	//special iterator of iterating over non-zero resources in set
 	class DLL_LINKAGE nziterator

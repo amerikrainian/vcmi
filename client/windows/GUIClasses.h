@@ -13,6 +13,7 @@
 #include "../lib/ResourceSet.h"
 #include "../widgets/Images.h"
 #include "../widgets/IVideoHolder.h"
+#include "CThievesGuildWindow.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -69,6 +70,7 @@ class CRecruitmentWindow : public CStatusbarWindow
 		CCreatureCard(CRecruitmentWindow * window, const CCreature * crea, int totalAmount);
 
 		void clickPressed(const Point & cursorPosition) override;
+		void keyPressed(EShortcut key) override;
 		void showPopupWindow(const Point & cursorPosition) override;
 		void showAll(Canvas & to) override;
 	};
@@ -496,29 +498,8 @@ public:
 	bool holdsGarrison(const CArmedInstance * army) override;
 };
 
-class CThievesGuildWindow : public CStatusbarWindow
-{
-	const CGObjectInstance * owner;
-
-	std::shared_ptr<CButton> exitb;
-	std::shared_ptr<CMinorResDataBar> resdatabar;
-
-	std::vector<std::shared_ptr<CLabel>> rowHeaders;
-	std::vector<std::shared_ptr<CAnimImage>> columnBackgrounds;
-	std::vector<std::shared_ptr<CLabel>> columnHeaders;
-	std::vector<std::shared_ptr<CAnimImage>> columnHeaderIcons;
-	std::vector<std::shared_ptr<CAnimImage>> cells;
-
-	std::vector<std::shared_ptr<CPicture>> banners;
-	std::vector<std::shared_ptr<CAnimImage>> bestHeroes;
-	std::vector<std::shared_ptr<CLabel>> primSkillHeaders;
-	std::vector<std::shared_ptr<LRClickableArea>> primSkillHeadersArea;
-	std::vector<std::shared_ptr<CLabel>> primSkillValues;
-	std::vector<std::shared_ptr<CAnimImage>> bestCreatures;
-	std::vector<std::shared_ptr<CLabel>> personalities;
-public:
-	CThievesGuildWindow(const CGObjectInstance * _owner);
-};
+// CThievesGuildWindow moved to its own header file
+class CThievesGuildWindow;  // forward declaration
 
 class VideoWindow : public CWindowObject, public IVideoHolder
 {
