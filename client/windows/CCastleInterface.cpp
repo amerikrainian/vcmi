@@ -2040,8 +2040,21 @@ CBuildWindow::CBuildWindow(const CGTownInstance *Town, const CBuilding * Buildin
 	building(Building)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(building->getNameTranslated() + " - Building Information")
+		.withDescription(rightClick ? "Building information window" : "Building construction dialog"));
+	
+	// Enable keyboard navigation
+	addUsedEvents(KEYBOARD);
 
 	icon = std::make_shared<CAnimImage>(town->getTown()->clientInfo.buildingsIcons, building->bid.getNum(), 0, 125, 50);
+	icon->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("image")
+		.withName(building->getNameTranslated())
+		.withDescription("Building icon"));
 	auto statusbarBackground = std::make_shared<CPicture>(background->getSurface(), Rect(8, pos.h - 26, pos.w - 16, 19), 8, pos.h - 26);
 	statusbar = CGStatusBar::create(statusbarBackground);
 
@@ -2050,8 +2063,25 @@ CBuildWindow::CBuildWindow(const CGTownInstance *Town, const CBuilding * Buildin
 	nameString.replaceTextID(building->getNameTextID());
 
 	name = std::make_shared<CLabel>(197, 30, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, nameString.toString());
+	name->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("heading")
+		.withName(nameString.toString()));
+	
 	description = std::make_shared<CTextBox>(building->getDescriptionTranslated(), Rect(33, 135, 329, 67), 0, FONT_MEDIUM, ETextAlignment::CENTER);
+	description->addUsedEvents(KEYBOARD);
+	description->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Building Description")
+		.withDescription(building->getDescriptionTranslated())
+		.withTabOrder(1));
+	
 	stateText = std::make_shared<CTextBox>(getTextForState(state), Rect(33, 216, 329, 67), 0, FONT_SMALL, ETextAlignment::CENTER);
+	stateText->addUsedEvents(KEYBOARD);
+	stateText->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Building Status")
+		.withDescription(getTextForState(state))
+		.withTabOrder(2));
 
 	//Create components for all required resources
 	std::vector<std::shared_ptr<CComponent>> components;
@@ -2078,6 +2108,11 @@ CBuildWindow::CBuildWindow(const CGTownInstance *Town, const CBuilding * Buildin
 	}
 
 	cost = std::make_shared<CComponentBox>(components, Rect(25, 300, pos.w - 50, 130));
+	cost->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Resource Costs")
+		.withDescription("Resources required to build this structure")
+		.withTabOrder(3));
 
 	if(!rightClick)
 	{	//normal window
@@ -2093,10 +2128,26 @@ CBuildWindow::CBuildWindow(const CGTownInstance *Town, const CBuilding * Buildin
 		buy = std::make_shared<CButton>(Point(45, 446), AnimationPath::builtin("IBUY30"), CButton::tooltip(tooltipYes.toString()), [&](){ buyFunc(); }, EShortcut::GLOBAL_ACCEPT);
 		buy->setBorderColor(Colors::METALLIC_GOLD);
 		buy->block(state != EBuildingState::ALLOWED || GAME->interface()->playerID != town->tempOwner || !GAME->interface()->makingTurn);
+		buy->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Build")
+			.withDescription(tooltipYes.toString())
+			.withTabOrder(4));
 
 		cancel = std::make_shared<CButton>(Point(290, 445), AnimationPath::builtin("ICANCEL"), CButton::tooltip(tooltipNo.toString()), [&](){ close();}, EShortcut::GLOBAL_CANCEL);
 		cancel->setBorderColor(Colors::METALLIC_GOLD);
+		cancel->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Cancel")
+			.withDescription(tooltipNo.toString())
+			.withTabOrder(5));
 	}
+	
+	// Announce window content when opened
+	std::string announcement = "Building information: " + building->getNameTranslated() + ". ";
+	announcement += building->getDescriptionTranslated() + " ";
+	announcement += "Status: " + getTextForState(state);
+	AccessibilityManager::getInstance().announce(announcement, true);
 }
 
 void CBuildWindow::buyFunc()

@@ -13,6 +13,7 @@
 #include "Buttons.h"
 #include "TextControls.h"
 #include "RadialMenu.h"
+#include "MiscWidgets.h"
 
 #include "../GameEngine.h"
 #include "../GameInstance.h"
@@ -544,27 +545,46 @@ void CGarrisonSlot::onFocusGained()
 {
 	setHighlight(true);
 	
-	// Announce the slot contents when focused
+	// Announce the slot contents when focused, but only if explicitly navigated to
+	// Check if focus was gained through Tab navigation or direct interaction
 	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
 	{
-		std::string announcement;
-		if(creature)
+		// Don't announce if we're in a tooltip/infobar context and not actively navigating
+		CIntObject* currentParent = parent;
+		bool inTooltip = false;
+		while(currentParent)
 		{
-			announcement = std::to_string(myStack->getCount()) + " ";
-			if(myStack->getCount() > 1)
-				announcement += creature->getNamePluralTranslated();
+			if(dynamic_cast<const CInteractableHeroTooltip*>(currentParent) || 
+			   dynamic_cast<const CInteractableTownTooltip*>(currentParent))
+			{
+				inTooltip = true;
+				break;
+			}
+			currentParent = currentParent->parent;
+		}
+		
+		// Only announce if not in tooltip
+		if(!inTooltip)
+		{
+			std::string announcement;
+			if(creature)
+			{
+				announcement = std::to_string(myStack->getCount()) + " ";
+				if(myStack->getCount() > 1)
+					announcement += creature->getNamePluralTranslated();
+				else
+					announcement += creature->getNameSingularTranslated();
+				
+				std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
+				announcement += " in " + garrisonType + " army, slot " + std::to_string(ID.getNum() + 1);
+			}
 			else
-				announcement += creature->getNameSingularTranslated();
-			
-			std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
-			announcement += " in " + garrisonType + " army, slot " + std::to_string(ID.getNum() + 1);
+			{
+				std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
+				announcement = "Empty " + garrisonType + " army slot " + std::to_string(ID.getNum() + 1);
+			}
+			AccessibilityManager::getInstance().announce(announcement);
 		}
-		else
-		{
-			std::string garrisonType = (upg == EGarrisonType::UPPER) ? "garrison" : "visiting";
-			announcement = "Empty " + garrisonType + " army slot " + std::to_string(ID.getNum() + 1);
-		}
-		AccessibilityManager::getInstance().announce(announcement);
 	}
 	
 	redraw();
@@ -594,49 +614,6 @@ void CGarrisonSlot::keyPressed(EShortcut key)
 	case EShortcut::GLOBAL_ACCEPT:
 		// Activate slot - same as clicking
 		clickPressed(pos.center());
-		break;
-		
-	case EShortcut::MOVE_UP:
-		if(upg == EGarrisonType::LOWER && owner->upperArmy())
-		{
-			// Move focus to upper garrison
-			owner->moveFocus(false);
-		}
-		break;
-		
-	case EShortcut::MOVE_DOWN:
-		if(upg == EGarrisonType::UPPER && owner->lowerArmy())
-		{
-			// Move focus to lower garrison
-			owner->moveFocus(true);
-		}
-		break;
-		
-	case EShortcut::MOVE_LEFT:
-		owner->moveFocus(false);
-		break;
-		
-	case EShortcut::MOVE_RIGHT:
-		owner->moveFocus(true);
-		break;
-		
-	case EShortcut::SELECT_INDEX_1:
-	case EShortcut::SELECT_INDEX_2:
-	case EShortcut::SELECT_INDEX_3:
-	case EShortcut::SELECT_INDEX_4:
-	case EShortcut::SELECT_INDEX_5:
-	case EShortcut::SELECT_INDEX_6:
-	case EShortcut::SELECT_INDEX_7:
-		{
-			// Direct slot selection via number keys
-			int slotIndex = static_cast<int>(key) - static_cast<int>(EShortcut::SELECT_INDEX_1);
-			if(slotIndex >= 0 && slotIndex < 7)
-			{
-				auto targetSlot = owner->availableSlots[static_cast<int>(upg) * 7 + slotIndex];
-				if(targetSlot && targetSlot->isFocusable())
-					owner->setFocusToSlot(targetSlot.get());
-			}
-		}
 		break;
 		
 	case EShortcut::GLOBAL_CANCEL:
@@ -933,7 +910,6 @@ CGarrisonInt::CGarrisonInt(const Point & position, int inx, const Point & garsOf
 	, smallIcons(smallImgs)
 	, removableUnits(_removableUnits)
 	, layout(_layout)
-	, focusedSlot(nullptr)
 {
 	OBJECT_CONSTRUCTION;
 
@@ -1046,85 +1022,5 @@ void CGarrisonInt::setArmy(const CArmedInstance * army, EGarrisonType type)
 void CGarrisonInt::keyPressed(EShortcut key)
 {
 	// The garrison itself doesn't handle keyboard input
-	// Individual slots handle their own keyboard navigation
-}
-
-void CGarrisonInt::moveFocus(bool next)
-{
-	if(availableSlots.empty())
-		return;
-	
-	// Find current focused slot
-	CGarrisonSlot * current = focusedSlot;
-	if(!current)
-	{
-		// No slot has focus - focus the first focusable slot
-		for(auto & slot : availableSlots)
-		{
-			if(slot->isFocusable())
-			{
-				setFocusToSlot(slot.get());
-				return;
-			}
-		}
-		return;
-	}
-	
-	// Find next focusable slot
-	auto nextSlot = getNextSlot(current, next);
-	if(nextSlot)
-		setFocusToSlot(nextSlot);
-}
-
-void CGarrisonInt::setFocusToSlot(CGarrisonSlot * slot)
-{
-	if(focusedSlot == slot)
-		return;
-	
-	if(focusedSlot)
-	{
-		focusedSlot->setFocus(false);
-		focusedSlot->onFocusLost();
-	}
-	
-	focusedSlot = slot;
-	
-	if(focusedSlot)
-	{
-		focusedSlot->setFocus(true);
-		focusedSlot->onFocusGained();
-	}
-}
-
-CGarrisonSlot * CGarrisonInt::getNextSlot(CGarrisonSlot * current, bool next)
-{
-	if(!current || availableSlots.empty())
-		return nullptr;
-	
-	// Find current slot index
-	int currentIndex = -1;
-	for(int i = 0; i < availableSlots.size(); i++)
-	{
-		if(availableSlots[i].get() == current)
-		{
-			currentIndex = i;
-			break;
-		}
-	}
-	
-	if(currentIndex == -1)
-		return nullptr;
-	
-	// Search for next focusable slot
-	int direction = next ? 1 : -1;
-	int slotCount = availableSlots.size();
-	
-	for(int i = 1; i < slotCount; i++)
-	{
-		int nextIndex = (currentIndex + i * direction + slotCount) % slotCount;
-		if(availableSlots[nextIndex]->isFocusable())
-			return availableSlots[nextIndex].get();
-	}
-	
-	return nullptr;
+	// Individual slots handle their own keyboard navigation via Tab
 }

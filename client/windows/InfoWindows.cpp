@@ -115,6 +115,8 @@ CSelWindow::CSelWindow( const std::string & Text, PlayerColor player, int charpe
 			// Set tab order for components
 			comps[i]->setAccessibilityInfo(UIAccessibilityInfo()
 				.withRole("option")
+				.withName(comps[i]->getSubtitle())
+				.withDescription(comps[i]->getDescription())
 				.withTabOrder(i + 1));
 		}
 	}

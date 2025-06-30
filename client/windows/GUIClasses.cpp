@@ -580,15 +580,35 @@ CLevelWindow::CLevelWindow(const CGHeroInstance * hero, PrimarySkill pskill, std
 {
 	OBJECT_CONSTRUCTION;
 
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Hero Level Up")
+		.withDescription(hero->getNameTranslated() + " has gained a level"));
+
+	// Enable keyboard navigation
+	addUsedEvents(KEYBOARD);
+
 	GAME->interface()->showingDialog->setBusy();
 
 	if(!skills.empty())
 	{
 		std::vector<std::shared_ptr<CSelectableComponent>> comps;
-		for(auto & skill : skills)
+		for(size_t i = 0; i < skills.size(); ++i)
 		{
+			auto skill = skills[i];
 			auto comp = std::make_shared<CSelectableComponent>(ComponentType::SEC_SKILL, skill, hero->getSecSkillLevel(SecondarySkill(skill))+1, CComponent::medium);
 			comp->onChoose = std::bind(&CLevelWindow::close, this);
+			
+			// Set accessibility info for each skill option
+			std::string skillName = comp->getSubtitle();
+			std::string skillDesc = comp->getDescription();
+			comp->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("radio")
+				.withName(skillName)
+				.withDescription(skillDesc)
+				.withTabOrder(i + 1));
+			
 			comps.push_back(comp);
 		}
 
@@ -599,6 +619,11 @@ CLevelWindow::CLevelWindow(const CGHeroInstance * hero, PrimarySkill pskill, std
 	portrait->addClickCallback(nullptr);
 	portrait->addRClickCallback([hero](){ ENGINE->windows().createAndPushWindow<CRClickPopupInt>(std::make_shared<CHeroWindow>(hero)); });
 	ok = std::make_shared<CButton>(Point(297, 413), AnimationPath::builtin("IOKAY"), CButton::tooltip(), std::bind(&CLevelWindow::close, this), EShortcut::GLOBAL_ACCEPT);
+	ok->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("OK")
+		.withDescription("Confirm skill selection")
+		.withTabOrder(10));
 
 	//%s has gained a level.
 	mainTitle = std::make_shared<CLabel>(192, 33, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, boost::str(boost::format(LIBRARY->generaltexth->allTexts[444]) % hero->getNameTranslated()));
@@ -614,6 +639,15 @@ CLevelWindow::CLevelWindow(const CGHeroInstance * hero, PrimarySkill pskill, std
 	skillIcon = std::make_shared<CAnimImage>(AnimationPath::builtin("PSKIL42"), pskill.getNum(), 0, 174, 190);
 
 	skillValue = std::make_shared<CLabel>(192, 253, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->primarySkillNames[pskill.getNum()] + " +1");
+	
+	// Announce level up when window opens
+	std::string announcement = hero->getNameTranslated() + " has reached level " + std::to_string(hero->level) + ". ";
+	announcement += "Primary skill increased: " + LIBRARY->generaltexth->primarySkillNames[pskill.getNum()] + " +1. ";
+	if (!skills.empty())
+	{
+		announcement += "Choose a secondary skill to learn.";
+	}
+	AccessibilityManager::getInstance().announce(announcement, true);
 }
 
 void CLevelWindow::close()

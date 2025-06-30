@@ -164,8 +164,4 @@ public:
 
 	// Keyboard navigation
 	void keyPressed(EShortcut key) override;
-	void moveFocus(bool next);
-	void setFocusToSlot(CGarrisonSlot * slot);
-	CGarrisonSlot * getNextSlot(CGarrisonSlot * current, bool next);
-	CGarrisonSlot * focusedSlot;
 };
