@@ -39,12 +39,6 @@ void FocusManager::buildFocusableList(CIntObject* root)
     if (canReceiveFocus(root))
     {
         focusableElements.push_back(root);
-        
-        auto* accInfo = root->getAccessibilityInfo();
-        if (accInfo)
-        {
-                accInfo->name.c_str(), accInfo->tabOrder);
-        }
     }
     
     // Recursively process children
