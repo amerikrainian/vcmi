@@ -331,64 +331,198 @@ void CInfoBar::hover(bool on)
 
 void CInfoBar::keyPressed(EShortcut key)
 {
-	// Handle tab key focus - announce current info bar content when focused
-	if (key == EShortcut::GLOBAL_MOVE_FOCUS)
+	// Check if we have focus
+	if (!hasFocus())
+		return;
+		
+	bool handled = false;
+	
+	switch(key)
 	{
-		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+		case EShortcut::MOVE_LEFT:
+		case EShortcut::MOVE_RIGHT:
 		{
-			std::string announcement;
-			
-			switch(state)
+			// Auto-enter navigation mode if we're in a navigable state
+			if (!navigationActive && (state == EState::GAME || state == EState::COMPONENT))
 			{
-			case EState::DATE:
-				{
-					announcement = "Date information: ";
-					if(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK) == 1 && GAME->interface()->cb->getDate(Date::DAY) != 1)
-						announcement += "Week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
-					else
-						announcement += "Day " + std::to_string(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK)) + " of week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
-					
-					// Add turn counter
-					int currentDay = GAME->interface()->cb->getDate(Date::DAY);
-					announcement += ". Day " + std::to_string(currentDay) + " (Turn " + std::to_string(currentDay) + ")";
-				}
-				break;
-				
-			case EState::HERO:
-				if(GAME->interface()->localState->getCurrentHero())
-				{
-					auto hero = GAME->interface()->localState->getCurrentHero();
-					announcement = "Selected hero: " + hero->getNameTranslated();
-				}
-				break;
-				
-			case EState::TOWN:
-				if(GAME->interface()->localState->getCurrentTown())
-				{
-					auto town = GAME->interface()->localState->getCurrentTown();
-					announcement = "Selected town: " + town->getNameTranslated();
-				}
-				break;
-				
-			case EState::GAME:
-				announcement = "Game status information";
-				break;
-				
-			case EState::COMPONENT:
-				announcement = "Components displayed";
-				break;
-				
-			case EState::AITURN:
-				announcement = "Enemy player turn in progress";
-				break;
-				
-			default:
-				announcement = "Information bar";
-				break;
+				navigationActive = true;
+				focusedItemIndex = 0;
 			}
 			
-			AccessibilityManager::getInstance().announce(announcement, true);
+			if (navigationActive && (state == EState::GAME || state == EState::COMPONENT))
+			{
+				// Navigation logic will be state-specific
+				handled = true;
+				
+				if (state == EState::GAME)
+				{
+					// Navigate between ally flags, enemy flags, and town halls
+					// This would need access to the internal state of VisibleGameStatusInfo
+					// For now, just cycle through a few items
+					if (key == EShortcut::MOVE_RIGHT)
+						focusedItemIndex = (focusedItemIndex + 1) % 3; // 3 sections: allies, enemies, halls
+					else
+						focusedItemIndex = (focusedItemIndex + 2) % 3; // Move left
+				}
+				else if (state == EState::COMPONENT)
+				{
+					// Navigate between components
+					// This would need access to the components being displayed
+					if (key == EShortcut::MOVE_RIGHT)
+						focusedItemIndex++;
+					else if (focusedItemIndex > 0)
+						focusedItemIndex--;
+				}
+			}
+			else if (!navigationActive)
+			{
+				// For non-navigable states, just announce the content once
+				navigationActive = true;
+				handled = true;
+			}
+			break;
 		}
+		
+		case EShortcut::GLOBAL_ACCEPT:
+		case EShortcut::GLOBAL_CANCEL:
+		{
+			// Exit navigation mode
+			if (navigationActive)
+			{
+				navigationActive = false;
+				focusedItemIndex = -1;
+				handled = true;
+			}
+			break;
+		}
+		
+		case EShortcut::GLOBAL_MOVE_FOCUS:
+		{
+			// Tab key - announce current content
+			if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+			{
+				std::string announcement;
+				
+				switch(state)
+				{
+				case EState::DATE:
+					{
+						announcement = "Date information: ";
+						if(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK) == 1 && GAME->interface()->cb->getDate(Date::DAY) != 1)
+							announcement += "Week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+						else
+							announcement += "Day " + std::to_string(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK)) + " of week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+						
+						// Add turn counter
+						int currentDay = GAME->interface()->cb->getDate(Date::DAY);
+						announcement += ". Day " + std::to_string(currentDay) + " (Turn " + std::to_string(currentDay) + ")";
+					}
+					break;
+					
+				case EState::HERO:
+					if(GAME->interface()->localState->getCurrentHero())
+					{
+						auto hero = GAME->interface()->localState->getCurrentHero();
+						announcement = "Selected hero: " + hero->getNameTranslated();
+						announcement += ". Level " + std::to_string(hero->level) + " " + hero->getClassNameTranslated();
+					}
+					break;
+					
+				case EState::TOWN:
+					if(GAME->interface()->localState->getCurrentTown())
+					{
+						auto town = GAME->interface()->localState->getCurrentTown();
+						announcement = "Selected town: " + town->getNameTranslated();
+					}
+					break;
+					
+				case EState::GAME:
+					announcement = "Game status information. Press arrow keys to navigate details";
+					break;
+					
+				case EState::COMPONENT:
+					announcement = "Components displayed. Press arrow keys to navigate items";
+					break;
+					
+				case EState::AITURN:
+					announcement = "Enemy player turn in progress";
+					break;
+					
+				default:
+					announcement = "Information bar is empty";
+					break;
+				}
+				
+				AccessibilityManager::getInstance().announce(announcement, true);
+			}
+			break;
+		}
+	}
+	
+	// Announce focused item in navigation mode
+	if (handled && navigationActive && AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement;
+		
+		switch(state)
+		{
+		case EState::DATE:
+			{
+				announcement = "Date: ";
+				if(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK) == 1 && GAME->interface()->cb->getDate(Date::DAY) != 1)
+					announcement += "Week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+				else
+					announcement += "Day " + std::to_string(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK)) + " of week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+				
+				int currentDay = GAME->interface()->cb->getDate(Date::DAY);
+				announcement += ", Total days: " + std::to_string(currentDay);
+			}
+			break;
+			
+		case EState::HERO:
+			if(GAME->interface()->localState->getCurrentHero())
+			{
+				auto hero = GAME->interface()->localState->getCurrentHero();
+				announcement = hero->getNameTranslated() + ", Level " + std::to_string(hero->level) + " " + hero->getClassNameTranslated();
+				announcement += ", Movement: " + std::to_string(hero->movementPointsRemaining()) + "/" + std::to_string(hero->movementPointsLimit(true));
+			}
+			break;
+			
+		case EState::TOWN:
+			if(GAME->interface()->localState->getCurrentTown())
+			{
+				auto town = GAME->interface()->localState->getCurrentTown();
+				announcement = town->getNameTranslated();
+			}
+			break;
+			
+		case EState::GAME:
+			{
+				switch(focusedItemIndex)
+				{
+				case 0:
+					announcement = "Allied players section";
+					break;
+				case 1:
+					announcement = "Enemy players section";
+					break;
+				case 2:
+					announcement = "Town halls section";
+					break;
+				}
+			}
+			break;
+			
+		case EState::COMPONENT:
+			announcement = "Component " + std::to_string(focusedItemIndex + 1);
+			break;
+			
+		default:
+			break;
+		}
+		
+		if (!announcement.empty())
+			AccessibilityManager::getInstance().announce(announcement, true);
 	}
 }
 
@@ -668,5 +802,38 @@ void CInfoBar::showGameStatus()
 	visibleInfo = std::make_shared<VisibleGameStatusInfo>();
 	setTimer(3000);
 	redraw();
+}
+
+bool CInfoBar::captureThisKey(EShortcut key)
+{
+	// Only capture keys when we have focus
+	if (!hasFocus())
+		return false;
+	
+	// Always capture arrow keys to prevent hero movement when focused
+	switch(key)
+	{
+		case EShortcut::MOVE_UP:
+		case EShortcut::MOVE_DOWN:
+		case EShortcut::MOVE_LEFT:
+		case EShortcut::MOVE_RIGHT:
+			return true; // Always capture arrow keys when focused
+		case EShortcut::GLOBAL_ACCEPT:
+		case EShortcut::GLOBAL_CANCEL:
+			return navigationActive; // Only capture when navigating
+		default:
+			return false; // Let other keys propagate normally
+	}
+}
+
+void CInfoBar::onFocusLost()
+{
+	// Reset navigation state when losing focus
+	if (navigationActive)
+	{
+		navigationActive = false;
+		focusedItemIndex = -1;
+		redraw();
+	}
 }
 

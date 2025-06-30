@@ -149,6 +149,10 @@ private:
 	SettingsListener listener;
 
 	std::queue<std::pair<VisibleComponentInfo::Cache, int>> componentsQueue;
+	
+	/// For arrow key navigation
+	int focusedItemIndex = -1;
+	bool navigationActive = false;
 
 	//private helper for showing components
 	void showComponents(const std::vector<Component> & comps, std::string message, int textH, bool tiny, int timer);
@@ -165,6 +169,8 @@ private:
 	void showPopupWindow(const Point & cursorPosition) override;
 	void hover(bool on) override;
 	void keyPressed(EShortcut key) override;
+	bool captureThisKey(EShortcut key) override;
+	void onFocusLost() override;
 
 	void playNewDaySound();
 	void setTimer(uint32_t msToTrigger);

@@ -24,6 +24,10 @@ class CResDataBar : public CIntObject
 
 	std::map<GameResID, Point> resourcePositions;
 	std::optional<Point> datePosition;
+	
+	/// For arrow key navigation
+	int focusedResourceIndex = -1; // -1 means no resource focused, 7 means date
+	bool navigationActive = false;
 
 public:
 
@@ -44,5 +48,11 @@ public:
 	
 	/// Accessibility: handle keyboard focus
 	void keyPressed(EShortcut key) override;
+	
+	/// Capture arrow keys when in navigation mode
+	bool captureThisKey(EShortcut key) override;
+	
+	/// Reset navigation state when losing focus
+	void onFocusLost() override;
 };
 
