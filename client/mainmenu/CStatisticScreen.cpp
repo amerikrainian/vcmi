@@ -15,6 +15,7 @@
 #include "../gui/WindowHandler.h"
 #include "../eventsSDL/InputHandler.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../render/Graphics.h"
 #include "../render/IImage.h"
@@ -48,17 +49,55 @@ CStatisticScreen::CStatisticScreen(const StatisticDataSet & stat)
 	pos = center(Rect(0, 0, 800, 600));
 	filledBackground = std::make_shared<FilledTexturePlayerColored>(Rect(0, 0, pos.w, pos.h));
 	filledBackground->setPlayerColor(PlayerColor(1));
+	
+	// Set accessibility info for the main window
+	UIAccessibilityInfo windowAccessInfo;
+	windowAccessInfo.role = "window";
+	windowAccessInfo.name = LIBRARY->generaltexth->translate("vcmi.statisticWindow.statistics");
+	windowAccessInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.description");
+	setAccessibilityInfo(windowAccessInfo);
 
 	contentArea = Rect(10, 40, 780, 510);
-	layout.emplace_back(std::make_shared<CLabel>(400, 20, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->translate("vcmi.statisticWindow.statistics")));
+	
+	auto titleLabel = std::make_shared<CLabel>(400, 20, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->translate("vcmi.statisticWindow.statistics"));
+	// Set accessibility info for title label
+	UIAccessibilityInfo titleInfo;
+	titleInfo.role = "heading";
+	titleInfo.name = LIBRARY->generaltexth->translate("vcmi.statisticWindow.statistics");
+	titleLabel->setAccessibilityInfo(titleInfo);
+	layout.emplace_back(titleLabel);
+	
 	layout.emplace_back(std::make_shared<TransparentFilledRectangle>(contentArea, ColorRGBA(0, 0, 0, 128), ColorRGBA(64, 80, 128, 255), 1));
-	layout.emplace_back(std::make_shared<CButton>(Point(725, 558), AnimationPath::builtin("MUBCHCK"), CButton::tooltip(), [this](){ close(); }, EShortcut::GLOBAL_ACCEPT));
+	
+	auto okButton = std::make_shared<CButton>(Point(725, 558), AnimationPath::builtin("MUBCHCK"), CButton::tooltip(), [this](){ close(); }, EShortcut::GLOBAL_ACCEPT);
+	// Set accessibility info for OK button
+	UIAccessibilityInfo okBtnInfo;
+	okBtnInfo.role = "button";
+	okBtnInfo.name = LIBRARY->generaltexth->translate("vcmi.statisticWindow.ok");
+	okBtnInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.closeWindow");
+	okBtnInfo.tabOrder = 300;
+	okButton->setAccessibilityInfo(okBtnInfo);
+	layout.emplace_back(okButton);
 
 	buttonSelect = std::make_shared<CToggleButton>(Point(10, 564), AnimationPath::builtin("GSPBUT2"), CButton::tooltip(), [this](bool on){ onSelectButton(); });
 	buttonSelect->setTextOverlay(LIBRARY->generaltexth->translate("vcmi.statisticWindow.selectView"), EFonts::FONT_SMALL, Colors::YELLOW);
+	// Set accessibility info for select view button
+	UIAccessibilityInfo selectBtnInfo;
+	selectBtnInfo.role = "button";
+	selectBtnInfo.name = LIBRARY->generaltexth->translate("vcmi.statisticWindow.selectView");
+	selectBtnInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.selectViewDescription");
+	selectBtnInfo.tabOrder = 100;
+	buttonSelect->setAccessibilityInfo(selectBtnInfo);
 
 	buttonCsvSave = std::make_shared<CToggleButton>(Point(150, 564), AnimationPath::builtin("GSPBUT2"), CButton::tooltip(), [this](bool on){ ENGINE->input().copyToClipBoard(statistic.toCsv("\t"));	});
 	buttonCsvSave->setTextOverlay(LIBRARY->generaltexth->translate("vcmi.statisticWindow.tsvCopy"), EFonts::FONT_SMALL, Colors::YELLOW);
+	// Set accessibility info for CSV save button
+	UIAccessibilityInfo csvBtnInfo;
+	csvBtnInfo.role = "button";
+	csvBtnInfo.name = LIBRARY->generaltexth->translate("vcmi.statisticWindow.tsvCopy");
+	csvBtnInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.copyToClipboard");
+	csvBtnInfo.tabOrder = 200;
+	buttonCsvSave->setAccessibilityInfo(csvBtnInfo);
 
 	mainContent = getContent(OVERVIEW, EGameResID::NONE);
 }
@@ -226,6 +265,13 @@ StatisticSelector::StatisticSelector(const std::vector<std::string> & texts, con
 	pos = center(Rect(0, 0, 128 + 16, std::min(static_cast<int>(texts.size()), LINES) * 40));
 	filledBackground = std::make_shared<FilledTexturePlayerColored>(Rect(0, 0, pos.w, pos.h));
 	filledBackground->setPlayerColor(PlayerColor(1));
+	
+	// Set accessibility info for selector window
+	UIAccessibilityInfo windowAccessInfo;
+	windowAccessInfo.role = "dialog";
+	windowAccessInfo.name = LIBRARY->generaltexth->translate("vcmi.statisticWindow.selectOption");
+	windowAccessInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.selectOptionDescription");
+	setAccessibilityInfo(windowAccessInfo);
 
 	slider = std::make_shared<CSlider>(Point(pos.w - 16, 0), pos.h, [this](int to){ update(to); redraw(); }, LINES, texts.size(), 0, Orientation::VERTICAL, CSlider::BLUE);
 	slider->setPanningStep(40);
@@ -245,6 +291,14 @@ void StatisticSelector::update(int to)
 
 		auto button = std::make_shared<CToggleButton>(Point(0, 10 + (i - to) * 40), AnimationPath::builtin("GSPBUT2"), CButton::tooltip(), [this, i](bool on){ close(); cb(i); });
 		button->setTextOverlay(texts[i], EFonts::FONT_SMALL, Colors::WHITE);
+		
+		// Set accessibility info for selector buttons
+		UIAccessibilityInfo btnInfo;
+		btnInfo.role = "listitem";
+		btnInfo.name = texts[i];
+		btnInfo.tabOrder = 100 + i;
+		button->setAccessibilityInfo(btnInfo);
+		
 		buttons.emplace_back(button);
 	}
 }
@@ -255,8 +309,20 @@ OverviewPanel::OverviewPanel(Rect position, std::string title, const StatisticDa
 	OBJECT_CONSTRUCTION;
 
 	pos = position + pos.topLeft();
+	
+	// Set accessibility info for overview panel
+	UIAccessibilityInfo panelInfo;
+	panelInfo.role = "group";
+	panelInfo.name = title;
+	setAccessibilityInfo(panelInfo);
 
-	layout.emplace_back(std::make_shared<CLabel>(pos.w / 2, 10, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, title));
+	auto titleLabel = std::make_shared<CLabel>(pos.w / 2, 10, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, title);
+	// Set accessibility info for title
+	UIAccessibilityInfo titleInfo;
+	titleInfo.role = "heading";
+	titleInfo.name = title;
+	titleLabel->setAccessibilityInfo(titleInfo);
+	layout.emplace_back(titleLabel);
 
 	canvas = std::make_shared<GraphicalPrimitiveCanvas>(Rect(0, Y_OFFS, pos.w - 16, pos.h - Y_OFFS));
 
@@ -418,7 +484,25 @@ void OverviewPanel::update(int to)
 			int yStart = Y_OFFS + (y + 1 - to) * fieldSize.y + (fieldSize.y / 2);
 			PlayerColor tmpColor(x - 1);
 			if(playerDataFilter(tmpColor).size() || x == 0)
-				content.emplace_back(std::make_shared<CLabel>(xStart, yStart, FONT_TINY, ETextAlignment::CENTER, Colors::WHITE, (x == 0 ? dataExtract[y].first : dataExtract[y].second(tmpColor)), x == 0 ? (fieldSize.x * 2) : fieldSize.x));
+			{
+				auto label = std::make_shared<CLabel>(xStart, yStart, FONT_TINY, ETextAlignment::CENTER, Colors::WHITE, (x == 0 ? dataExtract[y].first : dataExtract[y].second(tmpColor)), x == 0 ? (fieldSize.x * 2) : fieldSize.x);
+				
+				// Set accessibility info for statistic labels
+				UIAccessibilityInfo labelInfo;
+				labelInfo.role = x == 0 ? "rowheader" : "cell";
+				if (x == 0)
+				{
+					labelInfo.name = dataExtract[y].first;
+				}
+				else
+				{
+					labelInfo.name = dataExtract[y].first + ": " + dataExtract[y].second(tmpColor);
+					labelInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.forPlayer") + " " + std::to_string(x);
+				}
+				label->setAccessibilityInfo(labelInfo);
+				
+				content.emplace_back(label);
+			}
 		}
 	}
 }
@@ -444,8 +528,21 @@ LineChart::LineChart(Rect position, std::string title, TData data, TIcons icons,
 	addUsedEvents(LCLICK | MOVE | GESTURE);
 
 	pos = position + pos.topLeft();
+	
+	// Set accessibility info for the chart
+	UIAccessibilityInfo chartInfo;
+	chartInfo.role = "chart";
+	chartInfo.name = title;
+	chartInfo.description = LIBRARY->generaltexth->translate("vcmi.statisticWindow.chartDescription");
+	setAccessibilityInfo(chartInfo);
 
-	layout.emplace_back(std::make_shared<CLabel>(pos.w / 2, 20, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, title));
+	auto titleLabel = std::make_shared<CLabel>(pos.w / 2, 20, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, title);
+	// Set accessibility info for chart title
+	UIAccessibilityInfo titleInfo;
+	titleInfo.role = "heading";
+	titleInfo.name = title;
+	titleLabel->setAccessibilityInfo(titleInfo);
+	layout.emplace_back(titleLabel);
 
 	chartArea = pos.resize(-50);
 	chartArea.moveTo(Point(50, 50));

@@ -13,6 +13,7 @@
 #include "CConfigHandler.h"
 #include "../../lib/filesystem/ResourcePath.h"
 #include "../../lib/networkPacks/Component.h"
+#include "../gui/Shortcut.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
 
@@ -163,6 +164,7 @@ private:
 	void clickReleased(const Point & cursorPosition, bool lastActivated) override;
 	void showPopupWindow(const Point & cursorPosition) override;
 	void hover(bool on) override;
+	void keyPressed(EShortcut key) override;
 
 	void playNewDaySound();
 	void setTimer(uint32_t msToTrigger);

@@ -20,6 +20,7 @@
 #include "../../eventsSDL/InputHandler.h"
 #include "../../GameEngine.h"
 #include "../../gui/WindowHandler.h"
+#include "../../gui/AccessibilityManager.h"
 #include "../../widgets/Buttons.h"
 #include "../../widgets/Images.h"
 #include "../../widgets/Slider.h"
@@ -210,59 +211,242 @@ GeneralOptionsTab::GeneralOptionsTab()
 	if (longTouchLabel)
 		longTouchLabel->setText(longTouchToLabelString(settings["general"]["longTouchTimeMilliseconds"].Integer()));
 
+	// Add accessibility to resolution button
+	std::shared_ptr<CButton> resolutionButton = widget<CButton>("resolutionButton");
+	if (resolutionButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Change resolution";
+		accessInfo.description = "Open menu to select game resolution";
+		accessInfo.tabOrder = 1;
+		resolutionButton->setAccessibilityInfo(accessInfo);
+	}
+
+	// Add accessibility to scaling button
+	std::shared_ptr<CButton> scalingButton = widget<CButton>("scalingButton");
+	if (scalingButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Change interface scaling";
+		accessInfo.description = "Open menu to adjust interface scaling percentage";
+		accessInfo.tabOrder = 2;
+		scalingButton->setAccessibilityInfo(accessInfo);
+	}
+
+	// Add accessibility to long touch duration button
+	std::shared_ptr<CButton> longTouchButton = widget<CButton>("longTouchButton");
+	if (longTouchButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Change long touch duration";
+		accessInfo.description = "Open menu to adjust how long to press for long touch";
+		accessInfo.tabOrder = 13;
+		longTouchButton->setAccessibilityInfo(accessInfo);
+	}
+
+	// Spellbook animation checkbox
 	std::shared_ptr<CToggleButton> spellbookAnimationCheckbox = widget<CToggleButton>("spellbookAnimationCheckbox");
 	spellbookAnimationCheckbox->setSelected(settings["video"]["spellbookAnimation"].Bool());
 	if(settings["gameTweaks"]["enableLargeSpellbook"].Bool())
 		spellbookAnimationCheckbox->disable();
 	else
 		spellbookAnimationCheckbox->enable();
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Spellbook animation";
+		accessInfo.description = "Enable animated spellbook pages";
+		accessInfo.state = spellbookAnimationCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 7;
+		spellbookAnimationCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Fullscreen borderless checkbox
 	std::shared_ptr<CToggleButton> fullscreenBorderlessCheckbox = widget<CToggleButton>("fullscreenBorderlessCheckbox");
 	if (fullscreenBorderlessCheckbox)
+	{
 		fullscreenBorderlessCheckbox->setSelected(settings["video"]["fullscreen"].Bool() && !settings["video"]["realFullscreen"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Borderless fullscreen";
+		accessInfo.description = "Use borderless window fullscreen mode";
+		accessInfo.state = fullscreenBorderlessCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 3;
+		fullscreenBorderlessCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Fullscreen exclusive checkbox
 	std::shared_ptr<CToggleButton> fullscreenExclusiveCheckbox = widget<CToggleButton>("fullscreenExclusiveCheckbox");
 	if (fullscreenExclusiveCheckbox)
+	{
 		fullscreenExclusiveCheckbox->setSelected(settings["video"]["fullscreen"].Bool() && settings["video"]["realFullscreen"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Exclusive fullscreen";
+		accessInfo.description = "Use exclusive fullscreen mode";
+		accessInfo.state = fullscreenExclusiveCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 4;
+		fullscreenExclusiveCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Framerate checkbox
 	std::shared_ptr<CToggleButton> framerateCheckbox = widget<CToggleButton>("framerateCheckbox");
 	framerateCheckbox->setSelected(settings["video"]["showfps"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Show framerate";
+		accessInfo.description = "Display frames per second counter";
+		accessInfo.state = framerateCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 5;
+		framerateCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Haptic feedback checkbox
 	std::shared_ptr<CToggleButton> hapticFeedbackCheckbox = widget<CToggleButton>("hapticFeedbackCheckbox");
 	if (hapticFeedbackCheckbox)
+	{
 		hapticFeedbackCheckbox->setSelected(settings["general"]["hapticFeedback"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Haptic feedback";
+		accessInfo.description = "Enable vibration feedback on touch";
+		accessInfo.state = hapticFeedbackCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 14;
+		hapticFeedbackCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Enable overlay checkbox
 	std::shared_ptr<CToggleButton> enableOverlayCheckbox = widget<CToggleButton>("enableOverlayCheckbox");
 	if (enableOverlayCheckbox)
+	{
 		enableOverlayCheckbox->setSelected(settings["general"]["enableOverlay"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Enable overlay";
+		accessInfo.description = "Show in-game overlay with additional information";
+		accessInfo.state = enableOverlayCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 15;
+		enableOverlayCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Enable UI enhancements checkbox
 	std::shared_ptr<CToggleButton> enableUiEnhancementsCheckbox = widget<CToggleButton>("enableUiEnhancementsCheckbox");
 	if (enableUiEnhancementsCheckbox)
+	{
 		enableUiEnhancementsCheckbox->setSelected(settings["general"]["enableUiEnhancements"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Enable UI enhancements";
+		accessInfo.description = "Enable additional user interface improvements";
+		accessInfo.state = enableUiEnhancementsCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 16;
+		enableUiEnhancementsCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Enable large spellbook checkbox
 	std::shared_ptr<CToggleButton> enableLargeSpellbookCheckbox = widget<CToggleButton>("enableLargeSpellbookCheckbox");
 	if (enableLargeSpellbookCheckbox)
+	{
 		enableLargeSpellbookCheckbox->setSelected(settings["gameTweaks"]["enableLargeSpellbook"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Enable large spellbook";
+		accessInfo.description = "Use larger spellbook interface with more spells per page";
+		accessInfo.state = enableLargeSpellbookCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 6;
+		enableLargeSpellbookCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Audio mute on focus loss checkbox
 	std::shared_ptr<CToggleButton> audioMuteFocusCheckbox = widget<CToggleButton>("audioMuteFocusCheckbox");
 	if (audioMuteFocusCheckbox)
+	{
 		audioMuteFocusCheckbox->setSelected(settings["general"]["audioMuteFocus"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Mute when not focused";
+		accessInfo.description = "Mute audio when game window loses focus";
+		accessInfo.state = audioMuteFocusCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 10;
+		audioMuteFocusCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Enable subtitles checkbox
 	std::shared_ptr<CToggleButton> enableSubtitleCheckbox = widget<CToggleButton>("enableSubtitleCheckbox");
 	if (enableSubtitleCheckbox)
+	{
 		enableSubtitleCheckbox->setSelected(settings["general"]["enableSubtitle"].Bool());
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Enable subtitles";
+		accessInfo.description = "Show subtitles for in-game dialogues";
+		accessInfo.state = enableSubtitleCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 11;
+		enableSubtitleCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Music volume slider
 	std::shared_ptr<CSlider> musicSlider = widget<CSlider>("musicSlider");
 	musicSlider->scrollTo(ENGINE->music().getVolume());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "slider";
+		accessInfo.name = "Music volume";
+		accessInfo.description = "Adjust the volume of background music";
+		accessInfo.value = std::to_string(ENGINE->music().getVolume()) + " percent";
+		accessInfo.tabOrder = 8;
+		musicSlider->setAccessibilityInfo(accessInfo);
+	}
 
+	// Sound volume slider
 	std::shared_ptr<CSlider> volumeSlider = widget<CSlider>("soundVolumeSlider");
 	volumeSlider->scrollTo(ENGINE->sound().getVolume());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "slider";
+		accessInfo.name = "Sound volume";
+		accessInfo.description = "Adjust the volume of sound effects";
+		accessInfo.value = std::to_string(ENGINE->sound().getVolume()) + " percent";
+		accessInfo.tabOrder = 9;
+		volumeSlider->setAccessibilityInfo(accessInfo);
+	}
 
+	// Creature growth display toggle group
 	std::shared_ptr<CToggleGroup> creatureGrowthAsDwellingPicker = widget<CToggleGroup>("availableCreaturesAsDwellingPicker");
 	creatureGrowthAsDwellingPicker->setSelected(settings["gameTweaks"]["availableCreaturesAsDwellingLabel"].Bool());
+	// Add accessibility to creature growth display buttons
+	for (auto& [index, button] : creatureGrowthAsDwellingPicker->buttons)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "radio";
+		switch(index)
+		{
+			case 0: accessInfo.name = "Show growth as number"; break;
+			case 1: accessInfo.name = "Show growth as dwelling icon"; break;
+			default: accessInfo.name = "Growth display option"; break;
+		}
+		accessInfo.description = "Choose how to display creature growth in towns";
+		accessInfo.tabOrder = index == 0 ? 17 : 18;
+		if (auto toggleButton = std::dynamic_pointer_cast<CToggleButton>(button))
+			toggleButton->setAccessibilityInfo(accessInfo);
+	}
 
+	// Compact town creature info checkbox
 	std::shared_ptr<CToggleButton> compactTownCreatureInfo = widget<CToggleButton>("compactTownCreatureInfoCheckbox");
 	compactTownCreatureInfo->setSelected(settings["gameTweaks"]["compactTownCreatureInfo"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Compact creature info";
+		accessInfo.description = "Use compact display for creature information in towns";
+		accessInfo.state = compactTownCreatureInfo->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 12;
+		compactTownCreatureInfo->setAccessibilityInfo(accessInfo);
+	}
 
 	std::shared_ptr<CLabel> musicVolumeLabel = widget<CLabel>("musicValueLabel");
 	musicVolumeLabel->setText(std::to_string(ENGINE->music().getVolume()) + "%");

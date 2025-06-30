@@ -12,6 +12,7 @@
 #include "../gui/CIntObject.h"
 #include "../../lib/filesystem/ResourcePath.h"
 #include "../gui/AccessibilityManager.h"
+#include "../gui/Shortcut.h"
 
 /// Resources bar which shows information about how many gold, crystals,... you have
 /// Current date is displayed too
@@ -40,5 +41,8 @@ public:
 	
 	/// Accessibility: announce resource values when hovering
 	void hover(bool on) override;
+	
+	/// Accessibility: handle keyboard focus
+	void keyPressed(EShortcut key) override;
 };
 

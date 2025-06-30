@@ -13,6 +13,7 @@
 
 #include "../../../lib/filesystem/ResourcePath.h"
 #include "../../GameEngine.h"
+#include "../../gui/AccessibilityManager.h"
 #include "../../widgets/Buttons.h"
 #include "CConfigHandler.h"
 
@@ -37,11 +38,31 @@ OtherOptionsTab::OtherOptionsTab() : InterfaceObjectConfigurable()
 	});
 	build(config);
 
+	// Available creatures as dwelling label checkbox
 	std::shared_ptr<CToggleButton> availableCreaturesAsDwellingLabelCheckbox = widget<CToggleButton>("availableCreaturesAsDwellingLabelCheckbox");
 	availableCreaturesAsDwellingLabelCheckbox->setSelected(settings["gameTweaks"]["availableCreaturesAsDwellingLabel"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Show creatures as dwelling icons";
+		accessInfo.description = "Display available creatures as dwelling building icons instead of numbers";
+		accessInfo.state = availableCreaturesAsDwellingLabelCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 1;
+		availableCreaturesAsDwellingLabelCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Compact town creature info checkbox
 	std::shared_ptr<CToggleButton> compactTownCreatureInfo = widget<CToggleButton>("compactTownCreatureInfoCheckbox");
 	compactTownCreatureInfo->setSelected(settings["gameTweaks"]["compactTownCreatureInfo"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Compact creature info";
+		accessInfo.description = "Use compact display for creature information in town screen";
+		accessInfo.state = compactTownCreatureInfo->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 2;
+		compactTownCreatureInfo->setAccessibilityInfo(accessInfo);
+	}
 }
 
 

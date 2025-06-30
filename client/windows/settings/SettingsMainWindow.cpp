@@ -25,6 +25,7 @@
 #include "../../GameEngine.h"
 #include "../../GameInstance.h"
 #include "gui/WindowHandler.h"
+#include "gui/AccessibilityManager.h"
 #include "render/Canvas.h"
 #include "lobby/CSavingScreen.h"
 #include "widgets/Buttons.h"
@@ -78,6 +79,44 @@ SettingsMainWindow::SettingsMainWindow(BattleInterface * parentBattleUi) : Inter
 
 	std::shared_ptr<CToggleGroup> mainTabs = widget<CToggleGroup>("settingsTabs");
 	mainTabs->setSelected(defaultTabIndex);
+	// Add accessibility to settings tabs
+	for (auto& [index, button] : mainTabs->buttons)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "tab";
+		switch(index)
+		{
+			case 0: accessInfo.name = "General"; accessInfo.description = "General game settings"; break;
+			case 1: accessInfo.name = "Adventure"; accessInfo.description = "Adventure map settings"; break;
+			case 2: accessInfo.name = "Battle"; accessInfo.description = "Battle settings"; break;
+			case 3: accessInfo.name = "Other"; accessInfo.description = "Other game settings"; break;
+			default: accessInfo.name = "Settings tab"; break;
+		}
+		accessInfo.tabOrder = index + 1; // Tab order 1-4
+		if (auto toggleButton = std::dynamic_pointer_cast<CToggleButton>(button))
+			toggleButton->setAccessibilityInfo(accessInfo);
+	}
+
+	// Add accessibility to window buttons
+	std::shared_ptr<CButton> backButton = widget<CButton>("closeWindow");
+	if (backButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Close";
+		accessInfo.description = "Close settings window";
+		accessInfo.tabOrder = 100; // At the end
+		backButton->setAccessibilityInfo(accessInfo);
+	}
+
+	// Set window-level accessibility
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "window";
+		accessInfo.name = "Game Settings";
+		accessInfo.description = "Configure game options and preferences";
+		setAccessibilityInfo(accessInfo);
+	}
 	
 	GAME->interface()->gamePause(true);
 }

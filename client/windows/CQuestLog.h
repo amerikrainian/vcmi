@@ -47,6 +47,12 @@ public:
 		: CMultiLineLabel (position, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, Text){};
 	void clickPressed(const Point & cursorPosition) override;
 	void showAll(Canvas & to) override;
+	
+	// Make quest labels focusable for keyboard navigation
+	bool isFocusable() const override { return true; }
+	
+	// Handle keyboard navigation
+	void keyPressed(EShortcut key) override;
 };
 
 class CQuestIcon : public CAnimImage
@@ -58,6 +64,9 @@ public:
 
 	void clickPressed(const Point & cursorPosition) override;
 	void showAll(Canvas & to) override;
+	
+	// Make quest icons focusable for keyboard navigation
+	bool isFocusable() const override { return true; }
 };
 
 class CQuestMinimap : public CMinimap
@@ -77,6 +86,9 @@ public:
 	void addQuestMarks (const QuestInfo * q);
 
 	void showAll(Canvas & to) override;
+	
+	// Make minimap focusable for keyboard navigation
+	bool isFocusable() const override { return true; }
 };
 
 class CQuestLog : public CWindowObject
@@ -108,4 +120,9 @@ public:
 	void recreateQuestList (int pos);
 	void toggleComplete(bool on);
 	void showAll (Canvas & to) override;
+	
+	// Keyboard navigation support
+	void keyPressed(EShortcut key) override;
+	void selectPreviousQuest();
+	void selectNextQuest();
 };

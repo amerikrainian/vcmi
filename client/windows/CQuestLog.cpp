@@ -16,6 +16,7 @@
 #include "../GameInstance.h"
 #include "../CPlayerInterface.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/CComponent.h"
 #include "../widgets/Slider.h"
@@ -41,6 +42,11 @@ class CAdvmapInterface;
 void CQuestLabel::clickPressed(const Point & cursorPosition)
 {
 	callback();
+	// Announce the selected quest when clicked
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		AccessibilityManager::getInstance().announceElement(this);
+	}
 }
 
 void CQuestLabel::showAll(Canvas & to)
@@ -48,10 +54,18 @@ void CQuestLabel::showAll(Canvas & to)
 	CMultiLineLabel::showAll (to);
 }
 
+void CQuestLabel::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(Point());
+	}
+}
+
 CQuestIcon::CQuestIcon (const AnimationPath &defname, int index, int x, int y) :
 	CAnimImage(defname, index, 0, x, y)
 {
-	addUsedEvents(LCLICK);
+	addUsedEvents(LCLICK | KEYBOARD);
 }
 
 void CQuestIcon::clickPressed(const Point & cursorPosition)
@@ -86,6 +100,10 @@ void CQuestMinimap::addQuestMarks (const QuestInfo * q)
 
 	pic->moveBy (Point ( -pic->pos.w/2, -pic->pos.h/2));
 	pic->callback = std::bind (&CQuestMinimap::iconClicked, this);
+	pic->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("marker")
+		.withName("Quest location")
+		.withDescription("Click to center map on quest location"));
 
 	icons.push_back(pic);
 }
@@ -100,7 +118,15 @@ void CQuestMinimap::update()
 void CQuestMinimap::iconClicked()
 {
 	if(currentQuest->obj.hasValue())
+	{
 		adventureInt->centerOnTile(currentQuest->getObject(GAME->interface()->cb.get())->visitablePos());
+		
+		// Announce action to screen reader
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			AccessibilityManager::getInstance().announce("Centered map on quest location");
+		}
+	}
 	//moveAdvMapSelection();
 }
 
@@ -119,19 +145,81 @@ CQuestLog::CQuestLog (const std::vector<QuestInfo> & Quests)
 	quests(Quests)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Enable keyboard events
+	addUsedEvents(KEYBOARD);
+	
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName("Quest Log")
+		.withDescription("View and track active quests"));
 
 	minimap = std::make_shared<CQuestMinimap>(Rect(12, 12, 169, 169));
+	minimap->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("map")
+		.withName("Quest Map")
+		.withDescription("Shows quest location on map")
+		.withTabOrder(20));
+	
 	// TextBox have it's own 4 pixel padding from top at least for English. To achieve 10px from both left and top only add 6px margin
 	description = std::make_shared<CTextBox>("", Rect(205, 18, 385, DESCRIPTION_HEIGHT_MAX), CSlider::BROWN, FONT_MEDIUM, ETextAlignment::TOPLEFT, Colors::WHITE);
+	description->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Quest Description")
+		.withDescription("Details about the selected quest")
+		.withTabOrder(30));
+	
 	ok = std::make_shared<CButton>(Point(539, 398), AnimationPath::builtin("IOKAY.DEF"), LIBRARY->generaltexth->zelp[445], std::bind(&CQuestLog::close, this), EShortcut::GLOBAL_RETURN);
+	ok->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Close")
+		.withDescription("Close quest log window")
+		.withTabOrder(50));
+	
 	// Both button and label are shifted to -2px by x and y to not make them actually look like they're on same line with quests list and ok button
 	hideCompleteButton = std::make_shared<CToggleButton>(Point(10, 396), AnimationPath::builtin("sysopchk.def"), CButton::tooltipLocalized("vcmi.questLog.hideComplete"), std::bind(&CQuestLog::toggleComplete, this, _1));
+	hideCompleteButton->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("checkbox")
+		.withName("Hide completed quests")
+		.withDescription("Toggle visibility of completed quests")
+		.withTabOrder(40));
+	
 	hideCompleteLabel = std::make_shared<CLabel>(46, 398, FONT_MEDIUM, ETextAlignment::TOPLEFT, Colors::WHITE, LIBRARY->generaltexth->translate("vcmi.questLog.hideComplete.hover"));
+	hideCompleteLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName("Hide completed quests label")
+		.withDescription(LIBRARY->generaltexth->translate("vcmi.questLog.hideComplete.hover")));
+	
 	slider = std::make_shared<CSlider>(Point(166, 195), 191, std::bind(&CQuestLog::sliderMoved, this, _1), QUEST_COUNT, 0, 0, Orientation::VERTICAL, CSlider::BROWN);
 	slider->setPanningStep(32);
+	slider->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("scrollbar")
+		.withName("Quest list scrollbar")
+		.withDescription("Scroll through the list of quests")
+		.withTabOrder(35));
 
 	recreateLabelList();
 	recreateQuestList(0);
+	
+	// Set initial focus to the first quest if available
+	if(!labels.empty() && !labels[0]->isDisabled())
+	{
+		labels[0]->setFocus(true);
+	}
+	
+	// Announce window opening to screen reader
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		int activeQuests = 0;
+		for(const auto& quest : quests)
+		{
+			if(!quest.getQuest(GAME->interface()->cb.get())->isCompleted)
+				activeQuests++;
+		}
+		std::string announcement = "Quest Log opened. " + std::to_string(activeQuests) + " active quests";
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 void CQuestLog::recreateLabelList()
@@ -173,6 +261,15 @@ void CQuestLog::recreateLabelList()
 		}
 		auto label = std::make_shared<CQuestLabel>(Rect(13, 195, 149,31), FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, text.toString());
 		label->disable();
+		
+		// Set accessibility info for each quest label
+		std::string questStatus = questPtr->isCompleted ? "completed" : "active";
+		label->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("listitem")
+			.withName(text.toString())
+			.withDescription("Quest: " + text.toString())
+			.withState(questStatus)
+			.withTabOrder(currentLabel + 1));
 
 		label->callback = std::bind(&CQuestLog::selectQuest, this, i, currentLabel);
 		labels.push_back(label);
@@ -210,6 +307,15 @@ void CQuestLog::showAll(Canvas & to)
 		rect.x -= 2; // Adjustment needed as we want selection box on top of border in graphics
 		rect.w += 2;
 		to.drawBorder(rect, Colors::METALLIC_GOLD);
+		
+		// Draw focus indicator for keyboard navigation
+		if(labels[questIndex]->hasFocus())
+		{
+			Rect focusRect = Rect::createAround(labels[questIndex]->pos, 3);
+			focusRect.x -= 4;
+			focusRect.w += 4;
+			to.drawBorder(focusRect, Colors::BRIGHT_YELLOW);
+		}
 	}
 }
 
@@ -238,6 +344,22 @@ void CQuestLog::selectQuest(int which, int labelId)
 	if(description->slider)
 		description->slider->scrollToMin(); // scroll text to start position
 	description->setText(text.toString()); //TODO: use special log entry text
+	
+	// Update description accessibility info with current quest details
+	if(description)
+	{
+		description->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Quest Description")
+			.withDescription(text.toString())
+			.withTabOrder(30));
+	}
+	
+	// Announce the selected quest to screen reader
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled() && labelId < labels.size())
+	{
+		AccessibilityManager::getInstance().announceElement(labels[labelId].get());
+	}
 
 	componentsBox.reset();
 
@@ -320,4 +442,132 @@ void CQuestLog::toggleComplete(bool on)
 	recreateLabelList();
 	recreateQuestList(0);
 	redraw();
+	
+	// Update accessibility state of the checkbox
+	if(hideCompleteButton)
+	{
+		hideCompleteButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("checkbox")
+			.withName("Hide completed quests")
+			.withDescription("Toggle visibility of completed quests")
+			.withState(on ? "checked" : "unchecked")
+			.withTabOrder(40));
+	}
+	
+	// Announce state change to screen reader
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = on ? "Hiding completed quests" : "Showing completed quests";
+		AccessibilityManager::getInstance().announce(announcement);
+	}
+}
+
+void CQuestLog::keyPressed(EShortcut key)
+{
+	switch(key)
+	{
+	case EShortcut::MOVE_UP:
+		selectPreviousQuest();
+		break;
+	case EShortcut::MOVE_DOWN:
+		selectNextQuest();
+		break;
+	case EShortcut::MOVE_PAGE_UP:
+		// Page up - move up by QUEST_COUNT items
+		for(int i = 0; i < QUEST_COUNT && questIndex > 0; i++)
+			selectPreviousQuest();
+		break;
+	case EShortcut::MOVE_PAGE_DOWN:
+		// Page down - move down by QUEST_COUNT items
+		for(int i = 0; i < QUEST_COUNT && questIndex < labels.size() - 1; i++)
+			selectNextQuest();
+		break;
+	case EShortcut::MOVE_FIRST:
+		// Home - select first quest
+		if(!labels.empty())
+		{
+			int firstIndex = 0;
+			for(; firstIndex < labels.size() && labels[firstIndex]->isDisabled(); firstIndex++);
+			if(firstIndex < labels.size())
+			{
+				labels[questIndex]->setFocus(false);
+				questIndex = firstIndex;
+				labels[questIndex]->setFocus(true);
+				labels[questIndex]->callback();
+				if(slider)
+					slider->scrollToMin();
+			}
+		}
+		break;
+	case EShortcut::MOVE_LAST:
+		// End - select last quest
+		if(!labels.empty())
+		{
+			int lastIndex = labels.size() - 1;
+			for(; lastIndex >= 0 && labels[lastIndex]->isDisabled(); lastIndex--);
+			if(lastIndex >= 0)
+			{
+				labels[questIndex]->setFocus(false);
+				questIndex = lastIndex;
+				labels[questIndex]->setFocus(true);
+				labels[questIndex]->callback();
+				if(slider)
+					slider->scrollToMax();
+			}
+		}
+		break;
+	default:
+		CWindowObject::keyPressed(key);
+		break;
+	}
+}
+
+void CQuestLog::selectPreviousQuest()
+{
+	if(questIndex > 0)
+	{
+		// Find previous enabled quest
+		int prevIndex = questIndex - 1;
+		while(prevIndex >= 0 && labels[prevIndex]->isDisabled())
+			prevIndex--;
+		
+		if(prevIndex >= 0)
+		{
+			labels[questIndex]->setFocus(false);
+			questIndex = prevIndex;
+			labels[questIndex]->setFocus(true);
+			labels[questIndex]->callback();
+			
+			// Adjust slider if needed
+			if(slider && questIndex < slider->getValue())
+			{
+				slider->scrollBy(-1);
+			}
+		}
+	}
+}
+
+void CQuestLog::selectNextQuest()
+{
+	if(questIndex < labels.size() - 1)
+	{
+		// Find next enabled quest
+		int nextIndex = questIndex + 1;
+		while(nextIndex < labels.size() && labels[nextIndex]->isDisabled())
+			nextIndex++;
+		
+		if(nextIndex < labels.size())
+		{
+			labels[questIndex]->setFocus(false);
+			questIndex = nextIndex;
+			labels[questIndex]->setFocus(true);
+			labels[questIndex]->callback();
+			
+			// Adjust slider if needed
+			if(slider && questIndex >= slider->getValue() + QUEST_COUNT)
+			{
+				slider->scrollBy(1);
+			}
+		}
+	}
 }

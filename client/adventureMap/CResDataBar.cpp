@@ -24,6 +24,8 @@
 #include "../../lib/texts/CGeneralTextHandler.h"
 #include "../../lib/ResourceSet.h"
 #include "../../lib/GameLibrary.h"
+#include "../gui/EventDispatcher.h"
+#include "../gui/Shortcut.h"
 
 CResDataBar::CResDataBar(const ImagePath & imageName, const Point & position)
 {
@@ -37,14 +39,15 @@ CResDataBar::CResDataBar(const ImagePath & imageName, const Point & position)
 	pos.w = background->pos.w;
 	pos.h = background->pos.h;
 	
-	// Set up accessibility info
+	// Set up accessibility info with tab order
 	setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("resource bar")
 		.withName("Resource Bar")
-		.withDescription("Displays current player resources and date"));
+		.withDescription("Displays current player resources and date")
+		.withTabOrder(90)); // Resource bar comes after main buttons (50-61) and town/hero lists (70-71)
 	
-	// Enable hover events for accessibility
-	addUsedEvents(HOVER);
+	// Enable hover and keyboard events for accessibility
+	addUsedEvents(HOVER | KEYBOARD);
 }
 
 CResDataBar::CResDataBar(const ImagePath & defname, int x, int y, int offx, int offy, int resdist, int datedist):
@@ -139,5 +142,56 @@ void CResDataBar::hover(bool on)
 		}
 		
 		AccessibilityManager::getInstance().announce(announcement);
+	}
+}
+
+void CResDataBar::keyPressed(EShortcut key) 
+{
+	// Handle tab key focus - announce resources when focused
+	if (key == EShortcut::GLOBAL_MOVE_FOCUS)
+	{
+		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			// Build resource announcement string
+			std::vector<std::string> resourceStrings;
+			
+			// Order of resources: Wood, Mercury, Ore, Sulfur, Crystal, Gems, Gold
+			const std::vector<std::pair<GameResID, std::string>> resourceNames = {
+				{GameResID(GameResID::WOOD), "Wood"},
+				{GameResID(GameResID::MERCURY), "Mercury"},
+				{GameResID(GameResID::ORE), "Ore"},
+				{GameResID(GameResID::SULFUR), "Sulfur"},
+				{GameResID(GameResID::CRYSTAL), "Crystal"},
+				{GameResID(GameResID::GEMS), "Gems"},
+				{GameResID(GameResID::GOLD), "Gold"}
+			};
+			
+			for (const auto & [resId, resName] : resourceNames)
+			{
+				int amount = GAME->interface()->cb->getResourceAmount(resId);
+				resourceStrings.push_back(resName + ": " + std::to_string(amount));
+			}
+			
+			// Join all resources with commas
+			std::string announcement = "Resources: ";
+			for (size_t i = 0; i < resourceStrings.size(); ++i)
+			{
+				announcement += resourceStrings[i];
+				if (i < resourceStrings.size() - 1)
+					announcement += ", ";
+			}
+			
+			// Also announce the date
+			if (datePosition)
+			{
+				announcement += ". " + buildDateString();
+			}
+			
+			// Add turn information if available
+			int currentDay = GAME->interface()->cb->getDate(Date::DAY);
+			announcement += ". Day " + std::to_string(currentDay) + " (Turn " + std::to_string(currentDay) + ")";
+			
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
 	}
 }

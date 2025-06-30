@@ -15,6 +15,7 @@
 #include "../../../lib/CConfigHandler.h"
 #include "../../../lib/filesystem/ResourcePath.h"
 #include "../../../lib/texts/CGeneralTextHandler.h"
+#include "../../gui/AccessibilityManager.h"
 #include "../../widgets/Buttons.h"
 #include "../../widgets/TextControls.h"
 
@@ -82,44 +83,192 @@ BattleOptionsTab::BattleOptionsTab(BattleInterface * owner)
 	});
 	build(config);
 
+	// Animation speed toggle group
 	std::shared_ptr<CToggleGroup> animationSpeedToggle = widget<CToggleGroup>("animationSpeedPicker");
 	animationSpeedToggle->setSelected(getAnimSpeed());
+	// Add accessibility to animation speed buttons
+	for (auto& [index, button] : animationSpeedToggle->buttons)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "radio";
+		switch(index)
+		{
+			case 0: accessInfo.name = "No animations"; break;
+			case 1: accessInfo.name = "Slow animations"; break;
+			case 2: accessInfo.name = "Normal animations"; break;
+			case 3: accessInfo.name = "Fast animations"; break;
+			default: accessInfo.name = "Animation speed option"; break;
+		}
+		accessInfo.description = "Set speed for battle animations";
+		accessInfo.tabOrder = index + 1; // Tab order 1-4
+		if (auto toggleButton = std::dynamic_pointer_cast<CToggleButton>(button))
+			toggleButton->setAccessibilityInfo(accessInfo);
+	}
 
+	// Queue size toggle group
 	std::shared_ptr<CToggleGroup> queueSizeToggle = widget<CToggleGroup>("queueSizePicker");
 	queueSizeToggle->setSelected(getQueueSizeId());
+	// Add accessibility to queue size buttons
+	for (auto& [index, button] : queueSizeToggle->buttons)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "radio";
+		switch(index)
+		{
+			case -1: accessInfo.name = "No queue"; break;
+			case 0: accessInfo.name = "Auto queue size"; break;
+			case 1: accessInfo.name = "Small queue"; break;
+			case 2: accessInfo.name = "Large queue"; break;
+			default: accessInfo.name = "Queue size option"; break;
+		}
+		accessInfo.description = "Set size of the battle turn queue display";
+		accessInfo.tabOrder = index + 5; // Tab order 4-8 (note -1 becomes 4)
+		if (auto toggleButton = std::dynamic_pointer_cast<CToggleButton>(button))
+			toggleButton->setAccessibilityInfo(accessInfo);
+	}
 
+	// View grid checkbox
 	std::shared_ptr<CToggleButton> viewGridCheckbox = widget<CToggleButton>("viewGridCheckbox");
 	viewGridCheckbox->setSelected(settings["battle"]["cellBorders"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Show grid";
+		accessInfo.description = "Display hexagonal grid on battlefield";
+		accessInfo.state = viewGridCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 9;
+		viewGridCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Movement shadow checkbox
 	std::shared_ptr<CToggleButton> movementShadowCheckbox = widget<CToggleButton>("movementShadowCheckbox");
 	movementShadowCheckbox->setSelected(settings["battle"]["stackRange"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Movement shadow";
+		accessInfo.description = "Show movement range for selected stack";
+		accessInfo.state = movementShadowCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 10;
+		movementShadowCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Movement highlight on hover checkbox
 	std::shared_ptr<CToggleButton> movementHighlightOnHoverCheckbox = widget<CToggleButton>("movementHighlightOnHoverCheckbox");
 	movementHighlightOnHoverCheckbox->setSelected(settings["battle"]["movementHighlightOnHover"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Movement highlight on hover";
+		accessInfo.description = "Highlight movement range when hovering over stacks";
+		accessInfo.state = movementHighlightOnHoverCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 11;
+		movementHighlightOnHoverCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Range limit highlight on hover checkbox
 	std::shared_ptr<CToggleButton> rangeLimitHighlightOnHoverCheckbox = widget<CToggleButton>("rangeLimitHighlightOnHoverCheckbox");
 	rangeLimitHighlightOnHoverCheckbox->setSelected(settings["battle"]["rangeLimitHighlightOnHover"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Range limit highlight on hover";
+		accessInfo.description = "Highlight attack range limits when hovering";
+		accessInfo.state = rangeLimitHighlightOnHoverCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 12;
+		rangeLimitHighlightOnHoverCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Show sticky hero info windows checkbox
 	std::shared_ptr<CToggleButton> showStickyHeroInfoWindowsCheckbox = widget<CToggleButton>("showStickyHeroInfoWindowsCheckbox");
 	showStickyHeroInfoWindowsCheckbox->setSelected(settings["battle"]["stickyHeroInfoWindows"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Sticky hero windows";
+		accessInfo.description = "Keep hero information windows always visible";
+		accessInfo.state = showStickyHeroInfoWindowsCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 13;
+		showStickyHeroInfoWindowsCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Show quick spell checkbox
 	std::shared_ptr<CToggleButton> showQuickSpellCheckbox = widget<CToggleButton>("showQuickSpellCheckbox");
 	showQuickSpellCheckbox->setSelected(settings["battle"]["enableQuickSpellPanel"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Quick spell panel";
+		accessInfo.description = "Show quick spell casting panel in battle";
+		accessInfo.state = showQuickSpellCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 14;
+		showQuickSpellCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Mouse shadow checkbox
 	std::shared_ptr<CToggleButton> mouseShadowCheckbox = widget<CToggleButton>("mouseShadowCheckbox");
 	mouseShadowCheckbox->setSelected(settings["battle"]["mouseShadow"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Mouse shadow";
+		accessInfo.description = "Show shadow under mouse cursor";
+		accessInfo.state = mouseShadowCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 15;
+		mouseShadowCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Skip battle intro music checkbox
 	std::shared_ptr<CToggleButton> skipBattleIntroMusicCheckbox = widget<CToggleButton>("skipBattleIntroMusicCheckbox");
 	skipBattleIntroMusicCheckbox->setSelected(settings["gameTweaks"]["skipBattleIntroMusic"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Skip battle intro music";
+		accessInfo.description = "Skip intro music when battle starts";
+		accessInfo.state = skipBattleIntroMusicCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 16;
+		skipBattleIntroMusicCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Enable autocombat spells checkbox
 	std::shared_ptr<CToggleButton> enableAutocombatSpellsCheckbox = widget<CToggleButton>("enableAutocombatSpellsCheckbox");
 	enableAutocombatSpellsCheckbox->setSelected(settings["battle"]["enableAutocombatSpells"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Autocombat spells";
+		accessInfo.description = "Allow AI to cast spells during autocombat";
+		accessInfo.state = enableAutocombatSpellsCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 17;
+		enableAutocombatSpellsCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// End with autocombat checkbox
 	std::shared_ptr<CToggleButton> endWithAutocombatCheckbox = widget<CToggleButton>("endWithAutocombatCheckbox");
 	endWithAutocombatCheckbox->setSelected(settings["battle"]["endWithAutocombat"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Autocombat until end";
+		accessInfo.description = "Continue autocombat until battle ends";
+		accessInfo.state = endWithAutocombatCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 18;
+		endWithAutocombatCheckbox->setAccessibilityInfo(accessInfo);
+	}
 
+	// Show health bar checkbox
 	std::shared_ptr<CToggleButton> showHealthBarCheckbox = widget<CToggleButton>("showHealthBarCheckbox");
 	showHealthBarCheckbox->setSelected(settings["battle"]["showHealthBar"].Bool());
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "checkbox";
+		accessInfo.name = "Show health bars";
+		accessInfo.description = "Display health bars above creatures";
+		accessInfo.state = showHealthBarCheckbox->isSelected() ? "checked" : "";
+		accessInfo.tabOrder = 19;
+		showHealthBarCheckbox->setAccessibilityInfo(accessInfo);
+	}
 }
 
 int BattleOptionsTab::getAnimSpeed() const

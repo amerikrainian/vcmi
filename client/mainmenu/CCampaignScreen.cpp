@@ -17,6 +17,7 @@
 #include "../CServerHandler.h"
 #include "../GameEngine.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../media/IMusicPlayer.h"
 #include "../render/Canvas.h"
 #include "../widgets/CComponent.h"
@@ -44,6 +45,13 @@ CCampaignScreen::CCampaignScreen(const JsonNode & config, std::string name)
 	: CWindowObject(BORDERED), campaignSet(name)
 {
 	OBJECT_CONSTRUCTION;
+	
+	// Set accessibility info for the main window
+	UIAccessibilityInfo windowAccessInfo;
+	windowAccessInfo.role = "window";
+	windowAccessInfo.name = LIBRARY->generaltexth->translate("vcmi.mainmenu.campaignMenu");
+	windowAccessInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.campaignMenuDescription");
+	setAccessibilityInfo(windowAccessInfo);
 	
 	const auto& campaigns = config[name]["items"].Vector();
 
@@ -79,10 +87,20 @@ CCampaignScreen::CCampaignScreen(const JsonNode & config, std::string name)
 		pos = images[0]->pos; // fix height\width of this window
 	}
 	
-	for (const auto& node : campaigns)
+	int tabOrderBase = 100;
+	for (size_t i = 0; i < campaigns.size(); ++i)
 	{
-		auto button = std::make_shared<CCampaignButton>(node, config, campaignSet);
+		auto button = std::make_shared<CCampaignButton>(campaigns[i], config, campaignSet);
 		button->enable();
+		
+		// Set tab order for campaign buttons
+		if (button->getAccessibilityInfo())
+		{
+			UIAccessibilityInfo updatedInfo = *button->getAccessibilityInfo();
+			updatedInfo.withTabOrder(tabOrderBase + i);
+			button->setAccessibilityInfo(updatedInfo);
+		}
+		
 		campButtons.push_back(button);
 	}
 
@@ -98,6 +116,14 @@ CCampaignScreen::CCampaignScreen(const JsonNode & config, std::string name)
 		);
 		buttonNext->setHoverable(true);
 		buttonNext->disable();
+		
+		// Set accessibility info for next button
+		UIAccessibilityInfo nextBtnInfo;
+		nextBtnInfo.role = "button";
+		nextBtnInfo.name = LIBRARY->generaltexth->translate("vcmi.mainmenu.nextPage");
+		nextBtnInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.nextPageDescription");
+		nextBtnInfo.tabOrder = 500;
+		buttonNext->setAccessibilityInfo(nextBtnInfo);
 	}
 
 	if (!config[name]["backbutton"].isNull())
@@ -110,14 +136,36 @@ CCampaignScreen::CCampaignScreen(const JsonNode & config, std::string name)
 		);
 		buttonPrev->setHoverable(true);
 		buttonPrev->disable();
+		
+		// Set accessibility info for previous button
+		UIAccessibilityInfo prevBtnInfo;
+		prevBtnInfo.role = "button";
+		prevBtnInfo.name = LIBRARY->generaltexth->translate("vcmi.mainmenu.prevPage");
+		prevBtnInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.prevPageDescription");
+		prevBtnInfo.tabOrder = 499;
+		buttonPrev->setAccessibilityInfo(prevBtnInfo);
 	}
 
 	page = std::make_shared<CLabel>(10, 570, FONT_MEDIUM, ETextAlignment::BOTTOMLEFT, Colors::YELLOW, "");
+	
+	// Set accessibility info for page label
+	UIAccessibilityInfo pageInfo;
+	pageInfo.role = "label";
+	pageInfo.name = LIBRARY->generaltexth->translate("vcmi.mainmenu.pageIndicator");
+	page->setAccessibilityInfo(pageInfo);
 
 	if (!config[name]["exitbutton"].isNull())
 	{
 		buttonBack = createExitButton(config[name]["exitbutton"]);
 		buttonBack->setHoverable(true);
+		
+		// Set accessibility info for exit button
+		UIAccessibilityInfo exitBtnInfo;
+		exitBtnInfo.role = "button";
+		exitBtnInfo.name = LIBRARY->generaltexth->translate("vcmi.mainmenu.back");
+		exitBtnInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.backToMainMenu");
+		exitBtnInfo.tabOrder = 600;
+		buttonBack->setAccessibilityInfo(exitBtnInfo);
 	}
 
 	updateCampaignButtons(config);
@@ -153,6 +201,11 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 	videoPath = VideoPath::fromJson(config["video"]);
 
 	status = CCampaignScreen::ENABLED;
+	
+	// Set basic accessibility info - will be updated based on status
+	UIAccessibilityInfo accessInfo;
+	accessInfo.role = "listitem";
+	setAccessibilityInfo(accessInfo);
 
 	if(CResourceHandler::get()->existsResource(ResourcePath(campFile, EResType::CAMPAIGN)))
 	{
@@ -161,10 +214,21 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 
 		if (persistentStorage["completedCampaigns"][header->getFilename()].Bool())
 			status = CCampaignScreen::COMPLETED;
+			
+		// Update accessibility info with campaign name
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.name = hoverText;
+		setAccessibilityInfo(updatedInfo);
 	}
 	else
 	{
 		status = CCampaignScreen::DISABLED;
+		
+		// Update accessibility info for disabled campaign
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.name = campFile;
+		updatedInfo.state = "disabled";
+		setAccessibilityInfo(updatedInfo);
 	}
 
 	for(const JsonNode & node : parentConfig[campaignSet]["items"].Vector())
@@ -173,7 +237,15 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 		{
 			if(node["id"].Integer() == requirement.Integer())
 				if(!persistentStorage["completedCampaigns"][node["file"].String()].Bool())
+				{
 					status = CCampaignScreen::DISABLED;
+					
+					// Update accessibility state to disabled if requirements not met
+					UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+					updatedInfo.state = "disabled";
+					updatedInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.campaignRequirementsNotMet");
+					setAccessibilityInfo(updatedInfo);
+				}
 		}
 	}
 
@@ -189,7 +261,15 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 	}
 
 	if(status == CCampaignScreen::COMPLETED)
+	{
 		graphicsCompleted = std::make_shared<CPicture>(ImagePath::builtin("CAMPCHK"));
+		
+		// Update accessibility state to completed
+		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+		updatedInfo.state = "completed";
+		updatedInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.campaignCompleted");
+		setAccessibilityInfo(updatedInfo);
+	}
 }
 
 void CCampaignScreen::CCampaignButton::clickReleased(const Point & cursorPosition)
@@ -213,6 +293,11 @@ void CCampaignScreen::CCampaignButton::hover(bool on)
 		else
 			hoverLabel->setText(" ");
 	}
+}
+
+bool CCampaignScreen::CCampaignButton::isFocusable() const
+{
+	return status != CCampaignScreen::DISABLED;
 }
 
 void CCampaignScreen::switchPage(int delta)

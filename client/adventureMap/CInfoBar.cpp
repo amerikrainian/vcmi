@@ -26,6 +26,8 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/Shortcut.h"
+#include "../gui/EventDispatcher.h"
 #include "../media/ISoundPlayer.h"
 #include "../render/IScreenHandler.h"
 
@@ -327,8 +329,71 @@ void CInfoBar::hover(bool on)
 		ENGINE->statusbar()->clear();
 }
 
+void CInfoBar::keyPressed(EShortcut key)
+{
+	// Handle tab key focus - announce current info bar content when focused
+	if (key == EShortcut::GLOBAL_MOVE_FOCUS)
+	{
+		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			std::string announcement;
+			
+			switch(state)
+			{
+			case EState::DATE:
+				{
+					announcement = "Date information: ";
+					if(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK) == 1 && GAME->interface()->cb->getDate(Date::DAY) != 1)
+						announcement += "Week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+					else
+						announcement += "Day " + std::to_string(GAME->interface()->cb->getDate(Date::DAY_OF_WEEK)) + " of week " + std::to_string(GAME->interface()->cb->getDate(Date::WEEK));
+					
+					// Add turn counter
+					int currentDay = GAME->interface()->cb->getDate(Date::DAY);
+					announcement += ". Day " + std::to_string(currentDay) + " (Turn " + std::to_string(currentDay) + ")";
+				}
+				break;
+				
+			case EState::HERO:
+				if(GAME->interface()->localState->getCurrentHero())
+				{
+					auto hero = GAME->interface()->localState->getCurrentHero();
+					announcement = "Selected hero: " + hero->getNameTranslated();
+				}
+				break;
+				
+			case EState::TOWN:
+				if(GAME->interface()->localState->getCurrentTown())
+				{
+					auto town = GAME->interface()->localState->getCurrentTown();
+					announcement = "Selected town: " + town->getNameTranslated();
+				}
+				break;
+				
+			case EState::GAME:
+				announcement = "Game status information";
+				break;
+				
+			case EState::COMPONENT:
+				announcement = "Components displayed";
+				break;
+				
+			case EState::AITURN:
+				announcement = "Enemy player turn in progress";
+				break;
+				
+			default:
+				announcement = "Information bar";
+				break;
+			}
+			
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
+	}
+}
+
 CInfoBar::CInfoBar(const Rect & position)
-	: CIntObject(LCLICK | SHOW_POPUP | HOVER, position.topLeft()),
+	: CIntObject(LCLICK | SHOW_POPUP | HOVER | KEYBOARD, position.topLeft()),
 	timerCounter(0),
 	state(EState::EMPTY),
 	listener(settings.listen["gameTweaks"]["infoBarCreatureManagement"])
@@ -337,6 +402,14 @@ CInfoBar::CInfoBar(const Rect & position)
 	pos.w = position.w;
 	pos.h = position.h;
 	listener(std::bind(&CInfoBar::OnInfoBarCreatureManagementChanged, this));
+	
+	// Set up accessibility info with tab order
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("information bar")
+		.withName("Information Bar")
+		.withDescription("Shows game status, date, and selected object information")
+		.withTabOrder(95)); // Info bar comes after resource bar (90)
+	
 	reset();
 }
 

@@ -18,6 +18,7 @@
 #include "../widgets/ObjectLists.h"
 
 #include "../../lib/filesystem/Filesystem.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../../AUTHORS.h"
 
@@ -48,6 +49,20 @@ CreditsScreen::CreditsScreen(Rect rect)
 	text = "{- VCMI -}\r\n\r\n" + contributorsText + "\r\n\r\n{Website:}\r\nhttps://vcmi.eu\r\n\r\n\r\n\r\n\r\n{- Heroes of Might and Magic III -}\r\n\r\n" + text;
 	credits = std::make_shared<CMultiLineLabel>(Rect(pos.w - 350, 0, 350, 600), FONT_CREDITS, ETextAlignment::CENTER, Colors::WHITE, text);
 	credits->scrollTextTo(-600); // move all text below the screen
+	
+	// Set accessibility info for the credits
+	credits->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Game Credits")
+		.withDescription("Scrolling credits for VCMI and Heroes of Might and Magic III contributors")
+		.withTabOrder(1));
+	
+	// Set accessibility for the overall screen
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("screen")
+		.withName("Credits Screen")
+		.withDescription("View game credits. Click anywhere to return to main menu")
+		.withTabOrder(0));
 }
 
 void CreditsScreen::tick(uint32_t msPassed)
