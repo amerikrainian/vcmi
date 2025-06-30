@@ -97,6 +97,65 @@ SettingsMainWindow::SettingsMainWindow(BattleInterface * parentBattleUi) : Inter
 			toggleButton->setAccessibilityInfo(accessInfo);
 	}
 
+	// Add accessibility to action buttons
+	if (loadButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Load Game";
+		accessInfo.description = "Load a previously saved game";
+		accessInfo.tabOrder = 10;
+		if (loadButton->isBlocked())
+			accessInfo.state = "disabled";
+		loadButton->setAccessibilityInfo(accessInfo);
+	}
+	
+	if (saveButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Save Game";
+		accessInfo.description = "Save the current game";
+		accessInfo.tabOrder = 11;
+		if (saveButton->isBlocked())
+			accessInfo.state = "disabled";
+		saveButton->setAccessibilityInfo(accessInfo);
+	}
+	
+	if (restartButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Restart Game";
+		accessInfo.description = "Restart the current game from the beginning";
+		accessInfo.tabOrder = 12;
+		if (restartButton->isBlocked())
+			accessInfo.state = "disabled";
+		restartButton->setAccessibilityInfo(accessInfo);
+	}
+	
+	std::shared_ptr<CButton> quitButton = widget<CButton>("quitButton");
+	if (quitButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Quit Game";
+		accessInfo.description = "Exit VCMI completely";
+		accessInfo.tabOrder = 13;
+		quitButton->setAccessibilityInfo(accessInfo);
+	}
+	
+	std::shared_ptr<CButton> mainMenuButton = widget<CButton>("mainMenuButton");
+	if (mainMenuButton)
+	{
+		UIAccessibilityInfo accessInfo;
+		accessInfo.role = "button";
+		accessInfo.name = "Main Menu";
+		accessInfo.description = "Return to the main menu";
+		accessInfo.tabOrder = 14;
+		mainMenuButton->setAccessibilityInfo(accessInfo);
+	}
+
 	// Add accessibility to window buttons
 	std::shared_ptr<CButton> backButton = widget<CButton>("closeWindow");
 	if (backButton)
@@ -116,6 +175,12 @@ SettingsMainWindow::SettingsMainWindow(BattleInterface * parentBattleUi) : Inter
 		accessInfo.name = "Game Settings";
 		accessInfo.description = "Configure game options and preferences";
 		setAccessibilityInfo(accessInfo);
+	}
+	
+	// Announce window opening
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		AccessibilityManager::getInstance().announce("Game Settings window opened. Use tabs to navigate between different settings categories.");
 	}
 	
 	GAME->interface()->gamePause(true);

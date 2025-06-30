@@ -18,6 +18,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../gui/WindowHandler.h"
 #include "../widgets/CComponent.h"
 #include "../widgets/Buttons.h"
@@ -256,6 +257,44 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 	// create scroll bounds that encompass all area in this UI element to the left of slider (including area of slider itself)
 	// entire screen can't be used in here since map description might also have slider
 	slider->setScrollBounds(Rect(pos.x - slider->pos.x, 0, slider->pos.x + slider->pos.w - pos.x, slider->pos.h ));
+	
+	// Add accessibility info for main UI elements
+	if (inputName)
+	{
+		inputName->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("textbox")
+			.withName("Save filename")
+			.withDescription("Enter the name for your save file")
+			.withTabOrder(1));
+	}
+	
+	if (slider)
+	{
+		slider->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("scrollbar")
+			.withName("Save list scroll")
+			.withDescription("Scroll through the list of save files")
+			.withTabOrder(5));
+	}
+	
+	// Add accessibility to sort buttons
+	int tabOrder = 20;
+	for (auto& button : buttonsSortBy)
+	{
+		if (button)
+		{
+			// Get existing tooltip info if available
+			std::string name = "Sort button";
+			std::string desc = "Click to sort the save list";
+			
+			button->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("button")
+				.withName(name)
+				.withDescription(desc)
+				.withTabOrder(tabOrder++));
+		}
+	}
+	
 	filter(0);
 }
 
@@ -1041,6 +1080,12 @@ SelectionTab::ListItem::ListItem(Point position)
 	iconFormat = std::make_shared<CAnimImage>(AnimationPath::builtin("SCSELC.DEF"), 0, 0, 59, -12);
 	iconVictoryCondition = std::make_shared<CAnimImage>(AnimationPath::builtin("SCNRVICT.DEF"), 0, 0, 277, -12);
 	iconLossCondition = std::make_shared<CAnimImage>(AnimationPath::builtin("SCNRLOSS.DEF"), 0, 0, 310, -12);
+	
+	// Set up base accessibility info for list item
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("listitem")
+		.withName("Save file")
+		.withDescription("Click to select this save file"));
 }
 
 void SelectionTab::ListItem::updateItem(std::shared_ptr<ElementInfo> info, bool selected)
@@ -1131,4 +1176,40 @@ void SelectionTab::ListItem::updateItem(std::shared_ptr<ElementInfo> info, bool 
 	}
 	labelName->setText(info->name);
 	labelName->setColor(color);
+	
+	// Update accessibility info with current item details
+	if (info && getAccessibilityInfo())
+	{
+		std::string name;
+		std::string desc;
+		std::string state = selected ? "selected" : "";
+		
+		if (info->isFolder)
+		{
+			name = "Folder: " + info->folderName;
+			desc = "Double-click to open folder";
+		}
+		else if (info->campaign)
+		{
+			name = "Campaign: " + info->name;
+			desc = "Campaign with " + std::to_string(info->campaign->scenariosCount()) + " scenarios";
+		}
+		else
+		{
+			name = "Save file: " + info->name;
+			desc = "Map: " + (info->mapHeader ? info->mapHeader->name.toString() : "Unknown");
+			if (info->mapHeader)
+			{
+				desc += ", Players: " + std::to_string(info->mapHeader->howManyTeams);
+				desc += ", Size: " + std::to_string(info->mapHeader->width) + "x" + std::to_string(info->mapHeader->height);
+			}
+		}
+		
+		// Update accessibility info
+		auto updatedInfo = *getAccessibilityInfo();
+		updatedInfo.name = name;
+		updatedInfo.description = desc;
+		updatedInfo.state = state;
+		setAccessibilityInfo(updatedInfo);
+	}
 }

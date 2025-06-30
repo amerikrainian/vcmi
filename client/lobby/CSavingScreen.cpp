@@ -16,6 +16,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/CTextInput.h"
 
@@ -42,6 +43,25 @@ CSavingScreen::CSavingScreen()
 	curTab = tabSel;
 		
 	buttonStart = std::make_shared<CButton>(Point(411, 535), AnimationPath::builtin("SCNRSAV.DEF"), LIBRARY->generaltexth->zelp[103], std::bind(&CSavingScreen::saveGame, this), EShortcut::LOBBY_SAVE_GAME);
+	
+	// Add accessibility info to save button
+	buttonStart->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Save Game")
+		.withDescription("Save the current game with the specified filename")
+		.withTabOrder(10));
+	
+	// Add accessibility info to the dialog
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Save Game")
+		.withDescription("Save game dialog - enter filename and click Save"));
+	
+	// Announce dialog opening
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		AccessibilityManager::getInstance().announce("Save Game dialog opened. Enter a filename to save your game.");
+	}
 	
 	GAME->interface()->gamePause(true);
 }

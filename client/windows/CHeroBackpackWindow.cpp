@@ -13,6 +13,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../widgets/Buttons.h"
 #include "../widgets/Images.h"
@@ -76,6 +77,52 @@ CHeroBackpackWindow::CHeroBackpackWindow(const CGHeroInstance * hero, const std:
 	statusbar = CGStatusBar::create(0, pos.h, ImagePath::builtin("ADROLLVR.bmp"), pos.w);
 	pos.h += statusbar->pos.h;
 	addUsedEvents(LCLICK);
+	
+	// Add accessibility info to sort buttons
+	if (buttons.size() >= 3)
+	{
+		buttons[0]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Sort by cost")
+			.withDescription("Sort backpack artifacts by their cost/value")
+			.withTabOrder(1));
+			
+		buttons[1]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Sort by slot")
+			.withDescription("Sort backpack artifacts by equipment slot type")
+			.withTabOrder(2));
+			
+		buttons[2]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Sort by class")
+			.withDescription("Sort backpack artifacts by class (Treasure, Minor, Major, Relic)")
+			.withTabOrder(3));
+	}
+	
+	// Add accessibility info to the main artifacts area
+	if (arts)
+	{
+		arts->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("grid")
+			.withName("Hero backpack")
+			.withDescription("Grid of artifact slots in the hero's backpack. Use arrow keys to navigate"));
+	}
+	
+	// Set window accessibility
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName("Hero Backpack")
+		.withDescription("Manage artifacts in " + hero->getNameTranslated() + "'s backpack"));
+	
+	// Announce window opening
+	if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = "Hero Backpack window opened for " + hero->getNameTranslated() + 
+			". Use arrow keys to navigate between artifact slots.";
+		AccessibilityManager::getInstance().announce(announcement);
+	}
+	
 	center();
 }
 
