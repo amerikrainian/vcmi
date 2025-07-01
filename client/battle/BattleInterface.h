@@ -53,6 +53,7 @@ class BattleStacksController;
 class BattleActionsController;
 class BattleEffectsController;
 class BattleConsole;
+class BattleAccessibilityController;
 
 /// Small struct which contains information about the id of the attacked stack, the damage dealt,...
 struct StackAttackedInfo
@@ -145,6 +146,7 @@ public:
 	std::unique_ptr<BattleStacksController> stacksController;
 	std::unique_ptr<BattleActionsController> actionsController;
 	std::unique_ptr<BattleEffectsController> effectsController;
+	std::unique_ptr<BattleAccessibilityController> accessibilityController;
 
 	std::shared_ptr<BattleHero> attackingHero;
 	std::shared_ptr<BattleHero> defendingHero;
@@ -230,4 +232,6 @@ public:
 
 	const CGHeroInstance *currentHero() const;
 	InfoAboutHero enemyHero() const;
+	
+	BattleAccessibilityController * getAccessibilityController() { return accessibilityController.get(); }
 };

@@ -17,17 +17,18 @@
 
 ShortcutHandler::ShortcutHandler()
 {
-	const JsonNode config = JsonUtils::assembleFromFiles("config/shortcutsConfig");
+	configData = std::make_unique<JsonNode>(JsonUtils::assembleFromFiles("config/shortcutsConfig"));
+	currentProfile = "keyboard";
 
-	mappedKeyboardShortcuts = loadShortcuts(config["keyboard"]);
-	mappedJoystickShortcuts = loadShortcuts(config["joystickButtons"]);
-	mappedJoystickAxes = loadShortcuts(config["joystickAxes"]);
+	mappedKeyboardShortcuts = loadShortcuts((*configData)["keyboard"]);
+	mappedJoystickShortcuts = loadShortcuts((*configData)["joystickButtons"]);
+	mappedJoystickAxes = loadShortcuts((*configData)["joystickAxes"]);
 
 #ifndef ENABLE_GOLDMASTER
 	std::vector<EShortcut> assignedShortcuts;
 	std::vector<EShortcut> missingShortcuts;
 
-	for (auto const & entry : config["keyboard"].Struct())
+	for (auto const & entry : (*configData)["keyboard"].Struct())
 	{
 		EShortcut shortcutID = findShortcut(entry.first);
 		assert(!vstd::contains(assignedShortcuts, shortcutID));
@@ -247,6 +248,38 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 		{"battleSpellShortcut9",     EShortcut::BATTLE_SPELL_SHORTCUT_9   },
 		{"battleSpellShortcut10",    EShortcut::BATTLE_SPELL_SHORTCUT_10  },
 		{"battleSpellShortcut11",    EShortcut::BATTLE_SPELL_SHORTCUT_11  },
+		{"battleHexUpLeft",          EShortcut::BATTLE_HEX_UP_LEFT        },
+		{"battleHexUpRight",         EShortcut::BATTLE_HEX_UP_RIGHT       },
+		{"battleHexLeft",            EShortcut::BATTLE_HEX_LEFT           },
+		{"battleHexRight",           EShortcut::BATTLE_HEX_RIGHT          },
+		{"battleHexDownLeft",        EShortcut::BATTLE_HEX_DOWN_LEFT      },
+		{"battleHexDownRight",       EShortcut::BATTLE_HEX_DOWN_RIGHT     },
+		{"battleMoveUnitUpLeft",     EShortcut::BATTLE_MOVE_UNIT_UP_LEFT  },
+		{"battleMoveUnitUpRight",    EShortcut::BATTLE_MOVE_UNIT_UP_RIGHT },
+		{"battleMoveUnitLeft",       EShortcut::BATTLE_MOVE_UNIT_LEFT     },
+		{"battleMoveUnitRight",      EShortcut::BATTLE_MOVE_UNIT_RIGHT    },
+		{"battleMoveUnitDownLeft",   EShortcut::BATTLE_MOVE_UNIT_DOWN_LEFT },
+		{"battleMoveUnitDownRight",  EShortcut::BATTLE_MOVE_UNIT_DOWN_RIGHT},
+		{"battleJumpToUnit1",        EShortcut::BATTLE_JUMP_TO_UNIT_1     },
+		{"battleJumpToUnit2",        EShortcut::BATTLE_JUMP_TO_UNIT_2     },
+		{"battleJumpToUnit3",        EShortcut::BATTLE_JUMP_TO_UNIT_3     },
+		{"battleJumpToUnit4",        EShortcut::BATTLE_JUMP_TO_UNIT_4     },
+		{"battleJumpToUnit5",        EShortcut::BATTLE_JUMP_TO_UNIT_5     },
+		{"battleJumpToUnit6",        EShortcut::BATTLE_JUMP_TO_UNIT_6     },
+		{"battleJumpToUnit7",        EShortcut::BATTLE_JUMP_TO_UNIT_7     },
+		{"battleJumpToEnemy1",       EShortcut::BATTLE_JUMP_TO_ENEMY_1    },
+		{"battleJumpToEnemy2",       EShortcut::BATTLE_JUMP_TO_ENEMY_2    },
+		{"battleJumpToEnemy3",       EShortcut::BATTLE_JUMP_TO_ENEMY_3    },
+		{"battleJumpToEnemy4",       EShortcut::BATTLE_JUMP_TO_ENEMY_4    },
+		{"battleJumpToEnemy5",       EShortcut::BATTLE_JUMP_TO_ENEMY_5    },
+		{"battleJumpToEnemy6",       EShortcut::BATTLE_JUMP_TO_ENEMY_6    },
+		{"battleJumpToEnemy7",       EShortcut::BATTLE_JUMP_TO_ENEMY_7    },
+		{"battleInfoAttackDefense",  EShortcut::BATTLE_INFO_ATTACK_DEFENSE },
+		{"battleInfoDamageSpeed",    EShortcut::BATTLE_INFO_DAMAGE_SPEED   },
+		{"battleInfoHealthShots",    EShortcut::BATTLE_INFO_HEALTH_SHOTS   },
+		{"battleInfoStatusEffects",  EShortcut::BATTLE_INFO_STATUS_EFFECTS },
+		{"battleInfoAbilities",      EShortcut::BATTLE_INFO_ABILITIES      },
+		{"battleInfoMoraleLuck",     EShortcut::BATTLE_INFO_MORALE_LUCK    },
 		{"spectateTrackHero",        EShortcut::SPECTATE_TRACK_HERO       },
 		{"spectateSkipBattle",       EShortcut::SPECTATE_SKIP_BATTLE      },
 		{"spectateSkipBattleResult", EShortcut::SPECTATE_SKIP_BATTLE_RESULT },
@@ -390,4 +423,57 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 	if (shortcutNames.count(identifier))
 		return shortcutNames.at(identifier);
 	return EShortcut::NONE;
+}
+
+void ShortcutHandler::loadProfile(const std::string & profileName)
+{
+	currentProfile = profileName;
+	
+	// Load keyboard shortcuts from the specified profile
+	if ((*configData)[profileName].isStruct())
+	{
+		mappedKeyboardShortcuts = loadShortcuts((*configData)[profileName]);
+		logGlobal->info("Loaded shortcut profile: %s", profileName);
+	}
+	else
+	{
+		logGlobal->warn("Shortcut profile '%s' not found in configuration", profileName);
+	}
+}
+
+void ShortcutHandler::setCombatAccessibilityMode(bool enable)
+{
+	if (enable)
+	{
+		// First, check if combat accessibility profile exists
+		if ((*configData)["keyboard_combat_accessibility"].isStruct())
+		{
+			// Merge the accessibility shortcuts with the base keyboard shortcuts
+			// This allows the accessibility shortcuts to override conflicting keys
+			mappedKeyboardShortcuts = loadShortcuts((*configData)["keyboard"]);
+			auto accessibilityShortcuts = loadShortcuts((*configData)["keyboard_combat_accessibility"]);
+			
+			// Remove conflicting shortcuts that are remapped in accessibility mode
+			for (const auto & [key, shortcut] : accessibilityShortcuts)
+			{
+				// Remove all shortcuts previously mapped to this key
+				mappedKeyboardShortcuts.erase(key);
+			}
+			
+			// Add accessibility shortcuts
+			mappedKeyboardShortcuts.insert(accessibilityShortcuts.begin(), accessibilityShortcuts.end());
+			
+			logGlobal->info("Combat accessibility shortcuts enabled");
+		}
+		else
+		{
+			logGlobal->warn("Combat accessibility shortcuts not found in configuration");
+		}
+	}
+	else
+	{
+		// Restore normal keyboard shortcuts
+		loadProfile("keyboard");
+		logGlobal->info("Combat accessibility shortcuts disabled");
+	}
 }

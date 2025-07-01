@@ -214,6 +214,48 @@ enum class EShortcut
 	BATTLE_SPELL_SHORTCUT_10,
 	BATTLE_SPELL_SHORTCUT_11,
 
+	// Combat accessibility navigation
+	BATTLE_HEX_UP_LEFT,      // Q
+	BATTLE_HEX_UP_RIGHT,     // E
+	BATTLE_HEX_LEFT,         // A
+	BATTLE_HEX_RIGHT,        // D
+	BATTLE_HEX_DOWN_LEFT,    // Z
+	BATTLE_HEX_DOWN_RIGHT,   // C
+
+	// Combat accessibility movement (with Shift)
+	BATTLE_MOVE_UNIT_UP_LEFT,    // Shift+Q
+	BATTLE_MOVE_UNIT_UP_RIGHT,   // Shift+E
+	BATTLE_MOVE_UNIT_LEFT,       // Shift+A
+	BATTLE_MOVE_UNIT_RIGHT,      // Shift+D
+	BATTLE_MOVE_UNIT_DOWN_LEFT,  // Shift+Z
+	BATTLE_MOVE_UNIT_DOWN_RIGHT, // Shift+C
+
+	// Combat accessibility unit jumps
+	BATTLE_JUMP_TO_UNIT_1,   // 1
+	BATTLE_JUMP_TO_UNIT_2,   // 2
+	BATTLE_JUMP_TO_UNIT_3,   // 3
+	BATTLE_JUMP_TO_UNIT_4,   // 4
+	BATTLE_JUMP_TO_UNIT_5,   // 5
+	BATTLE_JUMP_TO_UNIT_6,   // 6
+	BATTLE_JUMP_TO_UNIT_7,   // 7
+	
+	// Combat accessibility enemy jumps
+	BATTLE_JUMP_TO_ENEMY_1,   // Shift+1
+	BATTLE_JUMP_TO_ENEMY_2,   // Shift+2
+	BATTLE_JUMP_TO_ENEMY_3,   // Shift+3
+	BATTLE_JUMP_TO_ENEMY_4,   // Shift+4
+	BATTLE_JUMP_TO_ENEMY_5,   // Shift+5
+	BATTLE_JUMP_TO_ENEMY_6,   // Shift+6
+	BATTLE_JUMP_TO_ENEMY_7,   // Shift+7
+
+	// Combat accessibility info
+	BATTLE_INFO_ATTACK_DEFENSE,  // F1
+	BATTLE_INFO_DAMAGE_SPEED,    // F2
+	BATTLE_INFO_HEALTH_SHOTS,    // F3
+	BATTLE_INFO_STATUS_EFFECTS,  // F4
+	BATTLE_INFO_ABILITIES,       // F5
+	BATTLE_INFO_MORALE_LUCK,     // F6
+
 	MARKET_DEAL,
 	MARKET_MAX_AMOUNT,
 	MARKET_SACRIFICE_ALL,

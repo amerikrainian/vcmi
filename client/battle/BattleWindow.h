@@ -63,6 +63,11 @@ class BattleWindow : public InterfaceObjectConfigurable
 	void bOpenActiveUnit();
 	void bOpenHoveredUnit();
 
+	/// Combat accessibility functions
+	void jumpToUnit(int index);
+	void jumpToEnemyUnit(int index);
+	void announceUnitInfo(int detailLevel);
+
 	/// functions for handling actions after they were confirmed by popup window
 	void reallyFlee();
 	void reallySurrender();

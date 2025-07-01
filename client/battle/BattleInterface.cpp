@@ -10,6 +10,7 @@
 #include "StdInc.h"
 #include "BattleInterface.h"
 
+#include "BattleAccessibilityController.h"
 #include "BattleActionsController.h"
 #include "BattleAnimationClasses.h"
 #include "BattleConsole.h"
@@ -30,6 +31,7 @@
 #include "../GameInstance.h"
 #include "../adventureMap/AdventureMapInterface.h"
 #include "../gui/CursorHandler.h"
+#include "../gui/ShortcutHandler.h"
 #include "../gui/WindowHandler.h"
 #include "../media/IMusicPlayer.h"
 #include "../media/ISoundPlayer.h"
@@ -97,6 +99,7 @@ BattleInterface::BattleInterface(const BattleID & battleID, const CCreatureSet *
 	actionsController.reset( new BattleActionsController(*this));
 	effectsController.reset(new BattleEffectsController(*this));
 	obstacleController.reset(new BattleObstacleController(*this));
+	accessibilityController.reset(new BattleAccessibilityController(*this));
 
 	adventureInt->onAudioPaused();
 	ongoingAnimationsState.setBusy();
@@ -178,12 +181,22 @@ void BattleInterface::openingEnd()
 	activateStack();
 	battleOpeningDelayActive = false;
 
+	// Enable combat accessibility shortcuts
+	ENGINE->shortcuts().setCombatAccessibilityMode(true);
+	
+	// Activate hex navigation and announce initial battle state for accessibility
+	accessibilityController->activateHexNavigation();
+	accessibilityController->announceInitialBattleState();
+
 	CTutorialWindow::openWindowFirstTime(TutorialMode::TOUCH_BATTLE);
 }
 
 BattleInterface::~BattleInterface()
 {
 	CPlayerInterface::battleInt = nullptr;
+
+	// Restore normal shortcuts when battle ends
+	ENGINE->shortcuts().setCombatAccessibilityMode(false);
 
 	if (adventureInt)
 		adventureInt->onAudioResumed();
@@ -590,6 +603,10 @@ void BattleInterface::activateStack()
 	windowObject->blockUI(false);
 	fieldController->redrawBackgroundWithHexes();
 	actionsController->activateStack();
+	
+	// Announce turn start for accessibility
+	accessibilityController->announceTurnStart(s);
+	
 	ENGINE->fakeMouseMove();
 }
 

@@ -10,6 +10,8 @@
 #include "StdInc.h"
 #include "BattleWindow.h"
 
+#include <algorithm>
+#include "BattleAccessibilityController.h"
 #include "BattleActionsController.h"
 #include "BattleConsole.h"
 #include "BattleFieldController.h"
@@ -105,6 +107,48 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_TOGGLE_HEROES_STATS, [this](){ this->toggleStickyHeroWindowsVisibility();});
 	addShortcut(EShortcut::BATTLE_USE_CREATURE_SPELL, [this](){ this->owner.actionsController->enterCreatureCastingMode(); });
 	addShortcut(EShortcut::GLOBAL_CANCEL, [this](){ this->owner.actionsController->endCastingSpell(); });
+
+	// Combat accessibility navigation
+	addShortcut(EShortcut::BATTLE_HEX_UP_LEFT,      [this](){ this->owner.getAccessibilityController()->handleHexNavigation(EShortcut::BATTLE_HEX_UP_LEFT); });
+	addShortcut(EShortcut::BATTLE_HEX_UP_RIGHT,     [this](){ this->owner.getAccessibilityController()->handleHexNavigation(EShortcut::BATTLE_HEX_UP_RIGHT); });
+	addShortcut(EShortcut::BATTLE_HEX_LEFT,         [this](){ this->owner.getAccessibilityController()->handleHexNavigation(EShortcut::BATTLE_HEX_LEFT); });
+	addShortcut(EShortcut::BATTLE_HEX_RIGHT,        [this](){ this->owner.getAccessibilityController()->handleHexNavigation(EShortcut::BATTLE_HEX_RIGHT); });
+	addShortcut(EShortcut::BATTLE_HEX_DOWN_LEFT,    [this](){ this->owner.getAccessibilityController()->handleHexNavigation(EShortcut::BATTLE_HEX_DOWN_LEFT); });
+	addShortcut(EShortcut::BATTLE_HEX_DOWN_RIGHT,   [this](){ this->owner.getAccessibilityController()->handleHexNavigation(EShortcut::BATTLE_HEX_DOWN_RIGHT); });
+
+	// Combat accessibility unit movement
+	addShortcut(EShortcut::BATTLE_MOVE_UNIT_UP_LEFT,    [this](){ this->owner.getAccessibilityController()->handleUnitMovement(EShortcut::BATTLE_MOVE_UNIT_UP_LEFT); });
+	addShortcut(EShortcut::BATTLE_MOVE_UNIT_UP_RIGHT,   [this](){ this->owner.getAccessibilityController()->handleUnitMovement(EShortcut::BATTLE_MOVE_UNIT_UP_RIGHT); });
+	addShortcut(EShortcut::BATTLE_MOVE_UNIT_LEFT,       [this](){ this->owner.getAccessibilityController()->handleUnitMovement(EShortcut::BATTLE_MOVE_UNIT_LEFT); });
+	addShortcut(EShortcut::BATTLE_MOVE_UNIT_RIGHT,      [this](){ this->owner.getAccessibilityController()->handleUnitMovement(EShortcut::BATTLE_MOVE_UNIT_RIGHT); });
+	addShortcut(EShortcut::BATTLE_MOVE_UNIT_DOWN_LEFT,  [this](){ this->owner.getAccessibilityController()->handleUnitMovement(EShortcut::BATTLE_MOVE_UNIT_DOWN_LEFT); });
+	addShortcut(EShortcut::BATTLE_MOVE_UNIT_DOWN_RIGHT, [this](){ this->owner.getAccessibilityController()->handleUnitMovement(EShortcut::BATTLE_MOVE_UNIT_DOWN_RIGHT); });
+
+	// Combat accessibility unit jump
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_1, [this](){ this->jumpToUnit(0); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_2, [this](){ this->jumpToUnit(1); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_3, [this](){ this->jumpToUnit(2); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_4, [this](){ this->jumpToUnit(3); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_5, [this](){ this->jumpToUnit(4); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_6, [this](){ this->jumpToUnit(5); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_7, [this](){ this->jumpToUnit(6); });
+
+	// Combat accessibility enemy jump
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_1, [this](){ this->jumpToEnemyUnit(0); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_2, [this](){ this->jumpToEnemyUnit(1); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_3, [this](){ this->jumpToEnemyUnit(2); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_4, [this](){ this->jumpToEnemyUnit(3); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_5, [this](){ this->jumpToEnemyUnit(4); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_6, [this](){ this->jumpToEnemyUnit(5); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_7, [this](){ this->jumpToEnemyUnit(6); });
+
+	// Combat accessibility unit info
+	addShortcut(EShortcut::BATTLE_INFO_ATTACK_DEFENSE,  [this](){ this->announceUnitInfo(1); });
+	addShortcut(EShortcut::BATTLE_INFO_DAMAGE_SPEED,    [this](){ this->announceUnitInfo(2); });
+	addShortcut(EShortcut::BATTLE_INFO_HEALTH_SHOTS,    [this](){ this->announceUnitInfo(3); });
+	addShortcut(EShortcut::BATTLE_INFO_STATUS_EFFECTS,  [this](){ this->announceUnitInfo(4); });
+	addShortcut(EShortcut::BATTLE_INFO_ABILITIES,       [this](){ this->announceUnitInfo(5); });
+	addShortcut(EShortcut::BATTLE_INFO_MORALE_LUCK,     [this](){ this->announceUnitInfo(6); });
 
 	build(config);
 	
@@ -803,6 +847,95 @@ void BattleWindow::bOpenHoveredUnit()
 		const auto * unit = owner.getBattle()->battleGetStackByID(units[0]);
 		if (unit)
 			ENGINE->windows().createAndPushWindow<CStackWindow>(unit, false);
+	}
+}
+
+void BattleWindow::jumpToUnit(int index)
+{
+	auto allStacks = owner.getBattle()->battleGetAllStacks();
+	std::vector<const CStack*> playerStacks;
+	
+	// Filter to get only the current player's stacks
+	auto activeUnit = owner.getBattle()->battleActiveUnit();
+	if (!activeUnit)
+		return;
+		
+	for (const auto* stack : allStacks)
+	{
+		if (stack->alive() && stack->unitSide() == activeUnit->unitSide())
+			playerStacks.push_back(stack);
+	}
+	
+	// Sort by position for consistent ordering
+	std::sort(playerStacks.begin(), playerStacks.end(), 
+		[](const CStack* a, const CStack* b) { return a->getPosition() < b->getPosition(); });
+	
+	if (index >= 0 && index < static_cast<int>(playerStacks.size()))
+	{
+		const CStack* targetStack = playerStacks[index];
+		BattleHex targetHex = targetStack->getPosition();
+		
+		// Set the hex cursor to the target position
+		owner.getAccessibilityController()->setCurrentHex(targetHex);
+		owner.getAccessibilityController()->activateHexNavigation();
+		owner.getAccessibilityController()->announceHexContent(targetHex);
+	}
+}
+
+void BattleWindow::jumpToEnemyUnit(int index)
+{
+	auto allStacks = owner.getBattle()->battleGetAllStacks();
+	std::vector<const CStack*> enemyStacks;
+	
+	// Filter to get only enemy stacks
+	auto activeUnit = owner.getBattle()->battleActiveUnit();
+	if (!activeUnit)
+		return;
+		
+	for (const auto* stack : allStacks)
+	{
+		if (stack->alive() && stack->unitSide() != activeUnit->unitSide())
+			enemyStacks.push_back(stack);
+	}
+	
+	// Sort by position for consistent ordering
+	std::sort(enemyStacks.begin(), enemyStacks.end(), 
+		[](const CStack* a, const CStack* b) { return a->getPosition() < b->getPosition(); });
+	
+	if (index >= 0 && index < static_cast<int>(enemyStacks.size()))
+	{
+		const CStack* targetStack = enemyStacks[index];
+		BattleHex targetHex = targetStack->getPosition();
+		
+		// Set the hex cursor to the target position
+		owner.getAccessibilityController()->setCurrentHex(targetHex);
+		owner.getAccessibilityController()->activateHexNavigation();
+		owner.getAccessibilityController()->announceHexContent(targetHex);
+	}
+}
+
+void BattleWindow::announceUnitInfo(int detailLevel)
+{
+	// First check if there's a unit under the accessibility cursor
+	auto accessibilityController = owner.getAccessibilityController();
+	if (accessibilityController->isHexNavigationActive())
+	{
+		BattleHex currentHex = accessibilityController->getCurrentHex();
+		const CStack* stack = owner.getBattle()->battleGetStackByPos(currentHex);
+		if (stack)
+		{
+			accessibilityController->announceUnitInfo(stack, detailLevel);
+			return;
+		}
+	}
+	
+	// Otherwise, check for hovered unit
+	const auto units = owner.stacksController->getHoveredStacksUnitIds();
+	if (!units.empty())
+	{
+		const auto * unit = owner.getBattle()->battleGetStackByID(units[0]);
+		if (unit)
+			accessibilityController->announceUnitInfo(unit, detailLevel);
 	}
 }
 

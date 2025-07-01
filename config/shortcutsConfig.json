@@ -264,6 +264,39 @@
 		"listTownTop":              "Ctrl+Home",
 		"listTownBottom":           "Ctrl+End",
 		
+		// Combat accessibility navigation
+		"battleHexUpLeft":          [],
+		"battleHexUpRight":         [],
+		"battleHexLeft":            [],
+		"battleHexRight":           [],
+		"battleHexDownLeft":        [],
+		"battleHexDownRight":       [],
+		
+		// Combat accessibility unit movement
+		"battleMoveUnitUpLeft":     [],
+		"battleMoveUnitUpRight":    [],
+		"battleMoveUnitLeft":       [],
+		"battleMoveUnitRight":      [],
+		"battleMoveUnitDownLeft":   [],
+		"battleMoveUnitDownRight":  [],
+		
+		// Combat accessibility unit jumps
+		"battleJumpToUnit1":        [],
+		"battleJumpToUnit2":        [],
+		"battleJumpToUnit3":        [],
+		"battleJumpToUnit4":        [],
+		"battleJumpToUnit5":        [],
+		"battleJumpToUnit6":        [],
+		"battleJumpToUnit7":        [],
+		
+		// Combat accessibility info
+		"battleInfoAttackDefense":  [],
+		"battleInfoDamageSpeed":    [],
+		"battleInfoHealthShots":    [],
+		"battleInfoStatusEffects":  [],
+		"battleInfoAbilities":      [],
+		"battleInfoMoraleLuck":     [],
+		
 		// Controller-specific
 		"mouseCursorX":             [],
 		"mouseCursorY":             [],
@@ -340,5 +373,58 @@
 		
 		"adventureToggleGrid" : "rightstick",
 		"battleToggleQueue" : "rightstick",
+	},
+	
+	"keyboard_combat_accessibility": {
+		// Remapped existing battle shortcuts to avoid conflicts
+		"battleAutocombat":         "Ctrl+A",
+		"battleAutocombatEnd":      "Ctrl+Q",
+		"battleDefend":             "Ctrl+D",
+		"battleWait":               "Ctrl+W",
+		"battleToggleQueue":        "Ctrl+Z",
+		"battleSurrender":          "Ctrl+S",
+		"battleCastSpell":          "Ctrl+C",
+		
+		// Combat accessibility hex navigation
+		"battleHexUpLeft":          "Q",
+		"battleHexUpRight":         "E",
+		"battleHexLeft":            "A",
+		"battleHexRight":           "D",
+		"battleHexDownLeft":        "Z",
+		"battleHexDownRight":       "C",
+		
+		// Combat accessibility unit movement (with Shift)
+		"battleMoveUnitUpLeft":     "Shift+Q",
+		"battleMoveUnitUpRight":    "Shift+E",
+		"battleMoveUnitLeft":       "Shift+A",
+		"battleMoveUnitRight":      "Shift+D",
+		"battleMoveUnitDownLeft":   "Shift+Z",
+		"battleMoveUnitDownRight":  "Shift+C",
+		
+		// Combat accessibility unit jumps
+		"battleJumpToUnit1":        "1",
+		"battleJumpToUnit2":        "2",
+		"battleJumpToUnit3":        "3",
+		"battleJumpToUnit4":        "4",
+		"battleJumpToUnit5":        "5",
+		"battleJumpToUnit6":        "6",
+		"battleJumpToUnit7":        "7",
+		
+		// Combat accessibility enemy jumps
+		"battleJumpToEnemy1":       "Shift+1",
+		"battleJumpToEnemy2":       "Shift+2",
+		"battleJumpToEnemy3":       "Shift+3",
+		"battleJumpToEnemy4":       "Shift+4",
+		"battleJumpToEnemy5":       "Shift+5",
+		"battleJumpToEnemy6":       "Shift+6",
+		"battleJumpToEnemy7":       "Shift+7",
+		
+		// Combat accessibility info
+		"battleInfoAttackDefense":  "F1",
+		"battleInfoDamageSpeed":    "F2",
+		"battleInfoHealthShots":    "F3",
+		"battleInfoStatusEffects":  "F4",
+		"battleInfoAbilities":      "F5",
+		"battleInfoMoraleLuck":     "F6"
 	}
 }

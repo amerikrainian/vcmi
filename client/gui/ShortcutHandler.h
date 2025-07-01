@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <memory>
+
 enum class EShortcut;
 
 VCMI_LIB_NAMESPACE_BEGIN
@@ -21,6 +23,10 @@ class ShortcutHandler
 	std::multimap<std::string, EShortcut> mappedKeyboardShortcuts;
 	std::multimap<std::string, EShortcut> mappedJoystickShortcuts;
 	std::multimap<std::string, EShortcut> mappedJoystickAxes;
+	
+	// Store the full config for profile switching
+	std::unique_ptr<JsonNode> configData;
+	std::string currentProfile;
 
 	std::multimap<std::string, EShortcut> loadShortcuts(const JsonNode & data) const;
 	std::vector<EShortcut> translateShortcut(const std::multimap<std::string, EShortcut> & options, const std::string & key) const;
@@ -37,4 +43,10 @@ public:
 
 	/// attempts to find shortcut by its unique identifier. Returns EShortcut::NONE on failure
 	EShortcut findShortcut(const std::string & identifier ) const;
+	
+	/// Load shortcuts from a specific profile (e.g., "keyboard" or "keyboard_combat_accessibility")
+	void loadProfile(const std::string & profileName);
+	
+	/// Enable/disable combat accessibility shortcuts
+	void setCombatAccessibilityMode(bool enable);
 };
