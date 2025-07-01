@@ -174,50 +174,19 @@ void HeroMovementController::onTryMoveHero(const CGHeroInstance * hero, const Tr
 	adventureInt->onMapTilesChanged(changedTiles);
 	adventureInt->onHeroMovementStarted(hero);
 
-	// Announce hero's new position if it's our hero and they actually moved
-	if (hero->tempOwner == GAME->interface()->playerID && details.start != details.end)
-	{
-		int3 newPos = hero->convertToVisitablePos(details.end);
-		std::string announcement = "Hero at " + std::to_string(newPos.x) + ", " + std::to_string(newPos.y);
-		
-		// Get terrain type
-		auto terrain = GAME->interface()->cb->getTile(newPos, false);
-		if (terrain && terrain->getTerrain())
-		{
-			announcement += ", " + terrain->getTerrain()->getNameTranslated();
-		}
-		
-		// Get object at position if any
-		auto objects = GAME->interface()->cb->getVisitableObjs(newPos);
-		for (auto obj : objects)
-		{
-			if (obj != hero) // Don't announce the hero itself
-			{
-				announcement += ", " + obj->getObjectName();
-				break;
-			}
-		}
-		
-		// Add remaining movement points
-		announcement += ", " + std::to_string(hero->movementPointsRemaining()) + " movement points remaining";
-		
-		// Special cases
-		if (details.result == TryMoveHero::EMBARK)
-			announcement += ", embarked on boat";
-		else if (details.result == TryMoveHero::DISEMBARK)
-			announcement += ", disembarked from boat";
-		else if (directlyAttackingCreature)
-			announcement += ", engaging in combat";
-		
-		AccessibilityManager::getInstance().announce(announcement, false);
-	}
-
 	updatePath(hero, details);
 
 	if(details.stopMovement())
 	{
 		if(duringMovement)
+		{
+			// Announce position only when movement ends, not during intermediate steps
+			if (hero->tempOwner == GAME->interface()->playerID && details.start != details.end)
+			{
+				announceHeroPosition(hero, details, directlyAttackingCreature);
+			}
 			endMove(hero);
+		}
 		return;
 	}
 
@@ -226,14 +195,12 @@ void HeroMovementController::onTryMoveHero(const CGHeroInstance * hero, const Tr
 	GAME->map().waitForOngoingAnimations();
 
 	//move finished
-	// For directional movement, suppress announcement but still update UI
-	if (isDirectionalMovement)
-		adventureInt->setSuppressHeroSelectionAnnouncement(true);
+	// Suppress hero selection announcement during any movement to avoid double announcements
+	adventureInt->setSuppressHeroSelectionAnnouncement(true);
 		
 	adventureInt->onHeroChanged(hero);
 	
-	if (isDirectionalMovement)
-		adventureInt->setSuppressHeroSelectionAnnouncement(false);
+	adventureInt->setSuppressHeroSelectionAnnouncement(false);
 
 	// Hero attacked creature, set direction to face it.
 	if(directlyAttackingCreature)
@@ -306,26 +273,69 @@ void HeroMovementController::requestMovementAbort()
 		endMove(currentlyMovingHero);
 }
 
+void HeroMovementController::announceHeroPosition(const CGHeroInstance * hero, const TryMoveHero & details, bool directlyAttackingCreature)
+{
+	int3 newPos = hero->convertToVisitablePos(details.end);
+	std::string announcement = "Hero at " + std::to_string(newPos.x) + ", " + std::to_string(newPos.y);
+	
+	// Get terrain type
+	auto terrain = GAME->interface()->cb->getTile(newPos, false);
+	if (terrain && terrain->getTerrain())
+	{
+		announcement += ", " + terrain->getTerrain()->getNameTranslated();
+	}
+	
+	// Get object at position if any
+	auto objects = GAME->interface()->cb->getVisitableObjs(newPos);
+	for (auto obj : objects)
+	{
+		if (obj != hero) // Don't announce the hero itself
+		{
+			announcement += ", " + obj->getObjectName();
+			break;
+		}
+	}
+	
+	// Add remaining movement points
+	announcement += ", " + std::to_string(hero->movementPointsRemaining()) + " movement points remaining";
+	
+	// Special cases
+	if (details.result == TryMoveHero::EMBARK)
+		announcement += ", embarked on boat";
+	else if (details.result == TryMoveHero::DISEMBARK)
+		announcement += ", disembarked from boat";
+	else if (directlyAttackingCreature)
+		announcement += ", engaging in combat";
+	
+	AccessibilityManager::getInstance().announce(announcement, false);
+}
+
 void HeroMovementController::endMove(const CGHeroInstance * hero)
 {
 	assert(duringMovement == true);
 	assert(currentlyMovingHero != nullptr);
 	
+	// For directional movement, announce the final position
+	if (isDirectionalMovement && hero->tempOwner == GAME->interface()->playerID)
+	{
+		// Create a dummy TryMoveHero for position announcement
+		TryMoveHero details;
+		details.end = hero->visitablePos();
+		details.start = hero->visitablePos(); // Same as end for final position
+		details.result = TryMoveHero::SUCCESS;
+		announceHeroPosition(hero, details, false);
+	}
+	
 	duringMovement = false;
 	stoppingMovement = false;
-	bool wasDirectional = isDirectionalMovement;
 	isDirectionalMovement = false;
 	currentlyMovingHero = nullptr;
 	stopMovementSound();
 	
-	// For directional movement, suppress announcement but still update UI
-	if (wasDirectional)
-		adventureInt->setSuppressHeroSelectionAnnouncement(true);
-		
+	// Suppress hero selection announcement when updating after movement
+	adventureInt->setSuppressHeroSelectionAnnouncement(true);
 	adventureInt->onHeroChanged(hero);
-	
-	if (wasDirectional)
-		adventureInt->setSuppressHeroSelectionAnnouncement(false);
+	adventureInt->setSuppressHeroSelectionAnnouncement(false);
 		
 	ENGINE->cursor().show();
 }

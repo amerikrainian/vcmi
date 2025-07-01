@@ -11,6 +11,8 @@
 #include "StdInc.h"
 #include "AdventureMapShortcuts.h"
 
+#include <algorithm>
+
 #include "../CMT.h"
 #include "../CPlayerInterface.h"
 #include "../CServerHandler.h"
@@ -44,6 +46,7 @@
 #include "../../lib/mapping/CMap.h"
 #include "../../lib/pathfinder/CGPathNode.h"
 #include "../../lib/mapObjectConstructors/CObjectClassesHandler.h"
+#include "../../lib/constants/EntityIdentifiers.h"
 
 AdventureMapShortcuts::AdventureMapShortcuts(AdventureMapInterface & owner)
 	: owner(owner)
@@ -125,7 +128,8 @@ std::vector<AdventureMapShortcutState> AdventureMapShortcuts::getShortcuts()
 		{ EShortcut::ADVENTURE_MOVE_HERO_NN,     optionHeroSelected(),   [this]() { this->moveHeroDirectional({ 0, -1}); } },
 		{ EShortcut::ADVENTURE_MOVE_HERO_NE,     optionHeroSelected(),   [this]() { this->moveHeroDirectional({+1, -1}); } },
 		{ EShortcut::ADVENTURE_SEARCH,           optionSidePanelActive(),[this]() { this->search(false); } },
-		{ EShortcut::ADVENTURE_SEARCH_CONTINUE,  optionSidePanelActive(),[this]() { this->search(true); } }
+		{ EShortcut::ADVENTURE_SEARCH_CONTINUE,  optionSidePanelActive(),[this]() { this->search(true); } },
+		{ EShortcut::ADVENTURE_ANNOUNCE_LANDMARKS, optionHeroSelected(),  [this]() { this->announceLandmarks(); } }
 	};
 	return result;
 }
@@ -565,12 +569,9 @@ void AdventureMapShortcuts::moveHeroDirectional(const Point & direction)
 		singleStepPath.nodes.push_back(path.nodes[path.nodes.size()-1]); // current position
 		
 		// Clear any existing path to prevent continuous movement after this single step
-		// Pass false to suppress the onHeroChanged notification to avoid duplicate "Selected Hero" announcements
-		GAME->interface()->localState->erasePath(h, false);
+		GAME->interface()->localState->erasePath(h);
 		
-		// The HeroMovementController will handle the proper announcement after movement
-		
-		// Move hero one tile
+		// Move hero one tile - HeroMovementController will detect this as directional movement
 		GAME->interface()->moveHero(h, singleStepPath);
 	}
 }
@@ -687,4 +688,238 @@ bool AdventureMapShortcuts::optionMapScrollingActive()
 bool AdventureMapShortcuts::optionMapViewActive()
 {
 	return state == EAdventureState::MAKING_TURN || state == EAdventureState::WORLD_VIEW || state == EAdventureState::CASTING_SPELL;
+}
+
+void AdventureMapShortcuts::announceLandmarks()
+{
+	const CGHeroInstance *hero = GAME->interface()->localState->getCurrentHero();
+	if (!hero)
+		return;
+
+	// Get hero's current position
+	int3 heroPos = hero->visitablePos();
+	
+	// Use hero's actual sight radius
+	const int SCAN_RADIUS = hero->getSightRadius();
+	
+	// Categories of objects and their priorities (lower number = higher priority)
+	enum ObjectPriority {
+		THREAT = 1,
+		IMPORTANT_STRUCTURE = 2,
+		VALUABLE = 3,
+		RESOURCE = 4,
+		OTHER = 5
+	};
+	
+	struct LandmarkInfo {
+		const CGObjectInstance* obj;
+		int distance;
+		int priority;
+		std::string direction;
+		
+		bool operator<(const LandmarkInfo& other) const {
+			// Sort by priority first, then by distance
+			if (priority != other.priority)
+				return priority < other.priority;
+			return distance < other.distance;
+		}
+	};
+	
+	std::vector<LandmarkInfo> landmarks;
+	
+	// Scan for objects within radius
+	for (int dx = -SCAN_RADIUS; dx <= SCAN_RADIUS; dx++)
+	{
+		for (int dy = -SCAN_RADIUS; dy <= SCAN_RADIUS; dy++)
+		{
+			int3 checkPos = heroPos + int3(dx, dy, heroPos.z);
+			
+			if (!GAME->interface()->cb->isInTheMap(checkPos))
+				continue;
+				
+			// Skip hero's current position
+			if (checkPos == heroPos)
+				continue;
+			
+			// Check if this tile is visible (respecting fog of war)
+			if (!GAME->interface()->cb->isVisible(checkPos))
+				continue;
+			
+			// Get all objects at this position
+			auto objects = GAME->interface()->cb->getVisitableObjs(checkPos);
+			
+			for (const auto* obj : objects)
+			{
+				if (!obj || obj == hero)
+					continue;
+				
+				// Calculate distance and direction
+				int distance = std::max(std::abs(dx), std::abs(dy)); // Chebyshev distance
+				
+				// Determine direction
+				std::string direction;
+				if (dy < 0 && dx == 0) direction = "north";
+				else if (dy > 0 && dx == 0) direction = "south";
+				else if (dx < 0 && dy == 0) direction = "west";
+				else if (dx > 0 && dy == 0) direction = "east";
+				else if (dy < 0 && dx < 0) direction = "northwest";
+				else if (dy < 0 && dx > 0) direction = "northeast";
+				else if (dy > 0 && dx < 0) direction = "southwest";
+				else if (dy > 0 && dx > 0) direction = "southeast";
+				
+				// Determine priority based on object type
+				int priority = OTHER;
+				
+				// Special handling for heroes
+				if (obj->ID == MapObjectID::HERO)
+				{
+					const auto* heroObj = dynamic_cast<const CGHeroInstance*>(obj);
+					if (heroObj && heroObj->tempOwner != hero->tempOwner)
+					{
+						priority = THREAT; // Enemy heroes are threats
+						landmarks.push_back({obj, distance, priority, direction});
+						continue;
+					}
+				}
+				
+				switch(obj->ID)
+				{
+					case MapObjectID::MONSTER:
+					case MapObjectID::DRAGON_UTOPIA:
+					case MapObjectID::PANDORAS_BOX:
+					case MapObjectID::CREATURE_BANK:
+					case MapObjectID::CREATURE_GENERATOR1:
+					case MapObjectID::CREATURE_GENERATOR2:
+					case MapObjectID::CREATURE_GENERATOR3:
+					case MapObjectID::CREATURE_GENERATOR4:
+						priority = THREAT;
+						break;
+						
+					case MapObjectID::TOWN:
+					case MapObjectID::GARRISON:
+					case MapObjectID::GARRISON2:
+					case MapObjectID::MONOLITH_ONE_WAY_ENTRANCE:
+					case MapObjectID::MONOLITH_ONE_WAY_EXIT:
+					case MapObjectID::MONOLITH_TWO_WAY:
+					case MapObjectID::SUBTERRANEAN_GATE:
+					case MapObjectID::WHIRLPOOL:
+					case MapObjectID::SHIPYARD:
+					case MapObjectID::LIGHTHOUSE:
+					case MapObjectID::BORDERGUARD:
+					case MapObjectID::BORDER_GATE:
+					case MapObjectID::TRADING_POST:
+					case MapObjectID::TRADING_POST_SNOW:
+						priority = IMPORTANT_STRUCTURE;
+						break;
+						
+					case MapObjectID::TREASURE_CHEST:
+					case MapObjectID::SPELL_SCROLL:
+					case MapObjectID::ARTIFACT:
+					case MapObjectID::CAMPFIRE:
+					case MapObjectID::SHRINE_OF_MAGIC_INCANTATION:
+					case MapObjectID::SHRINE_OF_MAGIC_GESTURE:
+					case MapObjectID::SHRINE_OF_MAGIC_THOUGHT:
+					case MapObjectID::SEER_HUT:
+					case MapObjectID::QUEST_GUARD:
+					case MapObjectID::GRAIL:
+					case MapObjectID::PRISON:
+					case MapObjectID::OBELISK:
+					case MapObjectID::BLACK_MARKET:
+					case MapObjectID::HILL_FORT:
+					case MapObjectID::TREE_OF_KNOWLEDGE:
+					case MapObjectID::LIBRARY_OF_ENLIGHTENMENT:
+					case MapObjectID::WITCH_HUT:
+					case MapObjectID::SCHOOL_OF_MAGIC:
+					case MapObjectID::SCHOOL_OF_WAR:
+					case MapObjectID::UNIVERSITY:
+					case MapObjectID::MERCENARY_CAMP:
+					case MapObjectID::ALTAR_OF_SACRIFICE:
+					case MapObjectID::ARENA:
+					case MapObjectID::STABLES:
+					case MapObjectID::WAR_MACHINE_FACTORY:
+					case MapObjectID::FREELANCERS_GUILD:
+					case MapObjectID::TEMPLE:
+					case MapObjectID::DEN_OF_THIEVES:
+					case MapObjectID::CARTOGRAPHER:
+					case MapObjectID::LEARNING_STONE:
+					case MapObjectID::GARDEN_OF_REVELATION:
+					case MapObjectID::TAVERN:
+					case MapObjectID::REFUGEE_CAMP:
+					case MapObjectID::KEYMASTER:
+						priority = VALUABLE;
+						break;
+						
+					case MapObjectID::RESOURCE:
+					case MapObjectID::MINE:
+					case MapObjectID::ABANDONED_MINE:
+					case MapObjectID::WINDMILL:
+					case MapObjectID::WATER_WHEEL:
+					case MapObjectID::MYSTICAL_GARDEN:
+					case MapObjectID::BOAT:
+						priority = RESOURCE;
+						break;
+				}
+				
+				landmarks.push_back({obj, distance, priority, direction});
+			}
+		}
+	}
+	
+	// Sort landmarks by priority and distance
+	std::sort(landmarks.begin(), landmarks.end());
+	
+	// Build announcement string
+	std::string announcement;
+	
+	if (landmarks.empty())
+	{
+		announcement = "No landmarks detected within scanning range.";
+	}
+	else
+	{
+		announcement = "Landmarks within sight: ";
+		
+		// Announce up to 5 most important landmarks
+		int count = 0;
+		for (const auto& landmark : landmarks)
+		{
+			if (count >= 5)
+				break;
+				
+			if (count > 0)
+				announcement += "; ";
+			
+			announcement += landmark.obj->getObjectName();
+			announcement += " " + std::to_string(landmark.distance) + " tiles " + landmark.direction;
+			
+			// Add additional info for certain object types
+			if (landmark.obj->ID == MapObjectID::MONSTER)
+			{
+				announcement += " (threat)";
+			}
+			else if (landmark.obj->ID == MapObjectID::TOWN)
+			{
+				const CGTownInstance* town = dynamic_cast<const CGTownInstance*>(landmark.obj);
+				if (town)
+				{
+					if (town->tempOwner == hero->tempOwner)
+						announcement += " (friendly)";
+					else if (town->tempOwner == PlayerColor::NEUTRAL)
+						announcement += " (neutral)";
+					else
+						announcement += " (enemy)";
+				}
+			}
+			
+			count++;
+		}
+		
+		if (landmarks.size() > 5)
+		{
+			announcement += "; and " + std::to_string(landmarks.size() - 5) + " more objects";
+		}
+	}
+	
+	// Announce via accessibility manager
+	AccessibilityManager::getInstance().announce(announcement, true);
 }
