@@ -216,9 +216,15 @@ void FocusManager::updateFocusableElements()
     // Sort by tab order
     sortFocusableElements();
 
-    if (focusedElement && !canReceiveFocus(focusedElement))
+    // Check if focusedElement is still valid and in the focusable list
+    if (focusedElement)
     {
-        clearFocus();
+        // First check if it's still in our focusable elements list
+        auto it = std::find(focusableElements.begin(), focusableElements.end(), focusedElement);
+        if (it == focusableElements.end() || !canReceiveFocus(focusedElement))
+        {
+            clearFocus();
+        }
     }
 }
 

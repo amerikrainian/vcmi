@@ -371,8 +371,16 @@ void CGarrisonSlot::clickPressed(const Point & cursorPosition)
 				GAME->interface()->cb->swapCreatures(owner->army(upg), selectedObj, ID, selection->ID);
 				if(AccessibilityManager::getInstance().isScreenReaderEnabled())
 				{
-					std::string msg = "Swapped " + selection->creature->getNamePluralTranslated() + " with " + creature->getNamePluralTranslated();
-					AccessibilityManager::getInstance().announce(msg);
+					// Check for null pointers before accessing creature names
+					if (selection->creature && creature)
+					{
+						std::string msg = "Swapped " + selection->creature->getNamePluralTranslated() + " with " + creature->getNamePluralTranslated();
+						AccessibilityManager::getInstance().announce(msg);
+					}
+					else
+					{
+						AccessibilityManager::getInstance().announce("Swapped creatures");
+					}
 				}
 			}
 			else if(lastHeroStackSelected) // merge last stack to other hero stack
@@ -382,8 +390,16 @@ void CGarrisonSlot::clickPressed(const Point & cursorPosition)
 				GAME->interface()->cb->mergeStacks(selectedObj, owner->army(upg), selection->ID, ID);
 				if(AccessibilityManager::getInstance().isScreenReaderEnabled())
 				{
-					std::string msg = "Merged " + std::to_string(selection->myStack->getCount()) + " " + selection->creature->getNamePluralTranslated();
-					AccessibilityManager::getInstance().announce(msg);
+					// Check for null pointers before accessing creature data
+					if (selection->myStack && selection->creature)
+					{
+						std::string msg = "Merged " + std::to_string(selection->myStack->getCount()) + " " + selection->creature->getNamePluralTranslated();
+						AccessibilityManager::getInstance().announce(msg);
+					}
+					else
+					{
+						AccessibilityManager::getInstance().announce("Merged creatures");
+					}
 				}
 			}
 		}

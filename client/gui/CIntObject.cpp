@@ -35,6 +35,10 @@ CIntObject::CIntObject(int used_, Point pos_):
 
 CIntObject::~CIntObject()
 {
+	// Clear focus if this object currently has it to prevent dangling pointers
+	if (hasFocus())
+		FocusManager::getInstance().clearFocus();
+	
 	if(isActive())
 		deactivate();
 
