@@ -149,6 +149,11 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_INFO_STATUS_EFFECTS,  [this](){ this->announceUnitInfo(4); });
 	addShortcut(EShortcut::BATTLE_INFO_ABILITIES,       [this](){ this->announceUnitInfo(5); });
 	addShortcut(EShortcut::BATTLE_INFO_MORALE_LUCK,     [this](){ this->announceUnitInfo(6); });
+	
+	// Combat accessibility action menu
+	addShortcut(EShortcut::GLOBAL_ACCEPT, [this](){ this->handleAccessibilityEnter(); });
+	addShortcut(EShortcut::GLOBAL_CANCEL, [this](){ this->handleAccessibilityEscape(); });
+// Arrow keys now handled directly by hex navigation - no special action selection needed
 
 	build(config);
 	
@@ -938,6 +943,30 @@ void BattleWindow::announceUnitInfo(int detailLevel)
 			accessibilityController->announceUnitInfo(unit, detailLevel);
 	}
 }
+
+void BattleWindow::handleAccessibilityEnter()
+{
+	// Always let the accessibility controller handle Enter key
+	owner.getAccessibilityController()->handleEnterKey();
+}
+
+void BattleWindow::handleAccessibilityEscape()
+{
+	// Check if accessibility controller handles it
+	auto mode = owner.getAccessibilityController()->getCurrentMode();
+	if (mode != BattleAccessibilityController::Mode::NORMAL_NAVIGATION)
+	{
+		// Let accessibility controller handle escape in special modes
+		owner.getAccessibilityController()->handleEscapeKey();
+	}
+	else
+	{
+		// Normal escape handling - open battle menu
+		bOptionsf();
+	}
+}
+
+// Arrow key navigation removed - now handled directly by hex navigation
 
 std::optional<uint32_t> BattleWindow::getQueueHoveredUnitId()
 {

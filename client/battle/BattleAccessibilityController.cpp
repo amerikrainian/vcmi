@@ -13,22 +13,29 @@
 #include "BattleFieldController.h"
 #include "BattleStacksController.h"
 #include "BattleActionsController.h"
+#include "BattleWindow.h"
 #include "../CPlayerInterface.h"
 #include "../gui/AccessibilityManager.h"
+#include "../gui/WindowHandler.h"
+#include "../GameEngine.h"
 #include "../../lib/battle/CUnitState.h"
 #include "../../lib/battle/CPlayerBattleCallback.h"
 #include "../../lib/battle/CObstacleInstance.h"
+#include "../../lib/battle/BattleAction.h"
 #include "../../lib/spells/CSpellHandler.h"
 #include "../../lib/bonuses/BonusCustomTypes.h"
 #include "../../lib/bonuses/BonusSelector.h"
 #include "../../lib/CStack.h"
 #include "../../lib/GameSettings.h"
+#include "../../lib/constants/Enumerations.h"
 
 BattleAccessibilityController::BattleAccessibilityController(BattleInterface & owner)
     : owner(owner)
     , currentHex(BattleHex::INVALID)
+    , savedUnitHex(BattleHex::INVALID)
     , hexNavigationMode(false)
     , spellTargetingMode(false)
+    , currentMode(Mode::NORMAL_NAVIGATION)
     , targetingSpell(nullptr)
 {
 }
@@ -144,7 +151,8 @@ void BattleAccessibilityController::handleHexNavigation(EShortcut key)
     if (!AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
         return;
     
-    if (!hexNavigationMode)
+    // Allow hex navigation in normal mode and spell targeting mode
+    if (!hexNavigationMode && currentMode != Mode::SPELL_TARGETING)
         return;
     
     auto direction = mapKeyToHexDirection(key);
@@ -239,6 +247,8 @@ void BattleAccessibilityController::announceHexContent(BattleHex hex)
             break;
         }
     }
+    
+    // Simple mode - no special targeting announcements needed
     
     AccessibilityManager::getInstance().announce(announcement, true);
 }
@@ -391,3 +401,48 @@ void BattleAccessibilityController::announceActionResult(const std::string& acti
     else
         AccessibilityManager::getInstance().announce(action + " failed");
 }
+
+void BattleAccessibilityController::handleEnterKey()
+{
+    if (!AccessibilityManager::getInstance().isKeyboardNavigationEnabled())
+        return;
+    
+    switch (currentMode)
+    {
+        case Mode::NORMAL_NAVIGATION:
+            // Enter = Left Click
+            executeClickAction();
+            break;
+            
+        case Mode::SPELL_TARGETING:
+            // Let existing spell system handle this
+            break;
+    }
+}
+
+void BattleAccessibilityController::handleEscapeKey()
+{
+    switch (currentMode)
+    {
+        case Mode::NORMAL_NAVIGATION:
+            // Let normal escape handling occur (combat menu)
+            break;
+            
+        case Mode::SPELL_TARGETING:
+            // Let existing spell system handle escape
+            exitSpellTargetingMode();
+            break;
+    }
+}
+
+void BattleAccessibilityController::executeClickAction()
+{
+    if (!currentHex.isValid())
+        return;
+    
+    // Simple: Enter key = Left click on the hex
+    // Let the game's existing action system handle everything
+    owner.actionsController->onHexLeftClicked(currentHex);
+}
+
+// All complex action selection logic removed - now we just use Enter = Left Click!

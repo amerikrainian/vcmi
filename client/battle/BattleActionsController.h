@@ -49,15 +49,11 @@ class BattleActionsController
 	std::vector<PossiblePlayerBattleAction> getPossibleActionsForStack (const CStack *stack) const; //called when stack gets its turn
 	void reorderPossibleActionsPriority(const CStack * stack, const CStack * targetStack);
 
-	bool actionIsLegal(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
-
 	void actionSetCursor(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 	void actionSetCursorBlocked(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 
 	std::string actionGetStatusMessage(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 	std::string actionGetStatusMessageBlocked(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
-
-	void actionRealize(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 
 	PossiblePlayerBattleAction selectAction(const BattleHex & myNumber);
 
@@ -81,6 +77,12 @@ public:
 
 	/// initialize list of potential actions for new active stack
 	void activateStack();
+	
+	/// check if action is legal for given hex (made public for accessibility)
+	bool actionIsLegal(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
+	
+	/// execute the action (made public for accessibility)
+	void actionRealize(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 
 	/// returns true if UI is currently in hero spell target selection mode
 	bool heroSpellcastingModeActive() const;

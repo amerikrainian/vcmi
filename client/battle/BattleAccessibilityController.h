@@ -10,6 +10,7 @@
 #pragma once
 
 #include "../../lib/battle/BattleHex.h"
+#include "../../lib/battle/PossiblePlayerBattleAction.h"
 #include "../gui/Shortcut.h"
 
 VCMI_LIB_NAMESPACE_BEGIN
@@ -21,11 +22,22 @@ class BattleInterface;
 
 class BattleAccessibilityController
 {
+public:
+    enum class Mode
+    {
+        NORMAL_NAVIGATION,  // Default hex navigation
+        SPELL_TARGETING     // Targeting mode for spells only
+    };
+    
 private:
     BattleInterface & owner;
     BattleHex currentHex;
+    BattleHex savedUnitHex; // To return to after escape
     bool hexNavigationMode;
     bool spellTargetingMode;
+    Mode currentMode;
+    
+    // Spell targeting mode state only
     const CSpell* targetingSpell;
     
     std::string getAnnouncedCoordinates(BattleHex hex) const;
@@ -33,11 +45,17 @@ private:
     std::string getTerrainName(BattleHex hex) const;
     BattleHex::EDir mapKeyToHexDirection(EShortcut key) const;
     
+    // Simple Enter = Click behavior
+    void executeClickAction();
+    
 public:
     BattleAccessibilityController(BattleInterface & owner);
     
     void handleHexNavigation(EShortcut key);
     void handleUnitMovement(EShortcut key);
+    void handleEnterKey();
+    void handleEscapeKey();
+    
     void announceHexContent(BattleHex hex);
     void announceUnitInfo(const CStack* stack, int detailLevel);
     void announceCombatEvent(const std::string& event);
@@ -50,6 +68,7 @@ public:
     bool isSpellTargetingActive() const { return spellTargetingMode; }
     BattleHex getCurrentHex() const { return currentHex; }
     void setCurrentHex(BattleHex hex);
+    Mode getCurrentMode() const { return currentMode; }
     
     void announceInitialBattleState();
     void announceTurnStart(const CStack* activeStack);

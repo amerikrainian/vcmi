@@ -67,6 +67,8 @@ class BattleWindow : public InterfaceObjectConfigurable
 	void jumpToUnit(int index);
 	void jumpToEnemyUnit(int index);
 	void announceUnitInfo(int detailLevel);
+	void handleAccessibilityEnter();
+	void handleAccessibilityEscape();
 
 	/// functions for handling actions after they were confirmed by popup window
 	void reallyFlee();
