@@ -52,11 +52,6 @@ class BattleActionsController
 	void actionSetCursor(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 	void actionSetCursorBlocked(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
 
-	std::string actionGetStatusMessage(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
-	std::string actionGetStatusMessageBlocked(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
-
-	PossiblePlayerBattleAction selectAction(const BattleHex & myNumber);
-
 	const CStack * getStackForHex(const BattleHex & myNumber) ;
 
 	/// attempts to initialize spellcasting action for stack
@@ -83,6 +78,13 @@ public:
 	
 	/// execute the action (made public for accessibility)
 	void actionRealize(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
+	
+	/// get status messages (made public for accessibility)
+	std::string actionGetStatusMessage(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
+	std::string actionGetStatusMessageBlocked(PossiblePlayerBattleAction action, const BattleHex & hoveredHex);
+	
+	/// select best action for hex (made public for accessibility)
+	PossiblePlayerBattleAction selectAction(const BattleHex & myNumber);
 
 	/// returns true if UI is currently in hero spell target selection mode
 	bool heroSpellcastingModeActive() const;

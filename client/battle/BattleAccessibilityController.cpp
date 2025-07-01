@@ -248,7 +248,31 @@ void BattleAccessibilityController::announceHexContent(BattleHex hex)
         }
     }
     
-    // Simple mode - no special targeting announcements needed
+    // Add the same action feedback that mouse users get visually
+    const auto* activeUnit = owner.stacksController->getActiveStack();
+    if (activeUnit && !owner.tacticsMode)
+    {
+        auto action = owner.actionsController->selectAction(hex);
+        
+        if (owner.actionsController->actionIsLegal(action, hex))
+        {
+            // Get the status message that mouse users see in status bar
+            std::string statusMsg = owner.actionsController->actionGetStatusMessage(action, hex);
+            if (!statusMsg.empty())
+            {
+                announcement += ". " + statusMsg;
+            }
+        }
+        else
+        {
+            // Get the blocked message that mouse users see
+            std::string blockedMsg = owner.actionsController->actionGetStatusMessageBlocked(action, hex);
+            if (!blockedMsg.empty())
+            {
+                announcement += ". " + blockedMsg;
+            }
+        }
+    }
     
     AccessibilityManager::getInstance().announce(announcement, true);
 }
