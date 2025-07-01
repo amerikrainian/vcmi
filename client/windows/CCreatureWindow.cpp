@@ -259,7 +259,14 @@ CStackWindow::ActiveSpellsSection::ActiveSpellsSection(CStackWindow * owner, int
 
 			spellIcons.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("SpellInt"), effect + 1, 0, firstPos.x + offset.x * printed, firstPos.y + offset.y * printed));
 			labels.push_back(std::make_shared<CLabel>(firstPos.x + offset.x * printed + 46, firstPos.y + offset.y * printed + 36, EFonts::FONT_TINY, ETextAlignment::BOTTOMRIGHT, Colors::WHITE, std::to_string(duration)));
-			clickableAreas.push_back(std::make_shared<LRClickableAreaWText>(Rect(firstPos + offset * printed, Point(50, 38)), spellDescription, spellDescription));
+			auto clickableArea = std::make_shared<LRClickableAreaWText>(Rect(firstPos + offset * printed, Point(50, 38)), spellDescription, spellDescription);
+			clickableArea->addUsedEvents(KEYBOARD);
+			clickableArea->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("button")
+				.withName(spell->getNameTranslated() + " (" + std::to_string(duration) + " turns)")
+				.withDescription(spellDescription)
+				.withTabOrder(35 + printed));
+			clickableAreas.push_back(clickableArea);
 			if(++printed >= 8) // interface limit reached
 				break;
 		}
@@ -641,6 +648,11 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 	}
 
 	name = std::make_shared<CLabel>(215, 13, FONT_SMALL, ETextAlignment::CENTER, Colors::YELLOW, parent->info->getName());
+	name->addUsedEvents(KEYBOARD);
+	name->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Creature: " + parent->info->getName())
+		.withTabOrder(10));
 
 	const CStack* battleStack = parent->info->stack;
 
@@ -658,7 +670,18 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 	icons = std::make_shared<CPicture>(ImagePath::builtin("stackWindow/icons"), 117, 32);
 
 	morale = std::make_shared<MoraleLuckBox>(true, Rect(Point(321, 110), Point(42, 42) ));
+	morale->addUsedEvents(KEYBOARD);
+	morale->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Morale")
+		.withTabOrder(30));
+	
 	luck = std::make_shared<MoraleLuckBox>(false,  Rect(Point(375, 110), Point(42, 42) ));
+	luck->addUsedEvents(KEYBOARD);
+	luck->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Luck")
+		.withTabOrder(31));
 
 	if(battleStack != nullptr) // in battle
 	{
@@ -676,6 +699,16 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 
 		morale->set(battleStack);
 		luck->set(battleStack);
+		
+		// Update accessibility info with actual values
+		morale->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Morale: " + std::to_string(battleStack->moraleVal()))
+			.withTabOrder(30));
+		luck->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Luck: " + std::to_string(battleStack->luckVal()))
+			.withTabOrder(31));
 	}
 	else
 	{
@@ -695,6 +728,16 @@ CStackWindow::MainSection::MainSection(CStackWindow * owner, int yOffset, bool s
 
 		morale->set(parent->info->stackNode);
 		luck->set(parent->info->stackNode);
+		
+		// Update accessibility info with actual values
+		morale->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Morale: " + std::to_string(parent->info->stackNode->moraleVal()))
+			.withTabOrder(30));
+		luck->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("text")
+			.withName("Luck: " + std::to_string(parent->info->stackNode->luckVal()))
+			.withTabOrder(31));
 	}
 
 	if(showExp)
@@ -766,7 +809,8 @@ ImagePath CStackWindow::MainSection::getBackgroundName(bool showExp, bool showAr
 void CStackWindow::MainSection::addStatLabel(EStat index, int64_t value1, int64_t value2)
 {
 	const auto title = statNames.at(static_cast<size_t>(index));
-	stats.push_back(std::make_shared<CLabel>(145, 32 + (int)index*19, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, title));
+	auto titleLabel = std::make_shared<CLabel>(145, 32 + (int)index*19, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, title);
+	stats.push_back(titleLabel);
 
 	const bool useRange = value1 != value2;
 	std::string formatStr = useRange ? statFormats.at(static_cast<size_t>(index)) : "%d";
@@ -776,7 +820,16 @@ void CStackWindow::MainSection::addStatLabel(EStat index, int64_t value1, int64_
 	if(useRange)
 		fmt % value2;
 
-	stats.push_back(std::make_shared<CLabel>(307, 48 + (int)index*19, FONT_SMALL, ETextAlignment::BOTTOMRIGHT, Colors::WHITE, fmt.str()));
+	auto valueLabel = std::make_shared<CLabel>(307, 48 + (int)index*19, FONT_SMALL, ETextAlignment::BOTTOMRIGHT, Colors::WHITE, fmt.str());
+	stats.push_back(valueLabel);
+	
+	// Make the value label focusable and accessible
+	valueLabel->addUsedEvents(KEYBOARD);
+	std::string statDescription = title + ": " + fmt.str();
+	valueLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName(statDescription)
+		.withTabOrder(20 + static_cast<int>(index)));
 }
 
 void CStackWindow::MainSection::addStatLabel(EStat index, int64_t value)

@@ -16,6 +16,7 @@
 #include "../GameEngine.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../media/IMusicPlayer.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/Images.h"
@@ -44,11 +45,21 @@ BattleResultWindow::BattleResultWindow(const BattleResult & br, CPlayerInterface
 
 	exit = std::make_shared<CButton>(Point(384, 505), AnimationPath::builtin("iok6432.def"), std::make_pair("", ""), [this](){ bExitf();}, EShortcut::GLOBAL_ACCEPT);
 	exit->setBorderColor(Colors::METALLIC_GOLD);
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Accept")
+		.withDescription("Accept battle results")
+		.withTabOrder(100));
 
 	if(allowReplay || owner.cb->getStartInfo()->extraOptionsInfo.unlimitedReplay)
 	{
 		repeat = std::make_shared<CButton>(Point(24, 505), AnimationPath::builtin("icn6432.def"), std::make_pair("", ""), [this](){ bRepeatf();}, EShortcut::GLOBAL_CANCEL);
 		repeat->setBorderColor(Colors::METALLIC_GOLD);
+		repeat->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Replay")
+			.withDescription("Replay the battle")
+			.withTabOrder(101));
 		labels.push_back(std::make_shared<CLabel>(232, 520, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->translate("vcmi.battleResultsWindow.applyResultsLabel")));
 	}
 
@@ -108,8 +119,21 @@ BattleResultWindow::BattleResultWindow(const BattleResult & br, CPlayerInterface
 	}
 
 	//printing attacker and defender's names
-	labels.push_back(std::make_shared<CLabel>(89, 37, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, sideNames[0]));
-	labels.push_back(std::make_shared<CLabel>(381, 53, FONT_SMALL, ETextAlignment::BOTTOMRIGHT, Colors::WHITE, sideNames[1]));
+	auto attackerLabel = std::make_shared<CLabel>(89, 37, FONT_SMALL, ETextAlignment::TOPLEFT, Colors::WHITE, sideNames[0]);
+	attackerLabel->addUsedEvents(KEYBOARD);
+	attackerLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Attacker: " + sideNames[0])
+		.withTabOrder(11));
+	labels.push_back(attackerLabel);
+	
+	auto defenderLabel = std::make_shared<CLabel>(381, 53, FONT_SMALL, ETextAlignment::BOTTOMRIGHT, Colors::WHITE, sideNames[1]);
+	defenderLabel->addUsedEvents(KEYBOARD);
+	defenderLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Defender: " + sideNames[1])
+		.withTabOrder(12));
+	labels.push_back(defenderLabel);
 
 	//printing casualties
 	for(auto step : {BattleSide::ATTACKER, BattleSide::DEFENDER})
@@ -132,7 +156,13 @@ BattleResultWindow::BattleResultWindow(const BattleResult & br, CPlayerInterface
 				icons.push_back(std::make_shared<CAnimImage>(AnimationPath::builtin("CPRSMALL"), creature->getIconIndex(), 0, xPos, yPos));
 				std::ostringstream amount;
 				amount<<elem.second;
-				labels.push_back(std::make_shared<CLabel>(xPos + 16, yPos + 42, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, amount.str()));
+				auto casualtyLabel = std::make_shared<CLabel>(xPos + 16, yPos + 42, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, amount.str());
+				casualtyLabel->addUsedEvents(KEYBOARD);
+				casualtyLabel->setAccessibilityInfo(UIAccessibilityInfo()
+					.withRole("text")
+					.withName(amount.str() + " " + creature->getNamePluralTranslated() + " lost")
+					.withTabOrder(20 + static_cast<int>(step) * 10 + (xPos - 235) / 42));
+				labels.push_back(casualtyLabel);
 				xPos += 42;
 			}
 		}
@@ -141,9 +171,23 @@ BattleResultWindow::BattleResultWindow(const BattleResult & br, CPlayerInterface
 	auto resources = getResources(br);
 
 	description = std::make_shared<CTextBox>(resources.resultText.toString(), Rect(69, 203, 330, 68), 0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
+	description->addUsedEvents(KEYBOARD);
+	description->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Battle Result")
+		.withDescription(resources.resultText.toString())
+		.withTabOrder(10));
+	
 	videoPlayer = std::make_shared<VideoWidget>(Point(107, 70), resources.prologueVideo, resources.loopedVideo, false);
 
 	ENGINE->music().playMusic(resources.musicName, false, true);
+	
+	// Announce battle result to screen reader
+	bool weWon = (br.winner == BattleSide::ATTACKER && owner.cb->getBattle(br.battleID)->battleGetMySide() == BattleSide::ATTACKER) || 
+				 (br.winner == BattleSide::DEFENDER && owner.cb->getBattle(br.battleID)->battleGetMySide() == BattleSide::DEFENDER);
+	std::string resultAnnouncement = weWon ? "Victory! " : "Defeat! ";
+	resultAnnouncement += resources.resultText.toString();
+	AccessibilityManager::getInstance().announce(resultAnnouncement, true);
 }
 
 BattleResultResources BattleResultWindow::getResources(const BattleResult & br)
