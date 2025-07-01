@@ -294,6 +294,10 @@ void MapView::keyPressed(EShortcut key)
 		case EShortcut::MOVE_RIGHT:
 		case EShortcut::MOVE_UP:
 		case EShortcut::MOVE_DOWN:
+		case EShortcut::MOVE_UP_LEFT:
+		case EShortcut::MOVE_UP_RIGHT:
+		case EShortcut::MOVE_DOWN_LEFT:
+		case EShortcut::MOVE_DOWN_RIGHT:
 			
 			// Activate cursor if not already active
 			bool wasActive = cursor->isActive();
@@ -316,6 +320,18 @@ void MapView::keyPressed(EShortcut key)
 				break;
 			case EShortcut::MOVE_DOWN:
 				cursor->moveCursor(Point(0, 1));
+				break;
+			case EShortcut::MOVE_UP_LEFT:
+				cursor->moveCursor(Point(-1, -1));
+				break;
+			case EShortcut::MOVE_UP_RIGHT:
+				cursor->moveCursor(Point(1, -1));
+				break;
+			case EShortcut::MOVE_DOWN_LEFT:
+				cursor->moveCursor(Point(-1, 1));
+				break;
+			case EShortcut::MOVE_DOWN_RIGHT:
+				cursor->moveCursor(Point(1, 1));
 				break;
 			}
 			return;

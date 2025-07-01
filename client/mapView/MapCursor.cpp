@@ -27,6 +27,7 @@
 #include "../../lib/TerrainHandler.h"
 #include "../../lib/callback/IGameInfoCallback.h"
 #include "../../lib/mapping/CMapDefines.h"
+#include "../../lib/pathfinder/CGPathNode.h"
 #include "../PlayerLocalState.h"
 
 
@@ -115,12 +116,25 @@ void MapCursor::moveCursor(const Point & direction)
 	int3 newPos = cursorPosition;
 	newPos.x += direction.x;
 	newPos.y += direction.y;
-	
-	logGlobal->info("MapCursor::moveCursor called with direction (%d, %d), current pos (%d, %d), new pos (%d, %d)", 
-	                direction.x, direction.y, cursorPosition.x, cursorPosition.y, newPos.x, newPos.y);
-	
+
 	if (isValidPosition(newPos))
 	{
+		// Check if movement is allowed based on hero's path
+		const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
+		if (hero)
+		{
+			// Get pathfinding info for the hero
+			const CGPathNode* pathNode = GAME->interface()->getPathsInfo(hero)->getPathInfo(newPos);
+			
+			// Only allow movement if there exists a path to this tile
+			// Check if the tile is accessible (not EPathAccessibility::BLOCKED)
+			if (pathNode->accessible == EPathAccessibility::BLOCKED)
+			{
+				AccessibilityManager::getInstance().announce("Cannot move cursor there - no path exists", false);
+				return;
+			}
+		}
+		
 		cursorPosition = newPos;
 		announcePosition();
 		ensureCursorVisible();

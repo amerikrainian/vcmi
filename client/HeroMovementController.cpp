@@ -326,15 +326,18 @@ void HeroMovementController::endMove(const CGHeroInstance * hero)
 		announceHeroPosition(hero, details, false);
 	}
 	
+	// Call onHeroChanged while movement is still considered active
+	// This prevents showSelection from being called in onHeroChanged
+	adventureInt->onHeroChanged(hero);
+	
+	// Now clear movement flags after UI updates are done
 	duringMovement = false;
 	stoppingMovement = false;
 	isDirectionalMovement = false;
 	currentlyMovingHero = nullptr;
 	stopMovementSound();
 	
-	// Suppress hero selection announcement when updating after movement
-	adventureInt->setSuppressHeroSelectionAnnouncement(true);
-	adventureInt->onHeroChanged(hero);
+	// Clear any lingering suppression flag now that movement is complete
 	adventureInt->setSuppressHeroSelectionAnnouncement(false);
 		
 	ENGINE->cursor().show();

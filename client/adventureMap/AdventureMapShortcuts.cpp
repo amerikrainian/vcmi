@@ -540,21 +540,36 @@ void AdventureMapShortcuts::nextObject()
 
 void AdventureMapShortcuts::moveHeroDirectional(const Point & direction)
 {
+	// Suppress hero selection announcements for the entire duration of directional movement
+	adventureInt->setSuppressHeroSelectionAnnouncement(true);
+	
 	const CGHeroInstance *h = GAME->interface()->localState->getCurrentHero(); //selected hero
 
 	if(!h)
+	{
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
 		return;
+	}
 
 	if (GAME->map().hasOngoingAnimations())
+	{
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
 		return;
+	}
 
 	int3 dst = h->visitablePos() + int3(direction.x, direction.y, 0);
 
 	if (!GAME->map().isInMap((dst)))
+	{
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
 		return;
+	}
 
 	if ( !GAME->interface()->localState->setPath(h, dst))
+	{
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
 		return;
+	}
 
 	const CGPath & path = GAME->interface()->localState->getPath(h);
 
@@ -573,6 +588,14 @@ void AdventureMapShortcuts::moveHeroDirectional(const Point & direction)
 		
 		// Move hero one tile - HeroMovementController will detect this as directional movement
 		GAME->interface()->moveHero(h, singleStepPath);
+		
+		// The suppression will be cleared after movement completes
+		// The reordering in endMove ensures no unwanted announcements
+	}
+	else
+	{
+		// Movement not possible, clear suppression
+		adventureInt->setSuppressHeroSelectionAnnouncement(false);
 	}
 }
 
@@ -877,7 +900,7 @@ void AdventureMapShortcuts::announceLandmarks()
 	}
 	else
 	{
-		announcement = "Landmarks within sight: ";
+		announcement = "";
 		
 		// Announce up to 5 most important landmarks
 		int count = 0;
