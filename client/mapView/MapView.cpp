@@ -287,7 +287,7 @@ void MapView::keyPressed(EShortcut key)
 	
 	if (ctrlPressed)
 	{
-		// Handle Ctrl+arrow keys for cursor movement
+		// Handle Ctrl+arrow keys for cursor movement and Ctrl+Enter for interaction
 		switch(key)
 		{
 		case EShortcut::MOVE_LEFT:
@@ -298,7 +298,7 @@ void MapView::keyPressed(EShortcut key)
 		case EShortcut::MOVE_UP_RIGHT:
 		case EShortcut::MOVE_DOWN_LEFT:
 		case EShortcut::MOVE_DOWN_RIGHT:
-			
+		{
 			// Activate cursor if not already active
 			bool wasActive = cursor->isActive();
 			if (!wasActive)
@@ -335,6 +335,25 @@ void MapView::keyPressed(EShortcut key)
 				break;
 			}
 			return;
+		}
+			
+		case EShortcut::MAP_CURSOR_CLICK:
+		{
+			// Handle Ctrl+Enter to click on the current cursor position
+			// Activate cursor if not already active
+			if (!cursor->isActive())
+			{
+				cursor->setActive(true);
+				// Set cursor to current hero position if available
+				const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
+				if (hero)
+				{
+					cursor->setCursorPosition(hero->visitablePos());
+				}
+			}
+			cursor->interact();
+			return;
+		}
 		}
 	}
 		
@@ -388,7 +407,7 @@ void MapView::keyReleased(EShortcut key)
 
 bool MapView::captureThisKey(EShortcut key)
 {
-	// Check if Ctrl is held and this is an arrow key
+	// Check if Ctrl is held and this is an arrow key or Enter key
 	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
 
 	if (ctrlPressed && cursor)
@@ -403,7 +422,8 @@ bool MapView::captureThisKey(EShortcut key)
 		case EShortcut::MOVE_UP_RIGHT:
 		case EShortcut::MOVE_DOWN_LEFT:
 		case EShortcut::MOVE_DOWN_RIGHT:
-			// The actual movement is handled in keyPressed() to avoid double execution
+		case EShortcut::MAP_CURSOR_CLICK:
+			// The actual movement/interaction is handled in keyPressed() to avoid double execution
 			return true; // Capture this key so it doesn't propagate
 		}
 	}

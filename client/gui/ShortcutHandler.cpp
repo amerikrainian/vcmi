@@ -226,6 +226,7 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 		{"adventureSearch",          EShortcut::ADVENTURE_SEARCH          },
 		{"adventureSearchContinue",  EShortcut::ADVENTURE_SEARCH_CONTINUE },
 		{"adventureAnnounceLandmarks", EShortcut::ADVENTURE_ANNOUNCE_LANDMARKS },
+		{"mapCursorClick",           EShortcut::MAP_CURSOR_CLICK          },
 		{"battleToggleHeroesStats",  EShortcut::BATTLE_TOGGLE_HEROES_STATS},
 		{"battleToggleQueue",        EShortcut::BATTLE_TOGGLE_QUEUE       },
 		{"battleUseCreatureSpell",   EShortcut::BATTLE_USE_CREATURE_SPELL },

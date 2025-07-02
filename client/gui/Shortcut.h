@@ -177,6 +177,7 @@ enum class EShortcut
 	ADVENTURE_SEARCH,
 	ADVENTURE_SEARCH_CONTINUE,
 	ADVENTURE_ANNOUNCE_LANDMARKS,
+	MAP_CURSOR_CLICK,            // Ctrl+Enter to click at cursor position
 
 	// Move hero one tile in specified direction. Bound to cursors & numpad buttons
 	ADVENTURE_MOVE_HERO_SW,

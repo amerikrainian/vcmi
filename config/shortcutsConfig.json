@@ -54,6 +54,7 @@
 		"adventureViewScenario":    "Shift+I",
 		"adventureViewSelected":    [ "Return", "Keypad Enter"],
 		"adventureViewWorld":       "V",
+		"mapCursorClick":           [ "Ctrl+Return", "Ctrl+Keypad Enter"],
 		"adventureViewWorld1":      "1",
 		"adventureViewWorld2":      "2",
 		"adventureViewWorld4":      "4",
