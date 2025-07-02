@@ -301,49 +301,103 @@ void HeroMovementController::announceHeroPosition(const CGHeroInstance * hero, c
 		"N", "NE", "E", "SE", "S", "SW", "W", "NW"
 	};
 	
-	// Get pathfinding info for the hero
-	auto pathsInfo = GAME->interface()->getPathsInfo(hero);
-	
+	// Check movement validity using the same logic as server-side movement validation
+	// This avoids discrepancies between what movements are actually allowed vs what pathfinding thinks
 	std::vector<std::string> availableDirections;
 	int blockedCount = 0;
 	
-	if (pathsInfo)
+	const auto cb = GAME->interface()->cb.get();
+	
+	// Check each direction using basic movement validation (like server does)
+	for (size_t i = 0; i < directions.size(); ++i)
 	{
-		// Check each direction using pathfinding info
-		for (size_t i = 0; i < directions.size(); ++i)
+		int3 checkPos = newPos + directions[i];
+		
+		// First check if position is within map bounds
+		if (!cb->isInTheMap(checkPos))
 		{
-			int3 checkPos = newPos + directions[i];
-			
-			// Get the path node for this position
-			const CGPathNode* node = pathsInfo->getPathInfo(checkPos);
-			
-			// Check if hero can move to this tile in the current turn
-			if (node && node->reachable() && node->turns == 0)
+			blockedCount++;
+			continue;
+		}
+		
+		// Check if tiles are neighbors (should always be true for our 8 directions)
+		if (!newPos.areNeighbours(checkPos))
+		{
+			blockedCount++;
+			continue;
+		}
+		
+		// Get terrain information
+		const TerrainTile* destTile = cb->getTile(checkPos, false);
+		const TerrainTile* currentTile = cb->getTile(newPos, false);
+		
+		if (!destTile || !currentTile)
+		{
+			blockedCount++;
+			continue;
+		}
+		
+		// Check basic movement validity:
+		// 1. Terrain must be passable (not rock)
+		// 2. For land heroes: can't move to water tiles (unless there's a boat or coast-visitable object)
+		// 3. For sailing heroes: can't move to blocked land tiles
+		
+		bool canMove = true;
+		
+		// Check if terrain is passable
+		if (!destTile->getTerrain()->isPassable())
+		{
+			canMove = false;
+		}
+		// Check water/land restrictions
+		else if (hero->inBoat())
+		{
+			// Sailing hero - check if can move to this tile
+			if (destTile->isLand() && destTile->blocked())
 			{
-				// Tile is reachable this turn
-				availableDirections.push_back(directionNames[i]);
-			}
-			else
-			{
-				blockedCount++;
+				canMove = false; // Can't disembark on blocked land
 			}
 		}
-	}
-	else
-	{
-		// Fallback if pathfinding info is not available
-		// Just check basic map bounds
-		for (size_t i = 0; i < directions.size(); ++i)
+		else
 		{
-			int3 checkPos = newPos + directions[i];
-			if (GAME->interface()->cb->isInTheMap(checkPos))
+			// Walking hero - check water restrictions
+			if (destTile->isWater())
 			{
-				availableDirections.push_back(directionNames[i]);
+				// Check if there's a boat or coast-visitable object
+				bool hasBoatOrCoastObject = false;
+				for (auto objId : destTile->visitableObjects)
+				{
+					const auto* obj = cb->getObj(objId, false);
+					if (obj && (obj->ID == Obj::BOAT || obj->isCoastVisitable()))
+					{
+						hasBoatOrCoastObject = true;
+						break;
+					}
+				}
+				
+				if (!hasBoatOrCoastObject && !hero->hasBonusOfType(BonusType::FLYING_MOVEMENT) && !hero->hasBonusOfType(BonusType::WATER_WALKING))
+				{
+					canMove = false;
+				}
 			}
-			else
+			// Check if tile is blocked by non-visitable objects
+			else if (destTile->blocked() && destTile->visitableObjects.empty())
 			{
-				blockedCount++;
+				// Blocked and no visitable objects - can't move unless flying
+				if (!hero->hasBonusOfType(BonusType::FLYING_MOVEMENT))
+				{
+					canMove = false;
+				}
 			}
+		}
+		
+		if (canMove)
+		{
+			availableDirections.push_back(directionNames[i]);
+		}
+		else
+		{
+			blockedCount++;
 		}
 	}
 	
