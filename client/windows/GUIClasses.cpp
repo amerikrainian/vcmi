@@ -25,6 +25,7 @@
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
 #include "../gui/AccessibilityManager.h"
+#include "../gui/FocusManager.h"
 
 #include "../widgets/CComponent.h"
 #include "../widgets/CGarrisonInt.h"
@@ -1437,6 +1438,7 @@ CGarrisonWindow::CGarrisonWindow(const CArmedInstance * up, const CGHeroInstance
 	: CWindowObject(PLAYER_COLORED, ImagePath::builtin("GARRISON"))
 {
 	OBJECT_CONSTRUCTION;
+	addUsedEvents(KEYBOARD);
 
 	garr = std::make_shared<CGarrisonInt>(Point(92, 127), 4, Point(0,96), up, down, removableUnits);
 	{
@@ -1444,6 +1446,13 @@ CGarrisonWindow::CGarrisonWindow(const CArmedInstance * up, const CGHeroInstance
 		garr->addSplitBtn(split);
 	}
 	quit = std::make_shared<CButton>(Point(399, 314), AnimationPath::builtin("IOK6432.DEF"), CButton::tooltip(LIBRARY->generaltexth->tcommands[8], ""), [this](){ close(); }, EShortcut::GLOBAL_ACCEPT);
+	
+	// Add accessibility info for the OK button
+	quit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("OK")
+		.withDescription("Close garrison window")
+		.withTabOrder(100));
 
 	std::string titleText;
 	if(down->tempOwner == up->tempOwner)
@@ -1467,6 +1476,21 @@ CGarrisonWindow::CGarrisonWindow(const CArmedInstance * up, const CGHeroInstance
 
 	banner = std::make_shared<CAnimImage>(AnimationPath::builtin("CREST58"), up->getOwner().getNum(), 0, 28, 124);
 	portrait = std::make_shared<CAnimImage>(AnimationPath::builtin("PortraitsLarge"), down->getIconIndex(), 0, 29, 222);
+	
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Garrison")
+		.withDescription(titleText));
+}
+
+void CGarrisonWindow::activate()
+{
+	CWindowObject::activate();
+	
+	// Set focus to the OK button
+	if (quit)
+		FocusManager::getInstance().setFocus(quit.get());
 }
 
 void CGarrisonWindow::updateGarrisons()

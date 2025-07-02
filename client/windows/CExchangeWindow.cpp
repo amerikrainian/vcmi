@@ -19,6 +19,7 @@
 #include "../gui/CursorHandler.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../widgets/CGarrisonInt.h"
 #include "../widgets/Images.h"
@@ -120,6 +121,11 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 		primSkillAreas[g]->component = Component( ComponentType::PRIM_SKILL, PrimarySkill(g));
 		primSkillAreas[g]->hoverText = LIBRARY->generaltexth->heroscrn[1];
 		boost::replace_first(primSkillAreas[g]->hoverText, "%s", LIBRARY->generaltexth->primarySkillNames[g]);
+		primSkillAreas[g]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(LIBRARY->generaltexth->primarySkillNames[g])
+			.withDescription("Primary skill. Press Enter to see details")
+			.withTabOrder(50 + g));
 	}
 
 	//heroes related thing
@@ -133,11 +139,18 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 										   if(getPickedArtifact() == nullptr)
 											   GAME->interface()->openHeroWindow(hero);
 									   });
+		heroAreas[b]->setAccessibilityInfo(UIAccessibilityInfo(*heroAreas[b]->getAccessibilityInfo())
+			.withTabOrder(5 + b * 20));
 
 		specialtyAreas[b] = std::make_shared<LRClickableAreaWText>();
 		specialtyAreas[b]->pos = Rect(Point(pos.x + 69 + 490 * b, pos.y + (qeLayout ? 41 : 45)), Point(32, 32));
 		specialtyAreas[b]->hoverText = LIBRARY->generaltexth->heroscrn[27];
 		specialtyAreas[b]->text = hero->getHeroType()->getSpecialtyDescriptionTranslated();
+		specialtyAreas[b]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(hero->getNameTranslated() + " specialty")
+			.withDescription("Hero specialty. Press Enter to see details")
+			.withTabOrder(10 + b * 20));
 
 		experienceAreas[b] = std::make_shared<LRClickableAreaWText>();
 		experienceAreas[b]->pos = Rect(Point(pos.x + 105 + 490 * b, pos.y + (qeLayout ? 41 : 45)), Point(32, 32));
@@ -146,6 +159,11 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 		boost::algorithm::replace_first(experienceAreas[b]->text, "%d", std::to_string(hero->level));
 		boost::algorithm::replace_first(experienceAreas[b]->text, "%d", std::to_string(LIBRARY->heroh->reqExp(hero->level+1)));
 		boost::algorithm::replace_first(experienceAreas[b]->text, "%d", std::to_string(hero->exp));
+		experienceAreas[b]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(hero->getNameTranslated() + " experience")
+			.withDescription("Hero experience. Press Enter to see details")
+			.withTabOrder(11 + b * 20));
 
 		spellPointsAreas[b] = std::make_shared<LRClickableAreaWText>();
 		spellPointsAreas[b]->pos = Rect(Point(pos.x + 141 + 490 * b, pos.y + (qeLayout ? 41 : 45)), Point(32, 32));
@@ -154,9 +172,19 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 		boost::algorithm::replace_first(spellPointsAreas[b]->text, "%s", hero->getNameTranslated());
 		boost::algorithm::replace_first(spellPointsAreas[b]->text, "%d", std::to_string(hero->mana));
 		boost::algorithm::replace_first(spellPointsAreas[b]->text, "%d", std::to_string(hero->manaLimit()));
+		spellPointsAreas[b]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(hero->getNameTranslated() + " spell points")
+			.withDescription("Hero spell points. Press Enter to see details")
+			.withTabOrder(12 + b * 20));
 
 		morale[b] = std::make_shared<MoraleLuckBox>(true, Rect(Point(176 + 490 * b, 39), Point(32, 32)), true);
+		morale[b]->setAccessibilityInfo(UIAccessibilityInfo(*morale[b]->getAccessibilityInfo())
+			.withTabOrder(13 + b * 20));
+		
 		luck[b] = std::make_shared<MoraleLuckBox>(false,  Rect(Point(212 + 490 * b, 39), Point(32, 32)), true);
+		luck[b]->setAccessibilityInfo(UIAccessibilityInfo(*luck[b]->getAccessibilityInfo())
+			.withTabOrder(14 + b * 20));
 	}
 
 	quit = std::make_shared<CButton>(Point(732, 567), AnimationPath::builtin("IOKAY.DEF"), LIBRARY->generaltexth->zelp[600], std::bind(&CExchangeWindow::close, this), EShortcut::GLOBAL_ACCEPT);
@@ -266,14 +294,32 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 
 void CExchangeWindow::creatureArrowButtonCallback(bool leftToRight, SlotID slotId)
 {
+	std::string announcement;
+	const auto sourceHero = leftToRight ? heroInst[0] : heroInst[1];
+	const auto targetHero = leftToRight ? heroInst[1] : heroInst[0];
+	
 	if (ENGINE->isKeyboardAltDown())
+	{
 		controller.moveArmy(leftToRight, slotId);
+		announcement = "Moved entire army from " + sourceHero->getNameTranslated() + " to " + targetHero->getNameTranslated();
+	}
 	else if (ENGINE->isKeyboardCtrlDown())
+	{
 		controller.moveSingleStackCreature(leftToRight, slotId, true);
+		announcement = "Moved one creature from " + sourceHero->getNameTranslated() + " to " + targetHero->getNameTranslated();
+	}
 	else if (ENGINE->isKeyboardShiftDown())
+	{
 		controller.moveSingleStackCreature(leftToRight, slotId, false);
+		announcement = "Moved all but one creature from " + sourceHero->getNameTranslated() + " to " + targetHero->getNameTranslated();
+	}
 	else
+	{
 		controller.moveStack(leftToRight, slotId);
+		announcement = "Moved stack from " + sourceHero->getNameTranslated() + " to " + targetHero->getNameTranslated();
+	}
+	
+	AccessibilityManager::getInstance().announce(announcement);
 }
 
 void CExchangeWindow::moveArtifactsCallback(bool leftToRight)
@@ -281,6 +327,20 @@ void CExchangeWindow::moveArtifactsCallback(bool leftToRight)
 	bool moveEquipped = !ENGINE->isKeyboardShiftDown();
 	bool moveBackpack = !ENGINE->isKeyboardCmdDown();
 	controller.moveArtifacts(leftToRight, moveEquipped, moveBackpack);
+	
+	const auto sourceHero = leftToRight ? heroInst[0] : heroInst[1];
+	const auto targetHero = leftToRight ? heroInst[1] : heroInst[0];
+	std::string what;
+	
+	if(moveEquipped && moveBackpack)
+		what = "all artifacts";
+	else if(moveEquipped)
+		what = "equipped artifacts";
+	else if(moveBackpack)
+		what = "backpack artifacts";
+		
+	std::string announcement = "Moved " + what + " from " + sourceHero->getNameTranslated() + " to " + targetHero->getNameTranslated();
+	AccessibilityManager::getInstance().announce(announcement);
 };
 
 void CExchangeWindow::swapArtifactsCallback()
@@ -288,6 +348,17 @@ void CExchangeWindow::swapArtifactsCallback()
 	bool moveEquipped = !ENGINE->isKeyboardShiftDown();
 	bool moveBackpack = !ENGINE->isKeyboardCmdDown();
 	controller.swapArtifacts(moveEquipped, moveBackpack);
+	
+	std::string what;
+	if(moveEquipped && moveBackpack)
+		what = "all artifacts";
+	else if(moveEquipped)
+		what = "equipped artifacts";
+	else if(moveBackpack)
+		what = "backpack artifacts";
+		
+	std::string announcement = "Swapped " + what + " between " + heroInst[0]->getNameTranslated() + " and " + heroInst[1]->getNameTranslated();
+	AccessibilityManager::getInstance().announce(announcement);
 }
 
 void CExchangeWindow::moveUnitsShortcut(bool leftToRight)
@@ -296,6 +367,11 @@ void CExchangeWindow::moveUnitsShortcut(bool leftToRight)
 	if(const auto * slot = getSelectedSlotID())
 		slotId = slot->getSlot();
 	controller.moveArmy(leftToRight, slotId);
+	
+	const auto sourceHero = leftToRight ? heroInst[0] : heroInst[1];
+	const auto targetHero = leftToRight ? heroInst[1] : heroInst[0];
+	std::string announcement = "Moved army from " + sourceHero->getNameTranslated() + " to " + targetHero->getNameTranslated();
+	AccessibilityManager::getInstance().announce(announcement);
 };
 
 void CExchangeWindow::backpackShortcut(bool leftHero)
@@ -315,33 +391,40 @@ void CExchangeWindow::keyPressed(EShortcut key)
 		break;
 		case EShortcut::EXCHANGE_ARMY_SWAP:
 			controller.swapArmy();
+			AccessibilityManager::getInstance().announce("Swapped armies between " + heroInst[0]->getNameTranslated() + " and " + heroInst[1]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_ARTIFACTS_TO_LEFT:
-			controller.moveArtifacts(false, true, true);
+			moveArtifactsCallback(false);
 		break;
 		case EShortcut::EXCHANGE_ARTIFACTS_TO_RIGHT:
-			controller.moveArtifacts(true, true, true);
+			moveArtifactsCallback(true);
 		break;
 		case EShortcut::EXCHANGE_ARTIFACTS_SWAP:
-			controller.swapArtifacts(true, true);
+			swapArtifactsCallback();
 		break;
 		case EShortcut::EXCHANGE_EQUIPPED_TO_LEFT:
 			controller.moveArtifacts(false, true, false);
+			AccessibilityManager::getInstance().announce("Moved equipped artifacts from " + heroInst[1]->getNameTranslated() + " to " + heroInst[0]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_EQUIPPED_TO_RIGHT:
 			controller.moveArtifacts(true, true, false);
+			AccessibilityManager::getInstance().announce("Moved equipped artifacts from " + heroInst[0]->getNameTranslated() + " to " + heroInst[1]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_EQUIPPED_SWAP:
 			controller.swapArtifacts(true, false);
+			AccessibilityManager::getInstance().announce("Swapped equipped artifacts between " + heroInst[0]->getNameTranslated() + " and " + heroInst[1]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_BACKPACK_TO_LEFT:
 			controller.moveArtifacts(false, false, true);
+			AccessibilityManager::getInstance().announce("Moved backpack artifacts from " + heroInst[1]->getNameTranslated() + " to " + heroInst[0]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_BACKPACK_TO_RIGHT:
 			controller.moveArtifacts(true, false, true);
+			AccessibilityManager::getInstance().announce("Moved backpack artifacts from " + heroInst[0]->getNameTranslated() + " to " + heroInst[1]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_BACKPACK_SWAP:
 			controller.swapArtifacts(false, true);
+			AccessibilityManager::getInstance().announce("Swapped backpack artifacts between " + heroInst[0]->getNameTranslated() + " and " + heroInst[1]->getNameTranslated());
 		break;
 		case EShortcut::EXCHANGE_BACKPACK_LEFT:
 			backpackShortcut(true);

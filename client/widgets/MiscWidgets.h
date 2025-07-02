@@ -60,6 +60,10 @@ public:
 
 	void clickPressed(const Point & cursorPosition) override;
 	void showPopupWindow(const Point & cursorPosition) override;
+	void keyPressed(EShortcut key) override;
+	bool isFocusable() const override;
+	void onFocusGained() override;
+	void onFocusLost() override;
 };
 
 /// base class for hero/town/garrison tooltips
@@ -196,6 +200,10 @@ public:
 	void clickPressed(const Point & cursorPosition) override;
 	void showPopupWindow(const Point & cursorPosition) override;
 	void hover(bool on) override;
+	void keyPressed(EShortcut key) override;
+	bool isFocusable() const override;
+	void onFocusGained() override;
+	void onFocusLost() override;
 private:
 	const CGHeroInstance * hero;
 	std::shared_ptr<CAnimImage> portrait;

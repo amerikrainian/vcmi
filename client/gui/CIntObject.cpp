@@ -427,6 +427,12 @@ WindowBase::WindowBase(int used_, Point pos_)
 
 }
 
+void WindowBase::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_CANCEL)
+		close();
+}
+
 void WindowBase::close()
 {
 	if(!ENGINE->windows().isTopWindow(this))

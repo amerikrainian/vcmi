@@ -276,7 +276,7 @@ void HeroMovementController::requestMovementAbort()
 void HeroMovementController::announceHeroPosition(const CGHeroInstance * hero, const TryMoveHero & details, bool directlyAttackingCreature)
 {
 	int3 newPos = hero->convertToVisitablePos(details.end);
-	std::string announcement = "Hero at " + std::to_string(newPos.x) + ", " + std::to_string(newPos.y);
+	std::string announcement = std::to_string(newPos.x) + ", " + std::to_string(newPos.y);
 	
 	// Get terrain type
 	auto terrain = GAME->interface()->cb->getTile(newPos, false);
@@ -284,6 +284,87 @@ void HeroMovementController::announceHeroPosition(const CGHeroInstance * hero, c
 	{
 		announcement += ", " + terrain->getTerrain()->getNameTranslated();
 	}
+	
+	// Define directions in clockwise order starting from North
+	static const std::array<int3, 8> directions = {
+		int3(0, -1, 0),  // N
+		int3(1, -1, 0),  // NE
+		int3(1, 0, 0),   // E
+		int3(1, 1, 0),   // SE
+		int3(0, 1, 0),   // S
+		int3(-1, 1, 0),  // SW
+		int3(-1, 0, 0),  // W
+		int3(-1, -1, 0)  // NW
+	};
+	
+	static const std::array<std::string, 8> directionNames = {
+		"N", "NE", "E", "SE", "S", "SW", "W", "NW"
+	};
+	
+	// Get pathfinding info for the hero
+	auto pathsInfo = GAME->interface()->getPathsInfo(hero);
+	
+	std::vector<std::string> availableDirections;
+	int blockedCount = 0;
+	
+	if (pathsInfo)
+	{
+		// Check each direction using pathfinding info
+		for (size_t i = 0; i < directions.size(); ++i)
+		{
+			int3 checkPos = newPos + directions[i];
+			
+			// Get the path node for this position
+			const CGPathNode* node = pathsInfo->getPathInfo(checkPos);
+			
+			// Check if hero can move to this tile in the current turn
+			if (node && node->reachable() && node->turns == 0)
+			{
+				// Tile is reachable this turn
+				availableDirections.push_back(directionNames[i]);
+			}
+			else
+			{
+				blockedCount++;
+			}
+		}
+	}
+	else
+	{
+		// Fallback if pathfinding info is not available
+		// Just check basic map bounds
+		for (size_t i = 0; i < directions.size(); ++i)
+		{
+			int3 checkPos = newPos + directions[i];
+			if (GAME->interface()->cb->isInTheMap(checkPos))
+			{
+				availableDirections.push_back(directionNames[i]);
+			}
+			else
+			{
+				blockedCount++;
+			}
+		}
+	}
+	
+	// Add direction info to announcement
+	if (blockedCount == 8)
+	{
+		// No exits available
+		announcement += ". None";
+	}
+	else if (blockedCount > 0)
+	{
+		// Some exits blocked, list available ones
+		announcement += ". ";
+		for (size_t i = 0; i < availableDirections.size(); ++i)
+		{
+			if (i > 0)
+				announcement += ", ";
+			announcement += availableDirections[i];
+		}
+	}
+	// If all directions are available (blockedCount == 0), don't add anything
 	
 	// Get object at position if any
 	auto objects = GAME->interface()->cb->getVisitableObjs(newPos);

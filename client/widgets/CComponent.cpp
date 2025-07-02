@@ -234,8 +234,17 @@ std::string CComponent::getDescription() const
 		case ComponentType::SEC_SKILL:
 			return LIBRARY->skillh->getByIndex(data.subType.getNum())->getDescriptionTranslated(data.value.value_or(1));
 		case ComponentType::RESOURCE:
+		{
+			std::string resourceName = LIBRARY->generaltexth->restypes[data.subType.getNum()];
+			std::string amount = std::to_string(data.value.value_or(0));
+			return resourceName + ": " + amount;
+		}
 		case ComponentType::RESOURCE_PER_DAY:
-			return LIBRARY->generaltexth->allTexts[242];
+		{
+			std::string resourceName = LIBRARY->generaltexth->restypes[data.subType.getNum()];
+			std::string perDay = boost::str(boost::format(LIBRARY->generaltexth->allTexts[3]) % data.value.value_or(0));
+			return resourceName + " " + perDay;
+		}
 		case ComponentType::NONE:
 		case ComponentType::CREATURE:
 			return "";

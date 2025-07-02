@@ -170,6 +170,7 @@ class WindowBase : public CIntObject
 {
 public:
 	WindowBase(int used_ = 0, Point pos_ = Point());
+	void keyPressed(EShortcut key) override;
 	virtual void close();
 };
 

@@ -88,7 +88,30 @@ LRClickableAreaWText::~LRClickableAreaWText()
 
 void LRClickableAreaWText::init()
 {
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
+}
+
+void LRClickableAreaWText::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+		clickPressed(pos.center());
+	else if(key == EShortcut::MOUSE_RIGHT)
+		showPopupWindow(pos.center());
+}
+
+bool LRClickableAreaWText::isFocusable() const
+{
+	return !text.empty() || !hoverText.empty();
+}
+
+void LRClickableAreaWText::onFocusGained()
+{
+	hover(true);
+}
+
+void LRClickableAreaWText::onFocusLost()
+{
+	hover(false);
 }
 
 void LRClickableAreaWTextComp::clickPressed(const Point & cursorPosition)
@@ -123,7 +146,7 @@ void LRClickableAreaWTextComp::showPopupWindow(const Point & cursorPosition)
 }
 
 CHeroArea::CHeroArea(int x, int y, const CGHeroInstance * hero)
-	: CIntObject(LCLICK | SHOW_POPUP | HOVER),
+	: CIntObject(LCLICK | SHOW_POPUP | HOVER | KEYBOARD),
 	hero(hero),
 	clickFunctor(nullptr),
 	clickRFunctor(nullptr)
@@ -142,6 +165,12 @@ CHeroArea::CHeroArea(int x, int y, const CGHeroInstance * hero)
 		{
 			GAME->interface()->openHeroWindow(hero);
 		};
+		
+		// Set accessibility info
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(hero->getNameTranslated())
+			.withDescription("Hero portrait. Press Enter to open hero window"));
 	}
 }
 
@@ -173,6 +202,30 @@ void CHeroArea::hover(bool on)
 		ENGINE->statusbar()->write(hero->getObjectName());
 	else
 		ENGINE->statusbar()->clear();
+}
+
+void CHeroArea::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT && clickFunctor)
+		clickFunctor();
+	else if(key == EShortcut::MOUSE_RIGHT && clickRFunctor)
+		clickRFunctor();
+}
+
+bool CHeroArea::isFocusable() const
+{
+	return hero != nullptr;
+}
+
+void CHeroArea::onFocusGained()
+{
+	if(hero)
+		ENGINE->statusbar()->write(hero->getObjectName());
+}
+
+void CHeroArea::onFocusLost()
+{
+	ENGINE->statusbar()->clear();
 }
 
 void LRClickableAreaOpenTown::clickPressed(const Point & cursorPosition)
@@ -636,6 +689,13 @@ MoraleLuckBox::MoraleLuckBox(bool Morale, const Rect &r, bool Small)
 	small(Small)
 {
 	pos = r + pos.topLeft();
+	
+	// Set accessibility info
+	std::string role = morale ? "Morale indicator" : "Luck indicator";
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(role)
+		.withDescription("Press Enter to see details"));
 }
 
 CCreaturePic::CCreaturePic(int x, int y, const CCreature * cre, bool Big, bool Animated)

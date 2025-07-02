@@ -336,11 +336,20 @@ void CSecSkillPlace::setLevel(const uint8_t level)
 		this->hoverText = hoverText.toString();
 		component.value = level;
 		text = secSkill->getDescriptionTranslated(level);
+		
+		// Set accessibility info
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(secSkill->getNameTranslated() + " - " + LIBRARY->generaltexth->levels[level - 1])
+			.withDescription("Secondary skill. Press Enter to see details"));
 	}
 	else
 	{
 		image->disable();
 		hoverText.clear();
 		text.clear();
+		
+		// Clear accessibility info when no skill
+		setAccessibilityInfo(UIAccessibilityInfo());
 	}
 }

@@ -21,6 +21,7 @@
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
 #include "../gui/AccessibilityManager.h"
+#include "../gui/FocusManager.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/CComponent.h"
 #include "../widgets/GraphicalPrimitiveCanvas.h"
@@ -261,6 +262,10 @@ void CInfoWindow::keyPressed(EShortcut key)
 			close();
 		}
 	}
+	else
+	{
+		WindowBase::keyPressed(key);
+	}
 }
 
 void CInfoWindow::activate()
@@ -286,6 +291,12 @@ void CInfoWindow::activate()
 		}
 		
 		AccessibilityManager::getInstance().announce(announcement, true);
+	}
+	
+	// Set focus to the first button (OK button) to ensure keyboard navigation works
+	if (!buttons.empty() && buttons.front())
+	{
+		FocusManager::getInstance().setFocus(buttons.front().get());
 	}
 }
 

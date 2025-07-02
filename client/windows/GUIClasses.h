@@ -452,6 +452,7 @@ public:
 
 	CGarrisonWindow(const CArmedInstance * up, const CGHeroInstance * down, bool removableUnits);
 
+	void activate() override;
 	void updateGarrisons() override;
 	bool holdsGarrison(const CArmedInstance * army) override;
 };
