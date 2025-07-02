@@ -321,51 +321,57 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 {
 	if (!element)
 		return "";
-	
+
 	const UIAccessibilityInfo* info = element->getAccessibilityInfo();
 	if (!info || !info->isAccessible)
 		return "";
-	
-	std::string text;
 
-	// Build accessible text from available information
-	// Start with the role if no name is provided
-	if (info->name.empty() && !info->role.empty())
+	std::string text;
+	bool valueAlreadyUsed = false;
+
+	// Special case: no name, but value and role exist
+	if (info->name.empty() && !info->value.empty() && !info->role.empty())
+	{
+		text = info->value;
+		text += ", ";
+		text += info->role;
+		valueAlreadyUsed = true;
+	}
+	else if (info->name.empty() && !info->role.empty())
 	{
 		text = info->role;
 	}
 	else if (!info->name.empty())
 	{
 		text = info->name;
-		// Add role after name
 		if (!info->role.empty() && info->role != "text")
 		{
 			text += ", ";
 			text += info->role;
 		}
 	}
-	
+
 	if (!info->state.empty())
 	{
 		if (!text.empty())
 			text += ", ";
 		text += info->state;
 	}
-	
-	if (!info->value.empty())
+
+	if (!info->value.empty() && !valueAlreadyUsed)
 	{
 		if (!text.empty())
 			text += ", ";
 		text += info->value;
 	}
-	
+
 	if (!info->description.empty() && text != info->description)
 	{
 		if (!text.empty())
 			text += ". ";
 		text += info->description;
 	}
-	
+
 	return text;
 }
 
