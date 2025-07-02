@@ -399,6 +399,10 @@ bool MapView::captureThisKey(EShortcut key)
 		case EShortcut::MOVE_RIGHT:
 		case EShortcut::MOVE_UP:
 		case EShortcut::MOVE_DOWN:
+		case EShortcut::MOVE_UP_LEFT:
+		case EShortcut::MOVE_UP_RIGHT:
+		case EShortcut::MOVE_DOWN_LEFT:
+		case EShortcut::MOVE_DOWN_RIGHT:
 			// The actual movement is handled in keyPressed() to avoid double execution
 			return true; // Capture this key so it doesn't propagate
 		}
