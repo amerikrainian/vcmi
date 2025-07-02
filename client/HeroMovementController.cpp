@@ -301,94 +301,87 @@ void HeroMovementController::announceHeroPosition(const CGHeroInstance * hero, c
 		"N", "NE", "E", "SE", "S", "SW", "W", "NW"
 	};
 	
-	// Check movement validity using the same logic as server-side movement validation
-	// This avoids discrepancies between what movements are actually allowed vs what pathfinding thinks
 	std::vector<std::string> availableDirections;
 	int blockedCount = 0;
 	
-	const auto cb = GAME->interface()->cb.get();
+	// Determine hero's current movement capabilities
+	bool heroIsFlying = hero->hasBonusOfType(BonusType::FLYING_MOVEMENT);
+	bool heroCanWalkOnWater = hero->hasBonusOfType(BonusType::WATER_WALKING);
+	auto currentTile = GAME->interface()->cb->getTile(newPos, false);
+	bool heroIsOnWater = currentTile && currentTile->getTerrain()->isWater();
 	
-	// Check each direction using basic movement validation (like server does)
+	// Check each adjacent tile for accessibility
 	for (size_t i = 0; i < directions.size(); ++i)
 	{
 		int3 checkPos = newPos + directions[i];
 		
 		// First check if position is within map bounds
-		if (!cb->isInTheMap(checkPos))
+		if (!GAME->interface()->cb->isInTheMap(checkPos))
 		{
 			blockedCount++;
 			continue;
 		}
 		
-		// Check if tiles are neighbors (should always be true for our 8 directions)
-		if (!newPos.areNeighbours(checkPos))
+		// Check fog of war visibility
+		if (!GAME->interface()->cb->isVisibleFor(checkPos, hero->tempOwner))
 		{
 			blockedCount++;
 			continue;
 		}
 		
-		// Get terrain information
-		const TerrainTile* destTile = cb->getTile(checkPos, false);
-		const TerrainTile* currentTile = cb->getTile(newPos, false);
-		
-		if (!destTile || !currentTile)
+		// Get destination tile info
+		auto destTile = GAME->interface()->cb->getTile(checkPos, false);
+		if (!destTile)
 		{
 			blockedCount++;
 			continue;
 		}
 		
-		// Check basic movement validity:
-		// 1. Terrain must be passable (not rock)
-		// 2. For land heroes: can't move to water tiles (unless there's a boat or coast-visitable object)
-		// 3. For sailing heroes: can't move to blocked land tiles
+		// Check terrain compatibility
+		bool canMove = false;
+		bool destIsWater = destTile->getTerrain()->isWater();
 		
-		bool canMove = true;
-		
-		// Check if terrain is passable
-		if (!destTile->getTerrain()->isPassable())
+		if (heroIsFlying)
 		{
-			canMove = false;
+			// Flying heroes can move almost anywhere except blocked terrain
+			canMove = !destTile->blocked();
 		}
-		// Check water/land restrictions
-		else if (hero->inBoat())
+		else if (heroIsOnWater && !destIsWater)
 		{
-			// Sailing hero - check if can move to this tile
-			if (destTile->isLand() && destTile->blocked())
+			// Moving from water to land - check if movement is possible
+			canMove = GAME->interface()->cb->canMoveBetween(newPos, checkPos);
+		}
+		else if (!heroIsOnWater && destIsWater)
+		{
+			// Moving from land to water - need boat or water walking
+			if (heroCanWalkOnWater)
 			{
-				canMove = false; // Can't disembark on blocked land
+				canMove = GAME->interface()->cb->canMoveBetween(newPos, checkPos);
+			}
+			else
+			{
+				// Check if there's a boat at destination
+				auto visitableObjects = GAME->interface()->cb->getVisitableObjs(checkPos);
+				for (auto obj : visitableObjects)
+				{
+					if (obj->ID == Obj::BOAT)
+					{
+						canMove = true;
+						break;
+					}
+				}
 			}
 		}
 		else
 		{
-			// Walking hero - check water restrictions
-			if (destTile->isWater())
-			{
-				// Check if there's a boat or coast-visitable object
-				bool hasBoatOrCoastObject = false;
-				for (auto objId : destTile->visitableObjects)
-				{
-					const auto* obj = cb->getObj(objId, false);
-					if (obj && (obj->ID == Obj::BOAT || obj->isCoastVisitable()))
-					{
-						hasBoatOrCoastObject = true;
-						break;
-					}
-				}
-				
-				if (!hasBoatOrCoastObject && !hero->hasBonusOfType(BonusType::FLYING_MOVEMENT) && !hero->hasBonusOfType(BonusType::WATER_WALKING))
-				{
-					canMove = false;
-				}
-			}
-			// Check if tile is blocked by non-visitable objects
-			else if (destTile->blocked() && destTile->visitableObjects.empty())
-			{
-				// Blocked and no visitable objects - can't move unless flying
-				if (!hero->hasBonusOfType(BonusType::FLYING_MOVEMENT))
-				{
-					canMove = false;
-				}
-			}
+			// Same terrain type movement (land to land or water to water)
+			canMove = GAME->interface()->cb->canMoveBetween(newPos, checkPos);
+		}
+		
+		// Additional check for blocked tiles
+		if (canMove && destTile->blocked())
+		{
+			canMove = false;
 		}
 		
 		if (canMove)

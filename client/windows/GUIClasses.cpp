@@ -1740,7 +1740,7 @@ CHillFortWindow::State CHillFortWindow::getState(SlotID slot)
 }
 
 CObjectListWindow::CItem::CItem(CObjectListWindow * _parent, size_t _id, std::string _text)
-	: CIntObject(LCLICK | DOUBLECLICK | RCLICK_POPUP),
+	: CIntObject(LCLICK | DOUBLECLICK | RCLICK_POPUP | KEYBOARD),
 	parent(_parent),
 	index(_id)
 {
@@ -1754,6 +1754,13 @@ CObjectListWindow::CItem::CItem(CObjectListWindow * _parent, size_t _id, std::st
 
 	text = std::make_shared<CLabel>(pos.w/2, pos.h/2, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, _text, 256);
 	select(index == parent->selected);
+	
+	// Set accessibility info for list item
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("listitem")
+		.withName(_text)
+		.withState(index == parent->selected ? "selected" : "")
+		.withValue(std::to_string(index + 1) + " of " + std::to_string(parent->itemsVisible.size())));
 }
 
 void CObjectListWindow::CItem::select(bool on)
@@ -1860,8 +1867,45 @@ void CObjectListWindow::init(std::shared_ptr<CIntObject> titleWidget_, std::stri
 	ok = std::make_shared<CButton>(Point(15, 402), AnimationPath::builtin("IOKAY.DEF"), CButton::tooltip(), std::bind(&CObjectListWindow::elementSelected, this), EShortcut::GLOBAL_ACCEPT);
 	ok->block(!list->size());
 
+	// Set up accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(_title)
+		.withDescription(_descr));
+	
+	// Set accessibility for list
+	list->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Object list")
+		.withDescription("Select an object from the list")
+		.withTabOrder(searchBoxEnabled ? 2 : 1));
+	
+	// Set accessibility for buttons
+	ok->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("OK")
+		.withDescription("Select the highlighted object")
+		.withTabOrder(searchBoxEnabled ? 3 : 2));
+	
+	exit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Cancel")
+		.withDescription("Close without selecting")
+		.withTabOrder(searchBoxEnabled ? 4 : 3));
+
 	if(!searchBoxEnabled)
+	{
+		// Announce dialog opening
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			std::string announcement = _title + ". " + _descr + ". ";
+			announcement += "List with " + std::to_string(itemsVisible.size()) + " items. ";
+			if(selected < itemsVisible.size())
+				announcement += "Currently selected: " + itemsVisible[selected].second;
+			AccessibilityManager::getInstance().announce(announcement);
+		}
 		return;
+	}
 
 	Rect r(50, 90, pos.w - 100, 16);
 	const ColorRGBA rectangleColor = ColorRGBA(0, 0, 0, 75);
@@ -1872,6 +1916,24 @@ void CObjectListWindow::init(std::shared_ptr<CIntObject> titleWidget_, std::stri
 
 	searchBox = std::make_shared<CTextInput>(r, FONT_SMALL, ETextAlignment::CENTER, true);
 	searchBox->setCallback(std::bind(&CObjectListWindow::itemsSearchCallback, this, std::placeholders::_1));
+	
+	// Set accessibility for search box
+	searchBox->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Search")
+		.withDescription("Type to filter the list")
+		.withTabOrder(1));
+	
+	// Announce dialog opening with search
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = _title + ". " + _descr + ". ";
+		announcement += "Search box available. ";
+		announcement += "List with " + std::to_string(itemsVisible.size()) + " items. ";
+		if(selected < itemsVisible.size())
+			announcement += "Currently selected: " + itemsVisible[selected].second;
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 void CObjectListWindow::trimTextIfTooWide(std::string & text, int id) const
@@ -1929,6 +1991,27 @@ void CObjectListWindow::itemsSearchCallback(const std::string & text)
 	ok->block(!itemsVisible.size());
 
 	redraw();
+	
+	// Announce search results
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement;
+		if(text.empty())
+		{
+			announcement = "Search cleared. Showing all " + std::to_string(itemsVisible.size()) + " items";
+		}
+		else if(itemsVisible.empty())
+		{
+			announcement = "No items match your search";
+		}
+		else
+		{
+			announcement = std::to_string(itemsVisible.size()) + " items found. ";
+			if(selected < itemsVisible.size())
+				announcement += "First result: " + itemsVisible[selected].second;
+		}
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 std::shared_ptr<CIntObject> CObjectListWindow::genItem(size_t index)
@@ -1966,13 +2049,33 @@ void CObjectListWindow::changeSelection(size_t which)
 		if(item)
 		{
 			if(item->index == selected)
+			{
 				item->select(false);
+				// Update accessibility state
+				auto info = item->getAccessibilityInfo();
+				if(info)
+					item->setAccessibilityInfo(UIAccessibilityInfo(*info).withState(""));
+			}
 
 			if(item->index == which)
+			{
 				item->select(true);
+				// Update accessibility state
+				auto info = item->getAccessibilityInfo();
+				if(info)
+					item->setAccessibilityInfo(UIAccessibilityInfo(*info).withState("selected"));
+			}
 		}
 	}
 	selected = which;
+	
+	// Announce the new selection
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled() && which < itemsVisible.size())
+	{
+		std::string announcement = itemsVisible[which].second;
+		announcement += ", " + std::to_string(which + 1) + " of " + std::to_string(itemsVisible.size());
+		AccessibilityManager::getInstance().announce(announcement);
+	}
 }
 
 void CObjectListWindow::keyPressed(EShortcut key)

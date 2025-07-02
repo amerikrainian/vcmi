@@ -722,7 +722,6 @@ void AdventureMapShortcuts::announceLandmarks()
 	// Get hero's current position
 	int3 heroPos = hero->visitablePos();
 	
-	// Use hero's actual sight radius
 	const int SCAN_RADIUS = hero->getSightRadius();
 	
 	// Categories of objects and their priorities (lower number = higher priority)
@@ -760,26 +759,20 @@ void AdventureMapShortcuts::announceLandmarks()
 			if (!GAME->interface()->cb->isInTheMap(checkPos))
 				continue;
 				
-			// Skip hero's current position
 			if (checkPos == heroPos)
 				continue;
-			
-			// Check if this tile is visible (respecting fog of war)
+
 			if (!GAME->interface()->cb->isVisible(checkPos))
 				continue;
-			
-			// Get all objects at this position
+
 			auto objects = GAME->interface()->cb->getVisitableObjs(checkPos);
 			
 			for (const auto* obj : objects)
 			{
 				if (!obj || obj == hero)
 					continue;
-				
-				// Calculate distance and direction
+
 				int distance = std::max(std::abs(dx), std::abs(dy)); // Chebyshev distance
-				
-				// Determine direction
 				std::string direction;
 				if (dy < 0 && dx == 0) direction = "north";
 				else if (dy > 0 && dx == 0) direction = "south";
@@ -789,11 +782,9 @@ void AdventureMapShortcuts::announceLandmarks()
 				else if (dy < 0 && dx > 0) direction = "northeast";
 				else if (dy > 0 && dx < 0) direction = "southwest";
 				else if (dy > 0 && dx > 0) direction = "southeast";
-				
-				// Determine priority based on object type
+	
 				int priority = OTHER;
-				
-				// Special handling for heroes
+
 				if (obj->ID == MapObjectID::HERO)
 				{
 					const auto* heroObj = dynamic_cast<const CGHeroInstance*>(obj);
@@ -888,10 +879,8 @@ void AdventureMapShortcuts::announceLandmarks()
 		}
 	}
 	
-	// Sort landmarks by priority and distance
 	std::sort(landmarks.begin(), landmarks.end());
 	
-	// Build announcement string
 	std::string announcement;
 	
 	if (landmarks.empty())
@@ -901,21 +890,15 @@ void AdventureMapShortcuts::announceLandmarks()
 	else
 	{
 		announcement = "";
-		
-		// Announce up to 5 most important landmarks
 		int count = 0;
 		for (const auto& landmark : landmarks)
 		{
-			if (count >= 5)
-				break;
-				
 			if (count > 0)
 				announcement += "; ";
-			
+
 			announcement += landmark.obj->getObjectName();
 			announcement += " " + std::to_string(landmark.distance) + " tiles " + landmark.direction;
-			
-			// Add additional info for certain object types
+
 			if (landmark.obj->ID == MapObjectID::MONSTER)
 			{
 				announcement += " (threat)";
@@ -936,13 +919,6 @@ void AdventureMapShortcuts::announceLandmarks()
 			
 			count++;
 		}
-		
-		if (landmarks.size() > 5)
-		{
-			announcement += "; and " + std::to_string(landmarks.size() - 5) + " more objects";
-		}
 	}
-	
-	// Announce via accessibility manager
 	AccessibilityManager::getInstance().announce(announcement, true);
 }
