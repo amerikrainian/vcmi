@@ -93,6 +93,9 @@ CArtPlace::CArtPlace(Point position, const ArtifactID & artId, const SpellID & s
 	image = std::make_shared<CAnimImage>(AnimationPath::builtin("artifact"), 0);
 	setArtifact(artId, spellId);
 	moveSelectionForeground();
+	
+	// Enable keyboard navigation
+	addUsedEvents(KEYBOARD);
 }
 
 void CArtPlace::setArtifact(const SpellID & newSpellId)
@@ -154,6 +157,18 @@ void CArtPlace::setArtifact(const ArtifactID & newArtId, const SpellID & newSpel
 ArtifactID CArtPlace::getArtifactId() const
 {
 	return artId;
+}
+
+void CArtPlace::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+	{
+		clickPressed(pos.center());
+	}
+	else if(key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
 }
 
 CCommanderArtPlace::CCommanderArtPlace(Point position, const CGHeroInstance * commanderOwner, ArtifactPosition artSlot,

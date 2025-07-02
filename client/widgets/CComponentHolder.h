@@ -45,6 +45,7 @@ public:
 	bool isLocked() const;
 	void addCombinedArtInfo(const std::map<const ArtifactID, std::vector<ArtifactID>> & arts);
 	void addChargedArtInfo(const uint16_t charges);
+	void keyPressed(EShortcut key) override;
 
 private:
 	ArtifactID artId;

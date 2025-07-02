@@ -2111,7 +2111,7 @@ CBuildWindow::CBuildWindow(const CGTownInstance *Town, const CBuilding * Buildin
 	cost->setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("list")
 		.withName("Resource Costs")
-		.withDescription("Resources required to build this structure")
+		.withDescription("Resources required: " + building->resources.toHumanReadable())
 		.withTabOrder(3));
 
 	if(!rightClick)
@@ -2147,13 +2147,39 @@ CBuildWindow::CBuildWindow(const CGTownInstance *Town, const CBuilding * Buildin
 	std::string announcement = "Building information: " + building->getNameTranslated() + ". ";
 	announcement += building->getDescriptionTranslated() + " ";
 	announcement += "Status: " + getTextForState(state);
+	
+	// Add resource costs in human-readable format
+	if(!building->resources.empty())
+	{
+		announcement += ". Cost: " + building->resources.toHumanReadable();
+	}
+	
 	AccessibilityManager::getInstance().announce(announcement, true);
 }
 
 void CBuildWindow::buyFunc()
 {
-	GAME->interface()->cb->buildBuilding(town,building->bid);
-	ENGINE->windows().popWindows(2); //we - build window and hall screen
+	// Get the current building state
+	EBuildingState state = GAME->interface()->cb->canBuildStructure(town, building->bid);
+	
+	// Try to build - will only succeed if state is ALLOWED
+	bool buildSucceeded = GAME->interface()->cb->buildBuilding(town,building->bid);
+	
+	if(buildSucceeded)
+	{
+		ENGINE->windows().popWindows(2); //we - build window and hall screen
+	}
+	else
+	{
+		// Building failed - show appropriate error message to the user
+		std::string errorMessage = getTextForState(state);
+		if(errorMessage.empty())
+		{
+			// Fallback error message if state text is empty
+			errorMessage = "Cannot build " + building->getNameTranslated() + " at this time.";
+		}
+		GAME->interface()->showInfoDialog(errorMessage);
+	}
 }
 
 std::string CBuildWindow::getTextForState(EBuildingState state)

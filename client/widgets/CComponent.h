@@ -62,6 +62,8 @@ public:
 	CComponent(const Component &c, ESize imageSize=large, EFonts font = FONT_SMALL);
 
 	void showPopupWindow(const Point & cursorPosition) override; //call-in
+	bool isFocusable() const override { return true; }
+	void keyPressed(EShortcut key) override;
 };
 
 /// component that can be selected or deselected
@@ -78,6 +80,7 @@ public:
 
 	void clickPressed(const Point & cursorPosition) override; //call-in
 	void clickDouble(const Point & cursorPosition) override; //call-in
+	void keyPressed(EShortcut key) override;
 	CSelectableComponent(ComponentType Type, ComponentSubType Sub, int Val, ESize imageSize=large, std::function<void()> OnSelect = nullptr);
 	CSelectableComponent(const Component & c, std::function<void()> OnSelect = nullptr);
 };

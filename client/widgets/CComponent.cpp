@@ -16,6 +16,8 @@
 #include "../gui/CursorHandler.h"
 #include "../gui/TextAlignment.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
+#include "../gui/CIntObject.h"
 #include "../render/Canvas.h"
 #include "../render/IFont.h"
 #include "../render/IRenderHandler.h"
@@ -61,7 +63,7 @@ void CComponent::init(ComponentType Type, ComponentSubType Subtype, std::optiona
 {
 	OBJECT_CONSTRUCTION;
 
-	addUsedEvents(SHOW_POPUP);
+	addUsedEvents(SHOW_POPUP | KEYBOARD);
 
 	data.type = Type;
 	data.subType = Subtype;
@@ -112,6 +114,15 @@ void CComponent::init(ComponentType Type, ComponentSubType Subtype, std::optiona
 		}
 		lines.push_back(label);
 	}
+	
+	// Set accessibility info
+	std::string accessibilityName = getDescription();
+	std::string accessibilityDescription = getSubtitle();
+	
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("component")
+		.withName(accessibilityName)
+		.withDescription(accessibilityDescription));
 }
 
 std::vector<AnimationPath> CComponent::getFileName() const
@@ -340,6 +351,14 @@ void CComponent::showPopupWindow(const Point & cursorPosition)
 		CRClickPopup::createAndPush(getDescription());
 }
 
+void CComponent::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::MOUSE_RIGHT)
+	{
+		showPopupWindow(pos.center());
+	}
+}
+
 void CSelectableComponent::clickPressed(const Point & cursorPosition)
 {
 	if(onSelect)
@@ -357,6 +376,12 @@ void CSelectableComponent::clickDouble(const Point & cursorPosition)
 		if (onChoose)
 			onChoose();
 	}
+}
+
+void CSelectableComponent::keyPressed(EShortcut key)
+{
+	// Call parent implementation
+	CComponent::keyPressed(key);
 }
 
 void CSelectableComponent::init()
