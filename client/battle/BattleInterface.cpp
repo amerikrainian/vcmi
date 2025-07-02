@@ -239,6 +239,22 @@ void BattleInterface::stackMoved(const CStack *stack, const BattleHexArray & des
 		stacksController->stackTeleported(stack, destHex, distance);
 	else
 		stacksController->stackMoved(stack, destHex, distance);
+	
+	// Announce movement to screen reader
+	if (accessibilityController && stack && !destHex.empty())
+	{
+		std::string announcement = stack->unitType()->getNamePluralTranslated();
+		if (teleport)
+			announcement += " teleported to ";
+		else
+			announcement += " moved to ";
+		
+		// Get coordinates of final destination (1-based)
+		BattleHex finalHex = destHex.back();
+		announcement += std::to_string(finalHex.getX() + 1) + ", " + std::to_string(finalHex.getY() + 1);
+		
+		accessibilityController->announceCombatEvent(announcement);
+	}
 }
 
 void BattleInterface::stacksAreAttacked(std::vector<StackAttackedInfo> attackedInfos)
@@ -650,6 +666,12 @@ void BattleInterface::endAction(const BattleAction &action)
 void BattleInterface::appendBattleLog(const std::string & newEntry)
 {
 	console->addText(newEntry);
+	
+	// Announce combat events to screen reader
+	if (accessibilityController && !newEntry.empty())
+	{
+		accessibilityController->announceCombatEvent(newEntry);
+	}
 }
 
 void BattleInterface::startAction(const BattleAction & action)
