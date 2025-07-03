@@ -60,6 +60,9 @@ protected:
 	virtual void updateShowcases();
 	virtual MarketShowcasesParams getShowcasesParams() const = 0;
 	virtual void highlightingChanged();
+	
+	// Keyboard navigation
+	void keyPressed(EShortcut key) override;
 };
 
 // Market subclasses

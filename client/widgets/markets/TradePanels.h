@@ -42,7 +42,7 @@ public:
 	void hover(bool on) override;
 	void clickPressed(const Point & cursorPosition) override;
 	void keyPressed(EShortcut key) override;
-	bool isFocusable() const override { return id >= 0; }
+	bool isFocusable() const override { return false; } // Individual items not Tab-focusable
 	void onFocusGained() override;
 	void onFocusLost() override;
 	CTradeableItem(const Rect & area, EType Type, int32_t ID, int32_t serial);
@@ -73,9 +73,14 @@ public:
 	
 	// Keyboard navigation support
 	void keyPressed(EShortcut key) override;
+	bool captureThisKey(EShortcut key) override;
+	void handleArrowKeyNavigation(EShortcut key);
 	void moveFocusToSlot(int newIndex);
 	void setupKeyboardNavigation();
 	bool isFocusable() const override { return !slots.empty(); }
+	void onFocusGained() override;
+	void onFocusLost() override;
+	void setTabOrder(int order);
 };
 
 class ResourcesPanel : public TradePanelBase

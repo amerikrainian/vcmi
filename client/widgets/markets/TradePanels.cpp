@@ -350,6 +350,13 @@ void TradePanelBase::onSlotClickPressed(const std::shared_ptr<CTradeableItem> & 
 		highlightedSlot->selectSlot(false);
 	highlightedSlot = newSlot;
 	newSlot->selectSlot(true);
+	
+	// Announce selection
+	if(newSlot->getAccessibilityInfo())
+	{
+		std::string announcement = "Selected: " + newSlot->getAccessibilityInfo()->name;
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }
 
 bool TradePanelBase::isHighlighted() const
@@ -357,7 +364,62 @@ bool TradePanelBase::isHighlighted() const
 	return highlightedSlot != nullptr;
 }
 
+bool TradePanelBase::captureThisKey(EShortcut key)
+{
+	// Don't capture Tab navigation keys - let the focus system handle them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return false;
+		
+	// Only capture keys when this panel has focus
+	if (!hasFocus())
+		return false;
+		
+	// Capture arrow keys and accept key
+	return key == EShortcut::MOVE_UP || 
+	       key == EShortcut::MOVE_DOWN ||
+	       key == EShortcut::MOVE_LEFT ||
+	       key == EShortcut::MOVE_RIGHT ||
+	       key == EShortcut::MOVE_FIRST ||
+	       key == EShortcut::MOVE_LAST ||
+	       key == EShortcut::GLOBAL_ACCEPT;
+}
+
 void TradePanelBase::keyPressed(EShortcut key)
+{
+	// Only handle keys if this panel has focus
+	if(!hasFocus())
+	{
+		CIntObject::keyPressed(key);
+		return;
+	}
+	
+	// Only handle arrow keys and Enter when focused - let Tab pass through to parent
+	switch(key)
+	{
+		case EShortcut::MOVE_UP:
+		case EShortcut::MOVE_DOWN:
+		case EShortcut::MOVE_LEFT:
+		case EShortcut::MOVE_RIGHT:
+		case EShortcut::MOVE_FIRST:
+		case EShortcut::MOVE_LAST:
+			handleArrowKeyNavigation(key);
+			break;
+		case EShortcut::GLOBAL_ACCEPT:
+			// Enter key selects the focused item
+			if(focusedSlotIndex >= 0 && focusedSlotIndex < slots.size() && slots[focusedSlotIndex]->id >= 0)
+			{
+				// Trigger the actual click callback, not just selection
+				slots[focusedSlotIndex]->clickPressed(slots[focusedSlotIndex]->pos.center());
+			}
+			break;
+		default:
+			// Let other keys (including Tab) pass through
+			CIntObject::keyPressed(key);
+			break;
+	}
+}
+
+void TradePanelBase::handleArrowKeyNavigation(EShortcut key)
 {
 	if(slots.empty())
 		return;
@@ -405,8 +467,6 @@ void TradePanelBase::keyPressed(EShortcut key)
 		case EShortcut::MOVE_LAST:
 			newIndex = slots.size() - 1;
 			break;
-		default:
-			return;
 	}
 	
 	// Wrap around horizontally
@@ -464,16 +524,24 @@ void TradePanelBase::setupKeyboardNavigation()
 	// Enable keyboard events for the panel
 	addUsedEvents(KEYBOARD);
 	
-	// Set tab order for all slots
-	int tabOrder = 0;
-	for(auto & slot : slots)
+	// Don't set tab order on individual items - the panel itself is focusable
+}
+
+void TradePanelBase::setTabOrder(int order)
+{
+	auto currentInfo = getAccessibilityInfo();
+	if(currentInfo)
 	{
-		if(slot->id >= 0) // Only assign tab order to valid slots
-		{
-			UIAccessibilityInfo info = slot->getAccessibilityInfo() ? *slot->getAccessibilityInfo() : UIAccessibilityInfo();
-			info.tabOrder = tabOrder++;
-			slot->setAccessibilityInfo(info);
-		}
+		UIAccessibilityInfo newInfo = *currentInfo;
+		newInfo.tabOrder = order;
+		setAccessibilityInfo(newInfo);
+	}
+	else
+	{
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("panel")
+			.withName("Trade panel")
+			.withTabOrder(order));
 	}
 }
 
@@ -492,6 +560,12 @@ ResourcesPanel::ResourcesPanel(const CTradeableItem::ClickPressedFunctor & click
 	updateSlotsCallback = updateSubtitles;
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::RESOURCE, 0, 0);
 	setupKeyboardNavigation();
+	
+	// Set accessibility info for the panel
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("panel")
+		.withName("Resources panel")
+		.withDescription("Use arrow keys to navigate resources"));
 }
 
 ArtifactsPanel::ArtifactsPanel(const CTradeableItem::ClickPressedFunctor & clickPressedCallback,
@@ -596,4 +670,32 @@ ArtifactsAltarPanel::ArtifactsAltarPanel(const CTradeableItem::ClickPressedFunct
 	}
 	showcaseSlot = std::make_shared<CTradeableItem>(Rect(selectedPos, slotDimension), EType::ARTIFACT_TYPE, 0, 0);
 	showcaseSlot->subtitle->moveBy(Point(0, 3));
+}
+
+void TradePanelBase::onFocusGained()
+{
+	CIntObject::onFocusGained();
+	// Panel gained focus - ensure a slot is focused if possible
+	if(focusedSlotIndex < 0 || focusedSlotIndex >= slots.size())
+	{
+		// Find first valid slot
+		for(int i = 0; i < slots.size(); i++)
+		{
+			if(slots[i]->id >= 0)
+			{
+				moveFocusToSlot(i);
+				break;
+			}
+		}
+	}
+}
+
+void TradePanelBase::onFocusLost()
+{
+	CIntObject::onFocusLost();
+	// Panel lost focus - clear slot focus
+	if(focusedSlotIndex >= 0 && focusedSlotIndex < slots.size())
+	{
+		slots[focusedSlotIndex]->setFocus(false);
+	}
 }

@@ -43,6 +43,7 @@ CMarketResources::CMarketResources(const IMarket * market, const CGHeroInstance 
 	dealAccessInfo.role = "button";
 	dealAccessInfo.name = "Make Trade";
 	dealAccessInfo.description = "Complete the resource exchange";
+	dealAccessInfo.tabOrder = 5; // After panels and slider
 	deal->setAccessibilityInfo(dealAccessInfo);
 
 	// Player's resources

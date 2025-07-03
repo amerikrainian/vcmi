@@ -35,6 +35,12 @@ CMarketBase::CMarketBase(const IMarket * market, const CGHeroInstance * hero)
 {
 	// Enable keyboard navigation for the market window
 	addUsedEvents(KEYBOARD);
+	
+	// Set accessibility info for base market
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("market")
+		.withName("Trading interface")
+		.withDescription("Use Tab to switch between panels, arrow keys to navigate items"));
 }
 
 void CMarketBase::deselect()
@@ -70,9 +76,17 @@ void CMarketBase::onSlotClickPressed(const std::shared_ptr<CTradeableItem> & new
 void CMarketBase::update()
 {
 	if(bidTradePanel)
+	{
 		bidTradePanel->update();
+		bidTradePanel->setTabOrder(1); // First tab stop
+	}
 	if(offerTradePanel)
+	{
 		offerTradePanel->update();
+		offerTradePanel->setTabOrder(2); // Second tab stop
+	}
+	
+	// Initial focus will be handled by tab order system
 }
 
 void CMarketBase::updateSubtitlesForBid(EMarketMode marketMode, int bidId)
@@ -226,6 +240,7 @@ CMarketSlider::CMarketSlider(const CSlider::SliderMovingFunctor & movingCallback
 	sliderAccessInfo.role = "slider";
 	sliderAccessInfo.name = "Trade Amount";
 	sliderAccessInfo.description = "Use left/right arrow keys to adjust trade amount";
+	sliderAccessInfo.tabOrder = 3; // After bid and offer panels
 	offerSlider->setAccessibilityInfo(sliderAccessInfo);
 	
 	maxAmount = std::make_shared<CButton>(Point(228, 520), AnimationPath::builtin("IRCBTNS.DEF"), LIBRARY->generaltexth->zelp[596],
@@ -239,6 +254,7 @@ CMarketSlider::CMarketSlider(const CSlider::SliderMovingFunctor & movingCallback
 	maxAccessInfo.role = "button";
 	maxAccessInfo.name = "Maximum Amount";
 	maxAccessInfo.description = "Set trade amount to maximum available";
+	maxAccessInfo.tabOrder = 4; // After slider
 	maxAmount->setAccessibilityInfo(maxAccessInfo);
 }
 
@@ -284,3 +300,12 @@ void CMarketTraderText::highlightingChanged()
 {
 	traderText->setText(getTraderText());
 }
+
+void CMarketBase::keyPressed(EShortcut key)
+{
+	// Let all keys be handled by the focus system and individual components
+	// Panels will handle their own arrow keys when focused
+	// Slider will handle left/right when focused
+	CIntObject::keyPressed(key);
+}
+

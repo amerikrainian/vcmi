@@ -36,7 +36,6 @@ class CSpellWindow : public CWindowObject, public IVideoHolder
 {
 	class SpellArea : public CIntObject
 	{
-		const CSpell * mySpell;
 		int schoolLevel; //range: 0 none, 3 - expert
 		CSpellWindow * owner;
 		std::shared_ptr<CAnimImage> image;
@@ -45,6 +44,7 @@ class CSpellWindow : public CWindowObject, public IVideoHolder
 		std::shared_ptr<CLabel> level;
 		std::shared_ptr<CLabel> cost;
 	public:
+		const CSpell * mySpell;
 		SpellArea(Rect pos, CSpellWindow * owner);
 		~SpellArea();
 		void setSpell(const CSpell * spell);
@@ -52,6 +52,9 @@ class CSpellWindow : public CWindowObject, public IVideoHolder
 		void clickPressed(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
 		void hover(bool on) override;
+		void keyPressed(EShortcut key) override;
+		
+		bool isFocusable() const override { return mySpell != nullptr; }
 	};
 
 	class InteractiveArea : public CIntObject
@@ -141,4 +144,15 @@ public:
 	void keyPressed(EShortcut key) override;
 
 	void show(Canvas & to) override;
+	
+	// Grid navigation
+	int currentSpellIndex = 0; // Current focused spell slot (0-23)
+	int getFocusedRow() const { return currentSpellIndex / getSpellsPerRow(); }
+	int getFocusedCol() const { return currentSpellIndex % getSpellsPerRow(); }
+	int getSpellsPerRow() const { return isBigSpellbook ? 3 : 2; }
+	int getSpellsPerColumn() const { return isBigSpellbook ? 4 : 3; }
+	void navigateSpells(int delta);
+	void setFocusedSpell(int index);
+	void announceCurrentSpell();
+	void navigateToSpell(int row, int col);
 };
