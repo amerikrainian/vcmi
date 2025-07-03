@@ -395,29 +395,8 @@ void CButton::hover (bool on)
 		{
 			ENGINE->statusbar()->write(name);
 			
-			// Announce button to screen reader when hovering
-			if (AccessibilityManager::getInstance().isScreenReaderEnabled())
-			{
-				// If button has accessibility info, use it; otherwise use hover text
-				if (getAccessibilityInfo())
-				{
-					AccessibilityManager::getInstance().announceElement(this);
-				}
-				else if (!name.empty())
-				{
-					// Create temporary accessibility info for the announcement
-					UIAccessibilityInfo tempInfo;
-					tempInfo.role = "button";
-					tempInfo.name = name;
-					if (!helpBox.empty())
-						tempInfo.description = helpBox;
-					
-					// Temporarily set accessibility info for announcement
-					const_cast<CButton*>(this)->setAccessibilityInfo(tempInfo);
-					AccessibilityManager::getInstance().announceElement(this);
-					// Note: We keep the accessibility info set for future use
-				}
-			}
+			// Screen reader announcements are handled by the focus system
+			// to avoid double announcements when using keyboard navigation
 		}
 		else
 			ENGINE->statusbar()->clearIfMatching(name);
