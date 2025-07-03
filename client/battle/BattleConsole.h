@@ -76,4 +76,7 @@ public:
 	void clear() override;
 	void setEnteringMode(bool on) override;
 	void setEnteredText(const std::string & text) override;
+	
+	// Accessibility support
+	const std::vector<std::string> & getLogEntries() const { return logEntries; }
 };

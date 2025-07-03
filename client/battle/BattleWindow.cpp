@@ -11,6 +11,7 @@
 #include "BattleWindow.h"
 
 #include <algorithm>
+#include <boost/algorithm/string/join.hpp>
 #include "BattleAccessibilityController.h"
 #include "BattleActionsController.h"
 #include "BattleConsole.h"
@@ -132,6 +133,11 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_5, [this](){ this->jumpToUnit(4); });
 	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_6, [this](){ this->jumpToUnit(5); });
 	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_7, [this](){ this->jumpToUnit(6); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_8, [this](){ this->jumpToUnit(7); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_9, [this](){ this->jumpToUnit(8); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_10, [this](){ this->jumpToUnit(9); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_11, [this](){ this->jumpToUnit(10); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_UNIT_12, [this](){ this->jumpToUnit(11); });
 
 	// Combat accessibility enemy jump
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_1, [this](){ this->jumpToEnemyUnit(0); });
@@ -141,6 +147,11 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_5, [this](){ this->jumpToEnemyUnit(4); });
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_6, [this](){ this->jumpToEnemyUnit(5); });
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_7, [this](){ this->jumpToEnemyUnit(6); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_8, [this](){ this->jumpToEnemyUnit(7); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_9, [this](){ this->jumpToEnemyUnit(8); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_10, [this](){ this->jumpToEnemyUnit(9); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_11, [this](){ this->jumpToEnemyUnit(10); });
+	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_12, [this](){ this->jumpToEnemyUnit(11); });
 
 	// Combat accessibility unit info
 	addShortcut(EShortcut::BATTLE_INFO_ATTACK_DEFENSE,  [this](){ this->announceUnitInfo(1); });
@@ -149,6 +160,13 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_INFO_STATUS_EFFECTS,  [this](){ this->announceUnitInfo(4); });
 	addShortcut(EShortcut::BATTLE_INFO_ABILITIES,       [this](){ this->announceUnitInfo(5); });
 	addShortcut(EShortcut::BATTLE_INFO_MORALE_LUCK,     [this](){ this->announceUnitInfo(6); });
+	
+	// Combat accessibility turn announcements
+	addShortcut(EShortcut::BATTLE_ANNOUNCE_TURN,  [this](){ this->announceCurrentTurn(); });
+	addShortcut(EShortcut::BATTLE_ANNOUNCE_QUEUE, [this](){ this->announceTurnQueue(); });
+	
+	// Combat log
+	addShortcut(EShortcut::BATTLE_OPEN_LOG, [this](){ this->bOpenBattleLog(); });
 	
 	// Combat accessibility action menu
 	addShortcut(EShortcut::GLOBAL_ACCEPT, [this](){ this->handleAccessibilityEnter(); });
@@ -963,6 +981,34 @@ void BattleWindow::handleAccessibilityEscape()
 	{
 		// Normal escape handling - open battle menu
 		bOptionsf();
+	}
+}
+
+void BattleWindow::announceCurrentTurn()
+{
+	auto* accessibilityController = owner.getAccessibilityController();
+	if (accessibilityController)
+		accessibilityController->announceCurrentTurn();
+}
+
+void BattleWindow::announceTurnQueue()
+{
+	auto* accessibilityController = owner.getAccessibilityController();
+	if (accessibilityController)
+		accessibilityController->announceTurnQueue();
+}
+
+void BattleWindow::bOpenBattleLog()
+{
+	// Check if we can open the log (same conditions as console click)
+	if(!owner.makingTurn() || owner.openingPlaying())
+		return;
+	
+	// Get log entries from console and create the window
+	if(console)
+	{
+		auto logEntries = console->getLogEntries();
+		ENGINE->windows().createAndPushWindow<BattleConsoleWindow>(boost::algorithm::join(logEntries, "\n"));
 	}
 }
 

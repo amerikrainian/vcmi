@@ -16,6 +16,7 @@
 VCMI_LIB_NAMESPACE_BEGIN
 class CStack;
 class CSpell;
+struct CObstacleInstance;
 VCMI_LIB_NAMESPACE_END
 
 class BattleInterface;
@@ -36,16 +37,15 @@ private:
     bool hexNavigationMode;
     bool spellTargetingMode;
     Mode currentMode;
-    
-    // Spell targeting mode state only
+
     const CSpell* targetingSpell;
     
     std::string getAnnouncedCoordinates(BattleHex hex) const;
     std::string formatUnitAnnouncement(const CStack* stack) const;
     std::string getTerrainName(BattleHex hex) const;
+    std::string getObstacleName(const CObstacleInstance* obstacle) const;
     BattleHex::EDir mapKeyToHexDirection(EShortcut key) const;
-    
-    // Simple Enter = Click behavior
+
     void executeClickAction();
     
 public:
@@ -73,4 +73,6 @@ public:
     void announceInitialBattleState();
     void announceTurnStart(const CStack* activeStack);
     void announceActionResult(const std::string& action, bool success);
+    void announceCurrentTurn();
+    void announceTurnQueue();
 };

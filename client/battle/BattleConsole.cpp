@@ -19,6 +19,7 @@
 #include "../eventsSDL/InputHandler.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../render/Canvas.h"
 #include "../render/IFont.h"
 #include "../render/IRenderHandler.h"
@@ -39,12 +40,37 @@ BattleConsoleWindow::BattleConsoleWindow(const std::string & text)
 
 	updateShadow();
 	center();
+	
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Battle Log")
+		.withDescription("Complete battle log history"));
+		
+	// Announce window opening
+	AccessibilityManager::getInstance().announce("Battle log opened. Press arrow keys to scroll through messages", true);
 
 	backgroundTexture = std::make_shared<CFilledTexture>(ImagePath::builtin("DiBoxBck"), Rect(0, 0, pos.w, pos.h));
 	buttonOk = std::make_shared<CButton>(Point(183, 388), AnimationPath::builtin("IOKAY"), CButton::tooltip(), [this](){ close(); }, EShortcut::GLOBAL_ACCEPT);
+	buttonOk->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("OK")
+		.withDescription("Close battle log")
+		.withTabOrder(20));
+		
 	Rect textArea(18, 17, 393, 354);
 	textBoxBackgroundBorder = std::make_shared<TransparentFilledRectangle>(textArea, ColorRGBA(0, 0, 0, 75), ColorRGBA(128, 100, 75));
 	textBox = std::make_shared<CTextBox>(text, textArea.resize(-5), CSlider::BROWN);
+	
+	// Make text box accessible
+	textBox->addUsedEvents(KEYBOARD);
+	textBox->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Battle log messages")
+		.withDescription("Use arrow keys to scroll through battle messages")
+		.withValue(text)
+		.withTabOrder(10));
+		
 	if(textBox->slider)
 		textBox->slider->scrollToMax();
 }

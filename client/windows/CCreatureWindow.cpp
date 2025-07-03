@@ -284,7 +284,18 @@ CStackWindow::BonusLineSection::BonusLineSection(CStackWindow * owner, size_t li
 		Point(214, 2)
 	};
 
-	auto drawBonusSource = [this](int leftRight, Point p, BonusInfo & bi)
+	std::map<BonusSource, std::string> bonusNames = {
+		{BonusSource::ARTIFACT,          LIBRARY->generaltexth->translate("vcmi.bonusSource.artifact")},
+		{BonusSource::ARTIFACT_INSTANCE, LIBRARY->generaltexth->translate("vcmi.bonusSource.artifact")},
+		{BonusSource::CREATURE_ABILITY,  LIBRARY->generaltexth->translate("vcmi.bonusSource.creature")},
+		{BonusSource::SPELL_EFFECT,      LIBRARY->generaltexth->translate("vcmi.bonusSource.spell")},
+		{BonusSource::SECONDARY_SKILL,   LIBRARY->generaltexth->translate("vcmi.bonusSource.hero")},
+		{BonusSource::HERO_SPECIAL,      LIBRARY->generaltexth->translate("vcmi.bonusSource.hero")},
+		{BonusSource::STACK_EXPERIENCE,  LIBRARY->generaltexth->translate("vcmi.bonusSource.commander")},
+		{BonusSource::COMMANDER,         LIBRARY->generaltexth->translate("vcmi.bonusSource.commander")},
+	};
+
+	auto drawBonusSource = [this, &bonusNames](int leftRight, Point p, BonusInfo & bi)
 	{
 		std::map<BonusSource, ColorRGBA> bonusColors = {
 			{BonusSource::ARTIFACT,          Colors::GREEN},
@@ -295,17 +306,6 @@ CStackWindow::BonusLineSection::BonusLineSection(CStackWindow * owner, size_t li
 			{BonusSource::HERO_SPECIAL,      Colors::PURPLE},
 			{BonusSource::STACK_EXPERIENCE,  Colors::CYAN},
 			{BonusSource::COMMANDER,         Colors::CYAN},
-		};
-
-		std::map<BonusSource, std::string> bonusNames = {
-			{BonusSource::ARTIFACT,          LIBRARY->generaltexth->translate("vcmi.bonusSource.artifact")},
-			{BonusSource::ARTIFACT_INSTANCE, LIBRARY->generaltexth->translate("vcmi.bonusSource.artifact")},
-			{BonusSource::CREATURE_ABILITY,  LIBRARY->generaltexth->translate("vcmi.bonusSource.creature")},
-			{BonusSource::SPELL_EFFECT,      LIBRARY->generaltexth->translate("vcmi.bonusSource.spell")},
-			{BonusSource::SECONDARY_SKILL,   LIBRARY->generaltexth->translate("vcmi.bonusSource.hero")},
-			{BonusSource::HERO_SPECIAL,      LIBRARY->generaltexth->translate("vcmi.bonusSource.hero")},
-			{BonusSource::STACK_EXPERIENCE,  LIBRARY->generaltexth->translate("vcmi.bonusSource.commander")},
-			{BonusSource::COMMANDER,         LIBRARY->generaltexth->translate("vcmi.bonusSource.commander")},
 		};
 
 		auto c = bonusColors.count(bi.bonusSource) ? bonusColors[bi.bonusSource] : ColorRGBA(192, 192, 192);
@@ -338,6 +338,20 @@ CStackWindow::BonusLineSection::BonusLineSection(CStackWindow * owner, size_t li
 
 			description[leftRight] = std::make_shared<CMultiLineLabel>(Rect(position.x + 60, position.y + 2, 137, 50), FONT_TINY, ETextAlignment::TOPLEFT, Colors::WHITE, bi.description);
 			drawBonusSource(leftRight, Point(position.x - 1, position.y - 1), bi);
+			
+			// Make the entire bonus area accessible
+			auto accessibleArea = std::make_shared<LRClickableAreaWText>(Rect(position.x, position.y, 190, 52));
+			accessibleArea->text = bi.description;
+			
+			// Set accessibility info with proper tab order
+			std::string bonusSourceName = bonusNames.count(bi.bonusSource) ? bonusNames[bi.bonusSource] : LIBRARY->generaltexth->translate("vcmi.bonusSource.other");
+			accessibleArea->setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("text")
+				.withName(bonusSourceName + ": " + bi.description)
+				.withTabOrder(60 + bonusIndex));
+			
+			// Add the accessible area as a child
+			addChild(accessibleArea.get());
 		}
 	}
 }

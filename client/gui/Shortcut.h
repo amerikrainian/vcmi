@@ -244,6 +244,11 @@ enum class EShortcut
 	BATTLE_JUMP_TO_UNIT_5,   // 5
 	BATTLE_JUMP_TO_UNIT_6,   // 6
 	BATTLE_JUMP_TO_UNIT_7,   // 7
+	BATTLE_JUMP_TO_UNIT_8,   // 8
+	BATTLE_JUMP_TO_UNIT_9,   // 9
+	BATTLE_JUMP_TO_UNIT_10,  // 0
+	BATTLE_JUMP_TO_UNIT_11,  // -
+	BATTLE_JUMP_TO_UNIT_12,  // =
 	
 	// Combat accessibility enemy jumps
 	BATTLE_JUMP_TO_ENEMY_1,   // Shift+1
@@ -253,14 +258,24 @@ enum class EShortcut
 	BATTLE_JUMP_TO_ENEMY_5,   // Shift+5
 	BATTLE_JUMP_TO_ENEMY_6,   // Shift+6
 	BATTLE_JUMP_TO_ENEMY_7,   // Shift+7
+	BATTLE_JUMP_TO_ENEMY_8,   // Shift+8
+	BATTLE_JUMP_TO_ENEMY_9,   // Shift+9
+	BATTLE_JUMP_TO_ENEMY_10,  // Shift+0
+	BATTLE_JUMP_TO_ENEMY_11,  // Shift+-
+	BATTLE_JUMP_TO_ENEMY_12,  // Shift+=
 
 	// Combat accessibility info
 	BATTLE_INFO_ATTACK_DEFENSE,  // F1
 	BATTLE_INFO_DAMAGE_SPEED,    // F2
 	BATTLE_INFO_HEALTH_SHOTS,    // F3
-	BATTLE_INFO_STATUS_EFFECTS,  // F4
-	BATTLE_INFO_ABILITIES,       // F5
+	BATTLE_INFO_STATUS_EFFECTS,  // F4 - Reserved (use right-click for full info)
+	BATTLE_INFO_ABILITIES,       // F5 - Reserved (use right-click for full info)
 	BATTLE_INFO_MORALE_LUCK,     // F6
+	
+	// Additional combat accessibility shortcuts
+	BATTLE_ANNOUNCE_TURN,        // T
+	BATTLE_ANNOUNCE_QUEUE,       // I
+	BATTLE_OPEN_LOG,            // Shift+L
 
 	MARKET_DEAL,
 	MARKET_MAX_AMOUNT,

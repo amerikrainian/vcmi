@@ -62,6 +62,7 @@ class BattleWindow : public InterfaceObjectConfigurable
 	void bTacticPhaseEnd();
 	void bOpenActiveUnit();
 	void bOpenHoveredUnit();
+	void bOpenBattleLog();
 
 	/// Combat accessibility functions
 	void jumpToUnit(int index);
@@ -69,6 +70,8 @@ class BattleWindow : public InterfaceObjectConfigurable
 	void announceUnitInfo(int detailLevel);
 	void handleAccessibilityEnter();
 	void handleAccessibilityEscape();
+	void announceCurrentTurn();
+	void announceTurnQueue();
 
 	/// functions for handling actions after they were confirmed by popup window
 	void reallyFlee();

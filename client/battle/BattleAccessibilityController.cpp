@@ -28,6 +28,7 @@
 #include "../../lib/CStack.h"
 #include "../../lib/GameSettings.h"
 #include "../../lib/constants/Enumerations.h"
+#include "../../lib/CConfigHandler.h"
 
 BattleAccessibilityController::BattleAccessibilityController(BattleInterface & owner)
     : owner(owner)
@@ -117,6 +118,73 @@ std::string BattleAccessibilityController::getTerrainName(BattleHex hex) const
     // This will be expanded once we have access to battlefield terrain info
     // For now, return empty string
     return "";
+}
+
+std::string BattleAccessibilityController::getObstacleName(const CObstacleInstance* obstacle) const
+{
+    if (!obstacle)
+        return "obstacle";
+    
+    // Handle special obstacle types first
+    if (obstacle->obstacleType == CObstacleInstance::MOAT)
+        return "moat";
+    
+    // For spell-created obstacles
+    if (obstacle->obstacleType == CObstacleInstance::SPELL_CREATED)
+    {
+        auto spellObstacle = dynamic_cast<const SpellCreatedObstacle*>(obstacle);
+        if (spellObstacle && spellObstacle->trigger != SpellID::NONE)
+        {
+            // Use spell name for spell-created obstacles (Fire Wall, Force Field, etc.)
+            // For now, just return a generic name since we can't access VLC here
+            if (spellObstacle->trigger == SpellID::FIRE_WALL)
+                return "fire wall";
+            else if (spellObstacle->trigger == SpellID::FORCE_FIELD)
+                return "force field";
+            else
+                return "magical obstacle";
+        }
+    }
+    
+    // For regular obstacles, parse the animation name
+    std::string animName = obstacle->getAnimation().getName();
+    
+    // Remove file extension if present
+    size_t dotPos = animName.find('.');
+    if (dotPos != std::string::npos)
+        animName = animName.substr(0, dotPos);
+    
+    // Convert animation prefixes to descriptive names
+    if (animName.find("ObDino") == 0) return "dinosaur bones";
+    if (animName.find("ObSkel") == 0) return "skeleton";
+    if (animName.find("ObStump") == 0) return "tree stump";
+    if (animName.find("ObCrys") == 0) return "crystal";
+    if (animName.find("ObDRck") == 0 || animName.find("ObDRk") == 0) return "dark rock";
+    if (animName.find("ObLRck") == 0) return "large rock";
+    if (animName.find("ObRock") == 0) return "rock";
+    if (animName.find("ObStne") == 0) return "stone";
+    if (animName.find("ObTree") == 0) return "tree";
+    if (animName.find("ObDead") == 0) return "dead tree";
+    if (animName.find("ObBone") == 0) return "bones";
+    if (animName.find("ObShip") == 0) return "shipwreck";
+    if (animName.find("ObBrsh") == 0) return "brush";
+    if (animName.find("ObCact") == 0) return "cactus";
+    if (animName.find("ObKetl") == 0) return "kettle";
+    if (animName.find("ObTent") == 0) return "tent";
+    if (animName.find("ObCart") == 0) return "cart";
+    if (animName.find("ObBrl") == 0) return "barrel";
+    if (animName.find("ObSign") == 0) return "sign";
+    if (animName.find("ObGrss") == 0) return "grass";
+    if (animName.find("ObSnag") == 0) return "snag";
+    if (animName.find("ObLog") == 0) return "log";
+    if (animName.find("ObMoss") == 0) return "moss";
+    if (animName.find("ObBhS") == 0) return "battlefield structure";
+    if (animName.find("ObWall") == 0) return "wall";
+    if (animName.find("ObLava") == 0) return "lava";
+    if (animName.find("ObCld") == 0) return "cloud";
+    
+    // Default to generic "obstacle" if no match
+    return "obstacle";
 }
 
 BattleHex::EDir BattleAccessibilityController::mapKeyToHexDirection(EShortcut key) const
@@ -243,7 +311,7 @@ void BattleAccessibilityController::announceHexContent(BattleHex hex)
     {
         if (obstacle->getBlockedTiles().contains(hex))
         {
-            announcement += ", obstacle";
+            announcement += ", " + getObstacleName(obstacle.get());
             break;
         }
     }
@@ -307,16 +375,14 @@ void BattleAccessibilityController::announceUnitInfo(const CStack* stack, int de
                 announcement += ", Shots " + std::to_string(stack->shots.available());
             break;
             
-        case 4: // F4 - Status effects
-            announcement = stack->unitType()->getNameSingularTranslated() + ": ";
-            // TODO: List all active effects with durations
-            announcement += "No active effects";
+        case 4: // F4 - Reserved (was Status effects - now use right-click for full info)
+            announcement = stack->unitType()->getNameSingularTranslated() + 
+                          ": Press Enter or right-click for detailed information";
             break;
             
-        case 5: // F5 - Special abilities
-            announcement = stack->unitType()->getNameSingularTranslated() + ": ";
-            // TODO: List special abilities
-            announcement += "Special abilities";
+        case 5: // F5 - Reserved (was Special abilities - now use right-click for full info)
+            announcement = stack->unitType()->getNameSingularTranslated() + 
+                          ": Press Enter or right-click for detailed information";
             break;
             
         case 6: // F6 - Morale and Luck
@@ -469,4 +535,79 @@ void BattleAccessibilityController::executeClickAction()
     owner.actionsController->onHexLeftClicked(currentHex);
 }
 
-// All complex action selection logic removed - now we just use Enter = Left Click!
+void BattleAccessibilityController::announceCurrentTurn()
+{
+    const auto* activeUnit = owner.getBattle()->battleActiveUnit();
+    if (!activeUnit)
+    {
+        AccessibilityManager::getInstance().announce("No active unit");
+        return;
+    }
+    
+    const CStack* activeStack = dynamic_cast<const CStack*>(activeUnit);
+    if (!activeStack)
+        return;
+    
+    std::string announcement = "Current turn: " + formatUnitAnnouncement(activeStack);
+    AccessibilityManager::getInstance().announce(announcement);
+}
+
+void BattleAccessibilityController::announceTurnQueue()
+{
+    int maxUnitsToAnnounce = 10; // Default to big queue size
+    
+    std::string queueSizeMode = settings["battle"]["queueSize"].String();
+    bool embedQueue = false;
+    
+    if (queueSizeMode == "auto")
+        embedQueue = ENGINE->screenDimensions().y < 700;
+    else if (queueSizeMode == "small")
+        embedQueue = true;
+    
+    if (embedQueue)
+    {
+        maxUnitsToAnnounce = std::clamp(static_cast<int>(settings["battle"]["queueSmallSlots"].Float()), 1, 19);
+    }
+    
+    std::vector<battle::Units> queue;
+    owner.getBattle()->battleGetTurnOrder(queue, maxUnitsToAnnounce, 10); // Get units over multiple turns
+    if (queue.empty() || queue[0].empty())
+    {
+        AccessibilityManager::getInstance().announce("No units in turn queue");
+        return;
+    }
+    
+    std::string announcement = "Turn queue: ";
+    
+    int position = 1;
+    for (const auto& turnUnits : queue)
+    {
+        for (const auto* unit : turnUnits)
+        {
+            if (position > maxUnitsToAnnounce)
+                break;
+                
+            const CStack* stack = dynamic_cast<const CStack*>(unit);
+            if (stack)
+            {
+                if (position > 1)
+                    announcement += ", ";
+                
+                announcement += std::to_string(position) + ". ";
+                
+                announcement += std::to_string(stack->getCount()) + " ";
+                auto activeUnit = owner.getBattle()->battleActiveUnit();
+                if (activeUnit && stack->unitSide() != activeUnit->unitSide())
+                    announcement += "enemy ";
+                announcement += stack->unitType()->getNamePluralTranslated();
+                
+                position++;
+            }
+        }
+        if (position > maxUnitsToAnnounce)
+            break;
+    }
+    
+    AccessibilityManager::getInstance().announce(announcement);
+}
+

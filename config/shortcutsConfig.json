@@ -93,6 +93,7 @@
 		"battleToggleQueue":        "Z",
 		"battleUseCreatureSpell":   ["F", "G"],
 		"battleWait":               "W",
+		"battleOpenLog":            "Shift+L",
 		"exchangeArmySwap":         ["F10", "Q"],
 		"exchangeArmyToLeft":       [],
 		"exchangeArmyToRight":      [],
@@ -390,6 +391,7 @@
 		"battleToggleQueue":        "Ctrl+Z",
 		"battleSurrender":          "Ctrl+S",
 		"battleCastSpell":          "Ctrl+C",
+		"battleToggleQuickSpell":   "Ctrl+T",
 		
 		// Combat accessibility hex navigation
 		"battleHexUpLeft":          "Q",
@@ -415,6 +417,11 @@
 		"battleJumpToUnit5":        "5",
 		"battleJumpToUnit6":        "6",
 		"battleJumpToUnit7":        "7",
+		"battleJumpToUnit8":        "8",
+		"battleJumpToUnit9":        "9",
+		"battleJumpToUnit10":       "0",
+		"battleJumpToUnit11":       "-",
+		"battleJumpToUnit12":       "=",
 		
 		// Combat accessibility enemy jumps
 		"battleJumpToEnemy1":       "Shift+1",
@@ -424,6 +431,11 @@
 		"battleJumpToEnemy5":       "Shift+5",
 		"battleJumpToEnemy6":       "Shift+6",
 		"battleJumpToEnemy7":       "Shift+7",
+		"battleJumpToEnemy8":       "Shift+8",
+		"battleJumpToEnemy9":       "Shift+9",
+		"battleJumpToEnemy10":      "Shift+0",
+		"battleJumpToEnemy11":      "Shift+-",
+		"battleJumpToEnemy12":      "Shift+=",
 		
 		// Combat accessibility info
 		"battleInfoAttackDefense":  "F1",
@@ -431,6 +443,13 @@
 		"battleInfoHealthShots":    "F3",
 		"battleInfoStatusEffects":  "F4",
 		"battleInfoAbilities":      "F5",
-		"battleInfoMoraleLuck":     "F6"
+		"battleInfoMoraleLuck":     "F6",
+		
+		// Turn and queue announcements
+		"battleAnnounceTurn":       "T",
+		"battleAnnounceQueue":      "I",
+		
+		// Combat log
+		"battleOpenLog":            "Shift+L"
 	}
 }
