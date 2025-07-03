@@ -38,6 +38,7 @@
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../adventureMap/AdventureMapInterface.h"
 
 #include "../../lib/CConfigHandler.h"
@@ -72,6 +73,12 @@ CBonusSelection::CBonusSelection()
 	OBJECT_CONSTRUCTION;
 
 	setBackground(getCampaign()->getRegions().getBackgroundName());
+	
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName("Campaign Scenario Selection")
+		.withDescription("First select a scenario on the map, then choose a starting bonus, and finally click Start"));
 
 	panelBackground = std::make_shared<CPicture>(ImagePath::builtin("CAMPBRF.BMP"), 456, 6);
 
@@ -88,6 +95,31 @@ CBonusSelection::CBonusSelection()
 	buttonRestart = std::make_shared<CButton>(Point(475, 536), AnimationPath::builtin("CBRESTB.DEF"), CButton::tooltip(), std::bind(&CBonusSelection::restartMap, this), EShortcut::GLOBAL_ACCEPT);
 	buttonVideo = std::make_shared<CButton>(Point(705, 214), AnimationPath::builtin("CBVIDEB.DEF"), CButton::tooltip(), playVideo, EShortcut::LOBBY_REPLAY_VIDEO);
 	buttonBack = std::make_shared<CButton>(Point(624, 536), AnimationPath::builtin("CBCANCB.DEF"), CButton::tooltip(), std::bind(&CBonusSelection::goBack, this), EShortcut::GLOBAL_CANCEL);
+	
+	// Set accessibility info for buttons
+	buttonStart->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Start")
+		.withDescription("Start the selected campaign scenario")
+		.withTabOrder(1));
+		
+	buttonRestart->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Restart")
+		.withDescription("Restart the campaign scenario")
+		.withTabOrder(1));
+		
+	buttonVideo->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Play Video")
+		.withDescription("Play the campaign introduction video")
+		.withTabOrder(2));
+		
+	buttonBack->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Back")
+		.withDescription("Return to campaign selection")
+		.withTabOrder(3));
 
 	campaignName = std::make_shared<CLabel>(481, 28, FONT_BIG, ETextAlignment::TOPLEFT, Colors::YELLOW, GAME->server().si->getCampaignName(), 250);
 
@@ -125,6 +157,19 @@ CBonusSelection::CBonusSelection()
 
 		buttonDifficultyLeft = std::make_shared<CButton>(posLeft, AnimationPath::builtin("SCNRBLF.DEF"), CButton::tooltip(), std::bind(&CBonusSelection::decreaseDifficulty, this), EShortcut::MOVE_LEFT);
 		buttonDifficultyRight = std::make_shared<CButton>(posRight, AnimationPath::builtin("SCNRBRT.DEF"), CButton::tooltip(), std::bind(&CBonusSelection::increaseDifficulty, this), EShortcut::MOVE_RIGHT);
+		
+		// Set accessibility info for difficulty buttons
+		buttonDifficultyLeft->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Decrease difficulty")
+			.withDescription("Select an easier difficulty level")
+			.withTabOrder(10));
+			
+		buttonDifficultyRight->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Increase difficulty")
+			.withDescription("Select a harder difficulty level")
+			.withTabOrder(11));
 	}
 
 	for(auto scenarioID : getCampaign()->allScenarios())
@@ -148,6 +193,13 @@ CBonusSelection::CBonusSelection()
 		tabExtraOptions->setEnabled(false);
 		buttonExtraOptions = std::make_shared<CButton>(Point(643, 431), AnimationPath::builtin("GSPBUT2.DEF"), LIBRARY->generaltexth->zelp[46], [this]{ tabExtraOptions->setEnabled(!tabExtraOptions->isActive()); ENGINE->windows().totalRedraw(); }, EShortcut::LOBBY_EXTRA_OPTIONS);
 		buttonExtraOptions->setTextOverlay(LIBRARY->generaltexth->translate("vcmi.optionsTab.extraOptions.hover"), FONT_SMALL, Colors::WHITE);
+		
+		// Set accessibility info for extra options button
+		buttonExtraOptions->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Extra Options")
+			.withDescription(LIBRARY->generaltexth->zelp[46].second)
+			.withTabOrder(12));
 	}
 }
 
@@ -379,6 +431,14 @@ void CBonusSelection::createBonusesIcons()
 
 		if(GAME->server().campaignBonus == i)
 			bonusButton->setBorderColor(Colors::BRIGHT_YELLOW);
+			
+		// Set accessibility info for bonus button
+		bonusButton->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("togglebutton")
+			.withName("Starting bonus " + std::to_string(i + 1))
+			.withDescription(desc.toString())
+			.withTabOrder(40 + i));
+			
 		groupBonuses->addToggle(i, bonusButton);
 	}
 
@@ -540,7 +600,7 @@ void CBonusSelection::decreaseDifficulty()
 }
 
 CBonusSelection::CRegion::CRegion(CampaignScenarioID id, bool accessible, bool selectable, bool labelOnly, const CampaignRegions & campDsc)
-	: CIntObject(LCLICK | SHOW_POPUP | TIME), idOfMapAndRegion(id), accessible(accessible), selectable(selectable), labelOnly(labelOnly), blinkAnim({})
+	: CIntObject(LCLICK | SHOW_POPUP | TIME | KEYBOARD), idOfMapAndRegion(id), accessible(accessible), selectable(selectable), labelOnly(labelOnly), blinkAnim({})
 {
 	OBJECT_CONSTRUCTION;
 
@@ -562,6 +622,21 @@ CBonusSelection::CRegion::CRegion(CampaignScenarioID id, bool accessible, bool s
 	{
 		auto mapHeader = GAME->server().si->campState->getMapHeader(idOfMapAndRegion);
 		label = std::make_shared<CLabel>((*labelPos).x, (*labelPos).y, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, mapHeader->name.toString());
+	}
+	
+	// Set accessibility info for the region
+	if(selectable && !labelOnly)
+	{
+		auto mapHeader = GAME->server().si->campState->getMapHeader(idOfMapAndRegion);
+		std::string state = accessible ? (GAME->server().campaignMap == idOfMapAndRegion ? "selected" : "available") : "completed";
+		std::string desc = accessible ? "Click to select this scenario" : "This scenario has been completed";
+		
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(mapHeader->name.toString())
+			.withDescription(desc)
+			.withState(state)
+			.withTabOrder(20 + id));
 	}
 }
 
@@ -624,6 +699,11 @@ void CBonusSelection::CRegion::clickReleased(const Point & cursorPosition)
 	if(!labelOnly && selectable && !graphicsNotSelected->getSurface()->isTransparent(cursorPosition - pos.topLeft()))
 	{
 		GAME->server().setCampaignMap(idOfMapAndRegion);
+		
+		// Announce scenario selection
+		auto mapHeader = GAME->server().si->campState->getMapHeader(idOfMapAndRegion);
+		std::string announcement = "Selected scenario: " + mapHeader->name.toString() + ". Now choose a starting bonus below.";
+		AccessibilityManager::getInstance().announce(announcement);
 	}
 }
 
@@ -634,5 +714,21 @@ void CBonusSelection::CRegion::showPopupWindow(const Point & cursorPosition)
 	if(!labelOnly && !graphicsNotSelected->getSurface()->isTransparent(cursorPosition - pos.topLeft()) && !text.empty())
 	{
 		CRClickPopup::createAndPush(text.toString());
+	}
+}
+
+void CBonusSelection::CRegion::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::GLOBAL_RETURN)
+	{
+		if(selectable && accessible)
+		{
+			GAME->server().setCampaignMap(idOfMapAndRegion);
+			
+			// Announce scenario selection
+			auto mapHeader = GAME->server().si->campState->getMapHeader(idOfMapAndRegion);
+			std::string announcement = "Selected scenario: " + mapHeader->name.toString() + ". Now choose a starting bonus below.";
+			AccessibilityManager::getInstance().announce(announcement);
+		}
 	}
 }

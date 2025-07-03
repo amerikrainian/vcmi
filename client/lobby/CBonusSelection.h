@@ -64,6 +64,8 @@ public:
 		void tick(uint32_t msPassed) override;
 		void clickReleased(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
+		void keyPressed(EShortcut key) override;
+		bool isFocusable() const override { return selectable && !labelOnly; }
 	};
 
 	void createBonusesIcons();

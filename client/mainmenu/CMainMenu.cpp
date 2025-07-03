@@ -263,7 +263,30 @@ std::shared_ptr<CButton> CMenuEntry::createButton(CMenuScreen * parent, const Js
 		result->moveBy(Point(-result->pos.w/2, -result->pos.h/2));
 
 	// Add accessibility information with tab order
-	addButtonAccessibility(result, help, tabOrder);
+	// Special handling for campaign buttons that lack help text
+	std::string buttonName;
+	if (help.first.empty() && button["command"].String().find("campaigns") == 0)
+	{
+		auto tokens = button["command"].String().find(' ');
+		if (tokens != std::string::npos)
+		{
+			std::string campaignSet = button["command"].String().substr(tokens + 1);
+			if (campaignSet == "sod")
+				buttonName = "Shadow of Death campaigns";
+			else if (campaignSet == "roe")
+				buttonName = "Restoration of Erathia campaigns";
+			else if (campaignSet == "ab")
+				buttonName = "Armageddon's Blade campaigns";
+			else if (campaignSet == "chr")
+				buttonName = "Chronicles campaigns";
+		}
+	}
+	else if (help.first.empty() && button["command"].String() == "start campaign")
+	{
+		buttonName = "Custom campaigns";
+	}
+	
+	addButtonAccessibility(result, help, tabOrder, buttonName);
 
 	return result;
 }
