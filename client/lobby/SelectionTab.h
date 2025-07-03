@@ -97,6 +97,7 @@ public:
 	void clickDouble(const Point & cursorPosition) override;
 	void showPopupWindow(const Point & cursorPosition) override;
 	bool receiveEvent(const Point & position, int eventType) const override;
+	bool captureThisKey(EShortcut key) override;
 
 	void filter(int size, bool selectFirst = false); //0 - all
 	void sortBy(int criteria);
@@ -112,6 +113,9 @@ public:
 	std::shared_ptr<ElementInfo> getSelectedMapInfo() const;
 	void rememberCurrentSelection();
 	void restoreLastSelection();
+	
+	void onFocusGained() override;
+	bool isFocusable() const override { return true; }
 
 private:
 	std::shared_ptr<CPicture> background;

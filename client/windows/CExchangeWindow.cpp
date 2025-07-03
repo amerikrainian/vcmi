@@ -55,6 +55,12 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 
 	heroInst[0] = GAME->interface()->cb->getHero(hero1);
 	heroInst[1] = GAME->interface()->cb->getHero(hero2);
+	
+	// Set accessibility info for the window
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName("Hero Exchange")
+		.withDescription("Exchange troops and artifacts between " + heroInst[0]->getNameTranslated() + " and " + heroInst[1]->getNameTranslated()));
 
 	auto genTitle = [](const CGHeroInstance * h)
 	{
@@ -190,9 +196,26 @@ CExchangeWindow::CExchangeWindow(ObjectInstanceID hero1, ObjectInstanceID hero2,
 	quit = std::make_shared<CButton>(Point(732, 567), AnimationPath::builtin("IOKAY.DEF"), LIBRARY->generaltexth->zelp[600], std::bind(&CExchangeWindow::close, this), EShortcut::GLOBAL_ACCEPT);
 	if(queryID.getNum() > 0)
 		quit->addCallback([=](){ GAME->interface()->cb->selectionMade(0, queryID); });
+	
+	// Set accessibility info for quit button
+	quit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("OK")
+		.withDescription("Close hero exchange window")
+		.withTabOrder(1));
 
 	questlogButton[0] = std::make_shared<CButton>(Point( qeLayout ? 8 : 10, qeLayout ? 39 : 44), AnimationPath::builtin("hsbtns4.def"), CButton::tooltip(LIBRARY->generaltexth->heroscrn[0]), std::bind(&CExchangeWindow::questLogShortcut, this));
 	questlogButton[1] = std::make_shared<CButton>(Point(740, qeLayout ? 39 : 44), AnimationPath::builtin("hsbtns4.def"), CButton::tooltip(LIBRARY->generaltexth->heroscrn[0]), std::bind(&CExchangeWindow::questLogShortcut, this));
+	
+	// Set accessibility info for quest log buttons
+	for(int i = 0; i < 2; i++)
+	{
+		questlogButton[i]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Quest log")
+			.withDescription(LIBRARY->generaltexth->heroscrn[0])
+			.withTabOrder(2 + i));
+	}
 
 	Rect barRect(5, 578, 725, 18);
 	statusbar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), barRect, 5, 578));

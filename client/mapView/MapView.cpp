@@ -264,6 +264,8 @@ PuzzleMapView::PuzzleMapView(const Point & offset, const Point & dimensions, con
 
 void MapView::keyPressed(EShortcut key)
 {
+	logGlobal->trace("MapView::keyPressed - Key pressed: %d", static_cast<int>(key));
+	
 	if (!cursor)
 		return;
 	
@@ -340,9 +342,12 @@ void MapView::keyPressed(EShortcut key)
 		case EShortcut::MAP_CURSOR_CLICK:
 		{
 			// Handle Ctrl+Enter to click on the current cursor position
+			logGlobal->info("MapView::keyPressed - MAP_CURSOR_CLICK shortcut triggered");
+			
 			// Activate cursor if not already active
 			if (!cursor->isActive())
 			{
+				logGlobal->info("MapView::keyPressed - Cursor not active, activating it");
 				cursor->setActive(true);
 				// Set cursor to current hero position if available
 				const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
@@ -351,6 +356,11 @@ void MapView::keyPressed(EShortcut key)
 					cursor->setCursorPosition(hero->visitablePos());
 				}
 			}
+			else
+			{
+				logGlobal->info("MapView::keyPressed - Cursor already active");
+			}
+			
 			cursor->interact();
 			return;
 		}

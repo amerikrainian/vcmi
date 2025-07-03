@@ -161,6 +161,34 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 		
 	generalSortingBy = getSortBySelectionScreen(tabType);
 	sortingBy = _format;
+	
+	// Set accessibility info for the selection tab
+	UIAccessibilityInfo tabInfo;
+	tabInfo.role = "listbox";
+	switch(tabType)
+	{
+		case ESelectionScreen::newGame:
+			tabInfo.name = LIBRARY->generaltexth->translate("core.genrltxt.229"); // "Select a Scenario to Play"
+			tabInfo.description = LIBRARY->generaltexth->translate("vcmi.lobby.selectScenarioDescription");
+			break;
+		case ESelectionScreen::loadGame:
+			tabInfo.name = LIBRARY->generaltexth->translate("core.genrltxt.11"); // "Load Game"
+			tabInfo.description = LIBRARY->generaltexth->translate("vcmi.lobby.selectSaveDescription");
+			break;
+		case ESelectionScreen::saveGame:
+			tabInfo.name = LIBRARY->generaltexth->translate("core.genrltxt.598"); // "Save Game"
+			tabInfo.description = LIBRARY->generaltexth->translate("vcmi.lobby.selectSaveSlotDescription");
+			break;
+		case ESelectionScreen::campaignList:
+			tabInfo.name = LIBRARY->generaltexth->translate("core.genrltxt.508"); // "Select a Campaign"
+			tabInfo.description = LIBRARY->generaltexth->translate("vcmi.lobby.selectCampaignDescription");
+			break;
+		default:
+			tabInfo.name = "Selection List";
+			break;
+	}
+	tabInfo.tabOrder = 50;
+	setAccessibilityInfo(tabInfo);
 
 	bool enableUiEnhancements = settings["general"]["enableUiEnhancements"].Bool();
 
@@ -178,7 +206,20 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 		constexpr std::array filterShortcuts = { EShortcut::MAPS_SIZE_S, EShortcut::MAPS_SIZE_M, EShortcut::MAPS_SIZE_L, EShortcut::MAPS_SIZE_XL, EShortcut::MAPS_SIZE_ALL };
 
 		for(int i = 0; i < 5; i++)
-			buttonsSortBy.push_back(std::make_shared<CButton>(Point(158 + 47 * i, 46), AnimationPath::builtin(filterIconNmes[i]), LIBRARY->generaltexth->zelp[54 + i], std::bind(&SelectionTab::filter, this, sizes[i], true), filterShortcuts[i]));
+		{
+			auto filterButton = std::make_shared<CButton>(Point(158 + 47 * i, 46), AnimationPath::builtin(filterIconNmes[i]), LIBRARY->generaltexth->zelp[54 + i], std::bind(&SelectionTab::filter, this, sizes[i], true), filterShortcuts[i]);
+			
+			// Set accessibility info for map size filter buttons
+			UIAccessibilityInfo filterInfo;
+			filterInfo.role = "togglebutton";
+			const char* filterNames[] = {"Small maps", "Medium maps", "Large maps", "Extra large maps", "All map sizes"};
+			filterInfo.name = filterNames[i];
+			filterInfo.description = LIBRARY->generaltexth->zelp[54 + i].first;
+			filterInfo.tabOrder = 10 + i;
+			filterButton->setAccessibilityInfo(filterInfo);
+			
+			buttonsSortBy.push_back(filterButton);
+		}
 
 		constexpr std::array xpos = {23, 55, 88, 121, 306, 339};
 		constexpr std::array sortIconNames = {"SCBUTT1.DEF", "SCBUTT2.DEF", "SCBUTCP.DEF", "SCBUTT3.DEF", "SCBUTT4.DEF", "SCBUTT5.DEF"};
@@ -189,7 +230,18 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 			if(criteria == _name)
 				criteria = generalSortingBy;
 
-			buttonsSortBy.push_back(std::make_shared<CButton>(Point(xpos[i], 86), AnimationPath::builtin(sortIconNames[i]), LIBRARY->generaltexth->zelp[107 + i], std::bind(&SelectionTab::sortBy, this, criteria), sortShortcuts[i]));
+			auto sortButton = std::make_shared<CButton>(Point(xpos[i], 86), AnimationPath::builtin(sortIconNames[i]), LIBRARY->generaltexth->zelp[107 + i], std::bind(&SelectionTab::sortBy, this, criteria), sortShortcuts[i]);
+			
+			// Set accessibility info for sort buttons
+			UIAccessibilityInfo sortInfo;
+			sortInfo.role = "button";
+			const char* sortNames[] = {"Sort by players", "Sort by map size", "Sort by format", "Sort by name", "Sort by victory condition", "Sort by defeat condition"};
+			sortInfo.name = sortNames[i];
+			sortInfo.description = LIBRARY->generaltexth->zelp[107 + i].first;
+			sortInfo.tabOrder = 20 + i;
+			sortButton->setAccessibilityInfo(sortInfo);
+			
+			buttonsSortBy.push_back(sortButton);
 		}
 	}
 
@@ -248,7 +300,10 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 	}
 
 	for(int i = 0; i < positionsToShow; i++)
-		listItems.push_back(std::make_shared<ListItem>(Point(30, 129 + i * 25)));
+	{
+		auto item = std::make_shared<ListItem>(Point(30, 129 + i * 25));
+		listItems.push_back(item);
+	}
 
 	labelTabTitle = std::make_shared<CLabel>(205, 28, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, tabTitle);
 	slider = std::make_shared<CSlider>(Point(372, 86 + (enableUiEnhancements ? 30 : 0)), (tabType != ESelectionScreen::saveGame ? 480 : 430) - (enableUiEnhancements ? 30 : 0), std::bind(&SelectionTab::sliderMove, this, _1), positionsToShow, (int)curItems.size(), 0, Orientation::VERTICAL, CSlider::BLUE);
@@ -414,6 +469,10 @@ void SelectionTab::keyPressed(EShortcut key)
 	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
 		return;
 	
+	// Only handle keyboard input when this tab has focus
+	if (!hasFocus())
+		return;
+	
 	int moveBy = 0;
 	switch(key)
 	{
@@ -434,6 +493,24 @@ void SelectionTab::keyPressed(EShortcut key)
 		return;
 	case EShortcut::MOVE_LAST:
 		select((int)curItems.size() - slider->getValue());
+		return;
+	case EShortcut::GLOBAL_ACCEPT:
+	case EShortcut::GLOBAL_RETURN:
+		// Open the selected item
+		if(selectionPos < curItems.size() && !curItems[selectionPos]->isFolder)
+		{
+			auto lobbyScreen = dynamic_cast<CLobbyScreen*>(parent);
+			if(lobbyScreen && lobbyScreen->buttonStart)
+			{
+				lobbyScreen->buttonStart->clickPressed(Point());
+				lobbyScreen->buttonStart->clickReleased(Point());
+			}
+		}
+		else if(selectionPos < curItems.size() && curItems[selectionPos]->isFolder)
+		{
+			// Enter folder
+			select((int)selectionPos - slider->getValue());
+		}
 		return;
 	default:
 		return;
@@ -726,6 +803,14 @@ void SelectionTab::select(int position)
 	redraw();
 	if(callOnSelect)
 		callOnSelect(curItems[py]);
+	
+	// Announce the newly selected item
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled() && py < curItems.size())
+	{
+		std::string announcement = curItems[py]->name;
+		announcement += ", " + std::to_string(py + 1) + " of " + std::to_string(curItems.size());
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }
 
 void SelectionTab::selectAbs(int position)
@@ -1212,4 +1297,45 @@ void SelectionTab::ListItem::updateItem(std::shared_ptr<ElementInfo> info, bool 
 		updatedInfo.state = state;
 		setAccessibilityInfo(updatedInfo);
 	}
+}
+
+
+void SelectionTab::onFocusGained()
+{
+	CIntObject::onFocusGained();
+	
+	// Announce the selection tab when focused
+	if(getAccessibilityInfo())
+	{
+		AccessibilityManager::getInstance().announceElement(this);
+		
+		// Also announce how many items are available
+		std::string itemsInfo = "Contains " + std::to_string(curItems.size()) + " items";
+		if(selectionPos < curItems.size() && curItems[selectionPos])
+		{
+			itemsInfo += ", " + curItems[selectionPos]->name + " selected";
+		}
+		AccessibilityManager::getInstance().announce(itemsInfo);
+	}
+}
+
+bool SelectionTab::captureThisKey(EShortcut key)
+{
+	// Don't capture Tab navigation keys - let the focus system handle them
+	if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+		return false;
+		
+	// Only capture keys when this tab has focus
+	if (!hasFocus())
+		return false;
+		
+	// Capture arrow keys, page up/down, home/end, and enter keys
+	return key == EShortcut::MOVE_UP || 
+	       key == EShortcut::MOVE_DOWN ||
+	       key == EShortcut::MOVE_PAGE_UP ||
+	       key == EShortcut::MOVE_PAGE_DOWN ||
+	       key == EShortcut::MOVE_FIRST ||
+	       key == EShortcut::MOVE_LAST ||
+	       key == EShortcut::GLOBAL_ACCEPT ||
+	       key == EShortcut::GLOBAL_RETURN;
 }

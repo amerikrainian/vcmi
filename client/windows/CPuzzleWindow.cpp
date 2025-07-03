@@ -95,7 +95,12 @@ CPuzzleWindow::CPuzzleWindow(const int3 & GrailPos, double discoveredRatio)
 	std::string discoveryText = boost::str(boost::format("Puzzle map window opened. %d of %d obelisk pieces discovered") % discoveredPieces % totalPieces);
 	
 	if(discoveredRatio >= 1.0)
+	{
 		discoveryText += ". The grail location is fully revealed!";
+		// When all pieces are found, reveal the grail coordinates
+		discoveryText += boost::str(boost::format(" The grail is located at coordinates (%d, %d) on level %d.") 
+			% grailPos.x % grailPos.y % grailPos.z);
+	}
 	else if(discoveredRatio >= 0.75)
 		discoveryText += ". The grail location is mostly revealed.";
 	else if(discoveredRatio >= 0.5)

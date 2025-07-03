@@ -47,6 +47,7 @@ private:
 		void clickReleased(const Point & cursorPosition) override;
 		void hover(bool on) override;
 		bool isFocusable() const override;
+		void keyPressed(EShortcut key) override;
 
 	public:
 		CCampaignButton(const JsonNode & config, const JsonNode & parentConfig, std::string campaignSet);

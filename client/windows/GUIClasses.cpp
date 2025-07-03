@@ -1133,6 +1133,14 @@ CShipyardWindow::CShipyardWindow(const TResources & cost, int state, BoatId boat
 {
 	OBJECT_CONSTRUCTION;
 
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName(LIBRARY->generaltexth->allTexts[599])); // "Shipyard"
+
+	// Announce window opening
+	AccessibilityManager::getInstance().announce(LIBRARY->generaltexth->allTexts[599] + " " + LIBRARY->generaltexth->allTexts[738]); // "Shipyard window"
+
 	bgWater = std::make_shared<CPicture>(ImagePath::builtin("TPSHIPBK"), 100, 69);
 
 	auto handler = LIBRARY->objtypeh->getHandlerFor(Obj::BOAT, boatType);
@@ -1158,6 +1166,19 @@ CShipyardWindow::CShipyardWindow(const TResources & cost, int state, BoatId boat
 	goldCost = std::make_shared<CLabel>(118, 294, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, goldValue);
 	woodCost = std::make_shared<CLabel>(212, 294, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE, woodValue);
 
+	// Make cost labels accessible
+	goldCost->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(LIBRARY->generaltexth->restypes[GameResID(EGameResID::GOLD).getNum()] + ": " + goldValue)
+		.withTabOrder(1));
+	goldCost->addUsedEvents(KEYBOARD);
+
+	woodCost->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(LIBRARY->generaltexth->restypes[GameResID(EGameResID::WOOD).getNum()] + ": " + woodValue)
+		.withTabOrder(2));
+	woodCost->addUsedEvents(KEYBOARD);
+
 	goldPic = std::make_shared<CAnimImage>(AnimationPath::builtin("RESOURCE"), GameResID(EGameResID::GOLD).getNum(), 0, 100, 244);
 	woodPic = std::make_shared<CAnimImage>(AnimationPath::builtin("RESOURCE"), GameResID(EGameResID::WOOD).getNum(), 0, 196, 244);
 
@@ -1165,19 +1186,54 @@ CShipyardWindow::CShipyardWindow(const TResources & cost, int state, BoatId boat
 	build = std::make_shared<CButton>(Point(42, 312), AnimationPath::builtin("IBUY30"), CButton::tooltip(LIBRARY->generaltexth->allTexts[598]), std::bind(&CShipyardWindow::close, this), EShortcut::GLOBAL_ACCEPT);
 	build->addCallback(onBuy);
 
+	// Set proper tab order for buttons
+	build->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->allTexts[598]) // "Build a new ship"
+		.withTabOrder(3));
+	
+	quit->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(LIBRARY->generaltexth->allTexts[599]) // "Cancel"
+		.withTabOrder(4));
+
+	bool hasEnoughResources = true;
 	for(GameResID i = EGameResID::WOOD; i <= EGameResID::GOLD; ++i)
 	{
 		if(cost[i] > GAME->interface()->cb->getResourceAmount(i))
 		{
 			build->block(true);
+			hasEnoughResources = false;
 			break;
 		}
+	}
+
+	// Update build button accessibility state
+	if(!hasEnoughResources)
+	{
+		build->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(LIBRARY->generaltexth->allTexts[598]) // "Build a new ship"
+			.withState("disabled")
+			.withDescription(LIBRARY->generaltexth->allTexts[604]) // "Not enough resources"
+			.withTabOrder(3));
 	}
 
 	statusbar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(8, pos.h - 26, pos.w - 16, 19), 8, pos.h - 26));
 
 	title = std::make_shared<CLabel>(164, 27,  FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[13]);
 	costLabel = std::make_shared<CLabel>(164, 220, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->jktexts[14]);
+
+	// Make title and cost label accessible
+	title->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(LIBRARY->generaltexth->jktexts[13])); // "Shipyard"
+	title->addUsedEvents(KEYBOARD);
+
+	costLabel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(LIBRARY->generaltexth->jktexts[14])); // "Build cost"
+	costLabel->addUsedEvents(KEYBOARD);
 }
 
 void CTransformerWindow::CItem::move()

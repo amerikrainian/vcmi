@@ -2710,6 +2710,14 @@ CBlacksmithDialog::CBlacksmithDialog(bool possible, CreatureID creMachineID, Art
 {
 	OBJECT_CONSTRUCTION;
 
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("window")
+		.withName(LIBRARY->generaltexth->allTexts[600])); // "Blacksmith"
+
+	// Announce window opening
+	AccessibilityManager::getInstance().announce(LIBRARY->generaltexth->allTexts[600] + " " + LIBRARY->generaltexth->allTexts[738]); // "Blacksmith window"
+
 	Rect barRect(8, pos.h - 26, pos.w - 16, 19);
 
 	auto statusbarBackground = std::make_shared<CPicture>(background->getSurface(), barRect, 8, pos.h - 26);
@@ -2739,13 +2747,53 @@ CBlacksmithDialog::CBlacksmithDialog(bool possible, CreatureID creMachineID, Art
 	title = std::make_shared<CLabel>(165, 28, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, titleString.toString());
 	costText = std::make_shared<CLabel>(165, 218, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, LIBRARY->generaltexth->jktexts[43]);
 	costValue = std::make_shared<CLabel>(165, 292, FONT_MEDIUM, ETextAlignment::CENTER, Colors::WHITE, costString);
+	
+	// Make labels accessible
+	title->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(titleString.toString())
+		.withTabOrder(1));
+	title->addUsedEvents(KEYBOARD);
+
+	costText->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(LIBRARY->generaltexth->jktexts[43]) // "Cost:"
+		.withTabOrder(2));
+	costText->addUsedEvents(KEYBOARD);
+
+	costValue->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("label")
+		.withName(LIBRARY->generaltexth->restypes[GameResID(EGameResID::GOLD).getNum()] + ": " + costString)
+		.withTabOrder(3));
+	costValue->addUsedEvents(KEYBOARD);
+	
 	buy = std::make_shared<CButton>(Point(42, 312), AnimationPath::builtin("IBUY30.DEF"), CButton::tooltip(buyText.toString()), [&](){ close(); }, EShortcut::GLOBAL_ACCEPT);
 	cancel = std::make_shared<CButton>(Point(224, 312), AnimationPath::builtin("ICANCEL.DEF"), CButton::tooltip(cancelText.toString()), [&](){ close(); }, EShortcut::GLOBAL_CANCEL);
+
+	// Set button accessibility
+	buy->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(buyText.toString())
+		.withTabOrder(4));
+		
+	cancel->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName(cancelText.toString())
+		.withTabOrder(5));
 
 	if(possible)
 		buy->addCallback([=](){ GAME->interface()->cb->buyArtifact(GAME->interface()->cb->getHero(hid),aid); });
 	else
+	{
 		buy->block(true);
+		// Update accessibility state for disabled button
+		buy->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName(buyText.toString())
+			.withState("disabled")
+			.withDescription(LIBRARY->generaltexth->allTexts[604]) // "Not enough resources"
+			.withTabOrder(4));
+	}
 
 	costIcon = std::make_shared<CAnimImage>(AnimationPath::builtin("RESOURCE"), GameResID(EGameResID::GOLD).getNum(), 0, 148, 244);
 }

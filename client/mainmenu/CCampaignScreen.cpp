@@ -217,7 +217,8 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 			
 		// Update accessibility info with campaign name
 		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
-		updatedInfo.name = hoverText;
+		updatedInfo.name = "Campaign: " + hoverText;
+		updatedInfo.description = "Press Enter to start this campaign";
 		setAccessibilityInfo(updatedInfo);
 	}
 	else
@@ -226,8 +227,9 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 		
 		// Update accessibility info for disabled campaign
 		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
-		updatedInfo.name = campFile;
+		updatedInfo.name = "Campaign: " + campFile;
 		updatedInfo.state = "disabled";
+		updatedInfo.description = "This campaign is not available";
 		setAccessibilityInfo(updatedInfo);
 	}
 
@@ -254,7 +256,7 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 
 	if(status != CCampaignScreen::DISABLED)
 	{
-		addUsedEvents(LCLICK | HOVER);
+		addUsedEvents(LCLICK | HOVER | KEYBOARD);
 		graphicsImage = std::make_shared<CPicture>(ImagePath::fromJson(config["image"]));
 		hoverLabel = std::make_shared<CLabel>(pos.w / 2, pos.h + 20, FONT_MEDIUM, ETextAlignment::CENTER, Colors::YELLOW, "");
 		parent->addChild(hoverLabel.get());
@@ -267,7 +269,7 @@ CCampaignScreen::CCampaignButton::CCampaignButton(const JsonNode & config, const
 		// Update accessibility state to completed
 		UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
 		updatedInfo.state = "completed";
-		updatedInfo.description = LIBRARY->generaltexth->translate("vcmi.mainmenu.campaignCompleted");
+		updatedInfo.description = "Campaign completed. Press Enter to replay";
 		setAccessibilityInfo(updatedInfo);
 	}
 }
@@ -298,6 +300,14 @@ void CCampaignScreen::CCampaignButton::hover(bool on)
 bool CCampaignScreen::CCampaignButton::isFocusable() const
 {
 	return status != CCampaignScreen::DISABLED;
+}
+
+void CCampaignScreen::CCampaignButton::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::GLOBAL_RETURN)
+	{
+		clickReleased(Point());
+	}
 }
 
 void CCampaignScreen::switchPage(int delta)

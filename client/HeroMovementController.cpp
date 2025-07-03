@@ -195,6 +195,12 @@ void HeroMovementController::onTryMoveHero(const CGHeroInstance * hero, const Tr
 	GAME->map().waitForOngoingAnimations();
 
 	//move finished
+	// For successful movement, announce the position before suppressing
+	if (duringMovement && hero->tempOwner == GAME->interface()->playerID && details.start != details.end)
+	{
+		announceHeroPosition(hero, details, directlyAttackingCreature);
+	}
+	
 	// Suppress hero selection announcement during any movement to avoid double announcements
 	adventureInt->setSuppressHeroSelectionAnnouncement(true);
 		
@@ -443,16 +449,8 @@ void HeroMovementController::endMove(const CGHeroInstance * hero)
 	assert(duringMovement == true);
 	assert(currentlyMovingHero != nullptr);
 	
-	// For directional movement, announce the final position
-	if (isDirectionalMovement && hero->tempOwner == GAME->interface()->playerID)
-	{
-		// Create a dummy TryMoveHero for position announcement
-		TryMoveHero details;
-		details.end = hero->visitablePos();
-		details.start = hero->visitablePos(); // Same as end for final position
-		details.result = TryMoveHero::SUCCESS;
-		announceHeroPosition(hero, details, false);
-	}
+	// Do NOT announce position here - hero->visitablePos() returns the OLD position
+	// because endMove is called BEFORE the hero's position is updated in the game state
 	
 	// Call onHeroChanged while movement is still considered active
 	// This prevents showSelection from being called in onHeroChanged

@@ -279,7 +279,10 @@ void MapCursor::interact()
 	// Simulate a left click at the cursor position
 	if (adventureInt)
 	{
-        std::cout << cursorPosition.x << " " << cursorPosition.y << "\n";
+		// Debug output to understand what's happening
+		logGlobal->info("MapCursor::interact - Clicking at position (%d, %d, %d)", 
+		                cursorPosition.x, cursorPosition.y, cursorPosition.z);
+		
 		adventureInt->onTileLeftClicked(cursorPosition);
 	}
 }
