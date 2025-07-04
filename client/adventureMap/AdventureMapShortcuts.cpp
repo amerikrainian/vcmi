@@ -661,10 +661,6 @@ bool AdventureMapShortcuts::optionCanVisitObject()
 
 bool AdventureMapShortcuts::optionHeroSelected()
 {
-	// Don't allow hero movement shortcuts when Ctrl is pressed (cursor mode)
-	if (ENGINE->input().isKeyboardCtrlDown())
-		return false;
-		
 	return optionInMapView() && GAME->interface()->localState->getCurrentHero() != nullptr;
 }
 
@@ -1012,6 +1008,10 @@ void AdventureMapShortcuts::cycleLandmarksForward()
 	
 	announcement += " (" + std::to_string(currentLandmarkIndex + 1) + " of " + std::to_string(collectedLandmarks.size()) + ")";
 	AccessibilityManager::getInstance().announce(announcement, true);
+	
+	// Center view on landmark and set cursor position
+	owner.centerOnObject(landmark.obj);
+	owner.setMapCursorPosition(landmark.obj->visitablePos(), true);
 }
 
 void AdventureMapShortcuts::cycleLandmarksBackward()
@@ -1058,4 +1058,8 @@ void AdventureMapShortcuts::cycleLandmarksBackward()
 
 	announcement += " (" + std::to_string(currentLandmarkIndex + 1) + " of " + std::to_string(collectedLandmarks.size()) + ")";
 	AccessibilityManager::getInstance().announce(announcement, true);
+	
+	// Center view on landmark and set cursor position
+	owner.centerOnObject(landmark.obj);
+	owner.setMapCursorPosition(landmark.obj->visitablePos(), true);
 }

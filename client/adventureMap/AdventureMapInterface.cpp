@@ -23,6 +23,7 @@
 
 #include "../mapView/mapHandler.h"
 #include "../mapView/MapView.h"
+#include "../mapView/MapCursor.h"
 #include "../windows/InfoWindows.h"
 #include "../widgets/RadialMenu.h"
 #include "../gui/CursorHandler.h"
@@ -973,4 +974,12 @@ bool AdventureMapInterface::isValidAdventureSpellTarget(int3 targetPosition) con
 void AdventureMapInterface::scrollMap(const Point & delta)
 {
 	widget->getMapView()->onMapScrolled(delta);
+}
+
+void AdventureMapInterface::setMapCursorPosition(const int3 & position, bool silent)
+{
+	if (widget->getMapView() && widget->getMapView()->getMapCursor())
+	{
+		widget->getMapView()->getMapCursor()->setCursorPosition(position, silent);
+	}
 }

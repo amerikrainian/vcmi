@@ -201,6 +201,9 @@ public:
 
 	/// scrolls the map view by the specified delta
 	void scrollMap(const Point & delta);
+	
+	/// sets the map cursor position
+	void setMapCursorPosition(const int3 & position, bool silent = false);
 };
 
 extern std::shared_ptr<AdventureMapInterface> adventureInt;

@@ -36,6 +36,7 @@ MapCursor::MapCursor(MapView & owner, const std::shared_ptr<MapViewModel> & mode
 	, model(model)
 	, cursorPosition(0, 0, 0)
 	, active(false)
+	, cursorMode(false) // Start in direct mode
 	, blinkTimer(0)
 	, blinkState(true)
 	, cursorColor(255, 255, 0, 200) // Yellow with transparency
@@ -141,14 +142,15 @@ void MapCursor::moveCursor(const Point & direction)
 	}
 }
 
-void MapCursor::setCursorPosition(const int3 & pos)
+void MapCursor::setCursorPosition(const int3 & pos, bool silent)
 {
 	if (isValidPosition(pos))
 	{
 		cursorPosition = pos;
 		if (active)
 		{
-			announcePosition();
+			if (!silent)
+				announcePosition();
 			ensureCursorVisible();
 		}
 	}
@@ -191,6 +193,27 @@ void MapCursor::setActive(bool isActive)
 			ensureCursorVisible();
 			// Note: announcePosition() is intentionally not called here
 		}
+	}
+}
+
+void MapCursor::toggleMode()
+{
+	cursorMode = !cursorMode;
+	
+	// Announce mode change
+	std::string modeText = cursorMode ? "Cursor mode activated" : "Direct mode activated";
+	AccessibilityManager::getInstance().announce(modeText);
+	logGlobal->info("MapCursor::toggleMode - Switched to %s", cursorMode ? "cursor mode" : "direct mode");
+	
+	// If switching to cursor mode, activate the cursor
+	if (cursorMode && !active)
+	{
+		setActive(true);
+	}
+	// If switching to direct mode, deactivate the cursor
+	else if (!cursorMode && active)
+	{
+		setActive(false);
 	}
 }
 

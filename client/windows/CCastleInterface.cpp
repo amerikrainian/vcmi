@@ -2649,11 +2649,28 @@ void CMageGuildScreen::Scroll::clickPressed(const Point & cursorPosition)
 		temp->buttons[0]->addCallback([this, town](){ GAME->interface()->cb->spellResearch(town, spell->id, true); });
 		temp->buttons[0]->addPopupCallback([](){ CRClickPopup::createAndPush(LIBRARY->generaltexth->translate("vcmi.spellResearch.research")); });
 		temp->buttons[0]->setEnabled(GAME->interface()->cb->getResourceAmount().canAfford(cost));
+		temp->buttons[0]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Accept - " + LIBRARY->generaltexth->translate("vcmi.spellResearch.research"))
+			.withDescription("Replace " + spell->id.toSpell()->getNameTranslated() + " with " + newSpell.toSpell()->getNameTranslated())
+			.withTabOrder(1));
+		
 		temp->buttons[1]->setOverlay(std::make_shared<CPicture>(ImagePath::builtin("spellResearch/reroll")));
 		temp->buttons[1]->addCallback([this, town](){ GAME->interface()->cb->spellResearch(town, spell->id, false); });
 		temp->buttons[1]->addPopupCallback([](){ CRClickPopup::createAndPush(LIBRARY->generaltexth->translate("vcmi.spellResearch.skip")); });
+		temp->buttons[1]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Skip - " + LIBRARY->generaltexth->translate("vcmi.spellResearch.skip"))
+			.withDescription("Discard this spell and continue research")
+			.withTabOrder(2));
+			
 		temp->buttons[2]->setOverlay(std::make_shared<CPicture>(ImagePath::builtin("spellResearch/close")));
 		temp->buttons[2]->addPopupCallback([](){ CRClickPopup::createAndPush(LIBRARY->generaltexth->translate("vcmi.spellResearch.abort")); });
+		temp->buttons[2]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("button")
+			.withName("Cancel - " + LIBRARY->generaltexth->translate("vcmi.spellResearch.abort"))
+			.withDescription("Close this dialog")
+			.withTabOrder(3));
 
 		ENGINE->windows().pushWindow(temp);
 	}

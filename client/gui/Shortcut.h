@@ -180,6 +180,7 @@ enum class EShortcut
 	ADVENTURE_CYCLE_LANDMARKS_FORWARD,
 	ADVENTURE_CYCLE_LANDMARKS_BACKWARD,
 	MAP_CURSOR_CLICK,            // Ctrl+Enter to click at cursor position
+	MAP_CURSOR_TOGGLE_MODE,      // Toggle between cursor mode and direct mode
 
 	// Move hero one tile in specified direction. Bound to cursors & numpad buttons
 	ADVENTURE_MOVE_HERO_SW,

@@ -35,6 +35,9 @@ private:
 	/// Whether the cursor is currently active/visible
 	bool active;
 	
+	/// Whether we're in cursor mode (true) or direct mode (false)
+	bool cursorMode;
+	
 	/// Timer for cursor blinking animation
 	uint32_t blinkTimer;
 	
@@ -63,7 +66,7 @@ public:
 	void moveCursor(const Point & direction);
 	
 	/// Move cursor to specific position
-	void setCursorPosition(const int3 & pos);
+	void setCursorPosition(const int3 & pos, bool silent = false);
 	
 	/// Get current cursor position
 	const int3& getCursorPosition() const { return cursorPosition; }
@@ -73,6 +76,12 @@ public:
 	
 	/// Check if cursor is active
 	bool isActive() const { return active; }
+	
+	/// Toggle between cursor mode and direct mode
+	void toggleMode();
+	
+	/// Check if we're in cursor mode
+	bool isCursorMode() const { return cursorMode; }
 	
 	/// Update cursor animation
 	void tick(uint32_t msPassed);

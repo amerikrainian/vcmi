@@ -269,41 +269,29 @@ void MapView::keyPressed(EShortcut key)
 	if (!cursor)
 		return;
 	
-	// Check if Ctrl is held for cursor movement
-	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
-	
-	// If cursor is active and Ctrl is not pressed anymore, deactivate cursor and return to hero
-	if (cursor->isActive() && !ctrlPressed)
+	// Handle cursor mode toggle
+	if (key == EShortcut::MAP_CURSOR_TOGGLE_MODE)
 	{
-		cursor->setActive(false);
-		
-		// Center view on current hero if one is selected
-		const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
-		if (hero)
-		{
-			controller->setViewCenter(hero->getSightCenter());
-		}
-		// Don't process the key further since we're just handling cursor deactivation
+		cursor->toggleMode();
 		return;
 	}
 	
-	if (ctrlPressed)
+	// In cursor mode, handle movement keys without requiring Ctrl
+	if (cursor->isCursorMode())
 	{
-		// Handle Ctrl+arrow keys for cursor movement and Ctrl+Enter for interaction
 		switch(key)
 		{
-		case EShortcut::MOVE_LEFT:
-		case EShortcut::MOVE_RIGHT:
-		case EShortcut::MOVE_UP:
-		case EShortcut::MOVE_DOWN:
-		case EShortcut::MOVE_UP_LEFT:
-		case EShortcut::MOVE_UP_RIGHT:
-		case EShortcut::MOVE_DOWN_LEFT:
-		case EShortcut::MOVE_DOWN_RIGHT:
+		case EShortcut::ADVENTURE_MOVE_HERO_WW:
+		case EShortcut::ADVENTURE_MOVE_HERO_EE:
+		case EShortcut::ADVENTURE_MOVE_HERO_NN:
+		case EShortcut::ADVENTURE_MOVE_HERO_SS:
+		case EShortcut::ADVENTURE_MOVE_HERO_NW:
+		case EShortcut::ADVENTURE_MOVE_HERO_NE:
+		case EShortcut::ADVENTURE_MOVE_HERO_SW:
+		case EShortcut::ADVENTURE_MOVE_HERO_SE:
 		{
-			// Activate cursor if not already active
-			bool wasActive = cursor->isActive();
-			if (!wasActive)
+			// Ensure cursor is active in cursor mode
+			if (!cursor->isActive())
 			{
 				cursor->setActive(true);
 			}
@@ -311,132 +299,112 @@ void MapView::keyPressed(EShortcut key)
 			// Move cursor based on key
 			switch(key)
 			{
-			case EShortcut::MOVE_LEFT:
+			case EShortcut::ADVENTURE_MOVE_HERO_WW:
 				cursor->moveCursor(Point(-1, 0));
 				break;
-			case EShortcut::MOVE_RIGHT:
+			case EShortcut::ADVENTURE_MOVE_HERO_EE:
 				cursor->moveCursor(Point(1, 0));
 				break;
-			case EShortcut::MOVE_UP:
+			case EShortcut::ADVENTURE_MOVE_HERO_NN:
 				cursor->moveCursor(Point(0, -1));
 				break;
-			case EShortcut::MOVE_DOWN:
+			case EShortcut::ADVENTURE_MOVE_HERO_SS:
 				cursor->moveCursor(Point(0, 1));
 				break;
-			case EShortcut::MOVE_UP_LEFT:
+			case EShortcut::ADVENTURE_MOVE_HERO_NW:
 				cursor->moveCursor(Point(-1, -1));
 				break;
-			case EShortcut::MOVE_UP_RIGHT:
+			case EShortcut::ADVENTURE_MOVE_HERO_NE:
 				cursor->moveCursor(Point(1, -1));
 				break;
-			case EShortcut::MOVE_DOWN_LEFT:
+			case EShortcut::ADVENTURE_MOVE_HERO_SW:
 				cursor->moveCursor(Point(-1, 1));
 				break;
-			case EShortcut::MOVE_DOWN_RIGHT:
+			case EShortcut::ADVENTURE_MOVE_HERO_SE:
 				cursor->moveCursor(Point(1, 1));
 				break;
 			}
 			return;
 		}
-			
-		case EShortcut::MAP_CURSOR_CLICK:
-		{
-			// Handle Ctrl+Enter to click on the current cursor position
-			logGlobal->info("MapView::keyPressed - MAP_CURSOR_CLICK shortcut triggered");
-			
-			// Activate cursor if not already active
-			if (!cursor->isActive())
-			{
-				logGlobal->info("MapView::keyPressed - Cursor not active, activating it");
-				cursor->setActive(true);
-				// Set cursor to current hero position if available
-				const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
-				if (hero)
-				{
-					cursor->setCursorPosition(hero->visitablePos());
-				}
-			}
-			else
-			{
-				logGlobal->info("MapView::keyPressed - Cursor already active");
-			}
-			
-			cursor->interact();
-			return;
-		}
-		}
-	}
 		
-	// Non-Ctrl key handling when cursor is active
-	if (cursor->isActive())
-	{
-		// Handle special interaction keys
-		switch(key)
-		{
 		case EShortcut::GLOBAL_ACCEPT:
 		case EShortcut::GLOBAL_RETURN:
-		case EShortcut::ADVENTURE_VISIT_OBJECT:
-			// Interact with object at cursor position
+			// In cursor mode, Enter performs click at cursor position
+			if (!cursor->isActive())
+			{
+				cursor->setActive(true);
+			}
 			cursor->interact();
-			break;
+			return;
 			
 		case EShortcut::GLOBAL_CANCEL:
-			// Deactivate cursor on ESC
+			// ESC deactivates cursor
 			cursor->setActive(false);
-			break;
-			
-		default:
-			// Other keys don't affect cursor when it's active
-			break;
+			return;
 		}
+	}
+	
+	// Handle MAP_CURSOR_CLICK (Ctrl+Enter) in any mode
+	if (key == EShortcut::MAP_CURSOR_CLICK)
+	{
+		logGlobal->info("MapView::keyPressed - MAP_CURSOR_CLICK shortcut triggered");
+		
+		// Activate cursor if not already active
+		if (!cursor->isActive())
+		{
+			logGlobal->info("MapView::keyPressed - Cursor not active, activating it");
+			cursor->setActive(true);
+			// Set cursor to current hero position if available
+			const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
+			if (hero)
+			{
+				cursor->setCursorPosition(hero->visitablePos());
+			}
+		}
+		else
+		{
+			logGlobal->info("MapView::keyPressed - Cursor already active");
+		}
+		
+		cursor->interact();
+		return;
 	}
 }
 
 void MapView::keyReleased(EShortcut key)
 {
-	
-	if (!cursor || !cursor->isActive())
-		return;
-	
-	// Check if Ctrl was released
-	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
-	
-	// If Ctrl is no longer pressed and cursor is active, deactivate it and center on hero
-	if (!ctrlPressed)
-	{
-		cursor->setActive(false);
-		
-		// Center view on current hero if one is selected
-		const CGHeroInstance* hero = GAME->interface()->localState->getCurrentHero();
-		if (hero)
-		{
-			controller->setViewCenter(hero->getSightCenter());
-		}
-	}
+	// In the new mode system, we don't deactivate cursor on key release
+	// Mode toggle is handled elsewhere
 }
 
 bool MapView::captureThisKey(EShortcut key)
 {
-	// Check if Ctrl is held and this is an arrow key or Enter key
-	bool ctrlPressed = ENGINE->input().isKeyboardCtrlDown();
-
-	if (ctrlPressed && cursor)
+	if (!cursor)
+		return false;
+		
+	// In cursor mode, capture movement keys and Enter
+	if (cursor->isCursorMode())
 	{
 		switch(key)
 		{
-		case EShortcut::MOVE_LEFT:
-		case EShortcut::MOVE_RIGHT:
-		case EShortcut::MOVE_UP:
-		case EShortcut::MOVE_DOWN:
-		case EShortcut::MOVE_UP_LEFT:
-		case EShortcut::MOVE_UP_RIGHT:
-		case EShortcut::MOVE_DOWN_LEFT:
-		case EShortcut::MOVE_DOWN_RIGHT:
-		case EShortcut::MAP_CURSOR_CLICK:
-			// The actual movement/interaction is handled in keyPressed() to avoid double execution
-			return true; // Capture this key so it doesn't propagate
+		case EShortcut::ADVENTURE_MOVE_HERO_WW:
+		case EShortcut::ADVENTURE_MOVE_HERO_EE:
+		case EShortcut::ADVENTURE_MOVE_HERO_NN:
+		case EShortcut::ADVENTURE_MOVE_HERO_SS:
+		case EShortcut::ADVENTURE_MOVE_HERO_NW:
+		case EShortcut::ADVENTURE_MOVE_HERO_NE:
+		case EShortcut::ADVENTURE_MOVE_HERO_SW:
+		case EShortcut::ADVENTURE_MOVE_HERO_SE:
+		case EShortcut::GLOBAL_ACCEPT:
+		case EShortcut::GLOBAL_RETURN:
+		case EShortcut::GLOBAL_CANCEL:
+			return true; // Capture these keys in cursor mode
 		}
 	}
+	
+	// Always capture MAP_CURSOR_CLICK (Ctrl+Enter) and toggle mode
+	if (key == EShortcut::MAP_CURSOR_CLICK || key == EShortcut::MAP_CURSOR_TOGGLE_MODE)
+		return true;
 	
 	return false;
 }
