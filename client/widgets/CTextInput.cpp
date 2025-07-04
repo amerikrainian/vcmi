@@ -60,7 +60,6 @@ CTextInput::CTextInput(const Rect & Pos, EFonts font, ETextAlignment alignment, 
 	setFont(font);
 	setAlignment(alignment);
 	
-	// Set up default accessibility info for text input
 	UIAccessibilityInfo accessInfo;
 	accessInfo.role = "textbox";
 	accessInfo.name = "Text input field";
@@ -79,7 +78,6 @@ CTextInput::CTextInput(const Rect & Pos, const Point & bgOffset, const ImagePath
 
 	createLabel(true);
 	
-	// Set up default accessibility info for text input
 	UIAccessibilityInfo accessInfo;
 	accessInfo.role = "textbox";
 	accessInfo.name = "Text input field";
@@ -97,7 +95,6 @@ CTextInput::CTextInput(const Rect & Pos, std::shared_ptr<IImage> srf)
 	background->pos = pos;
 	createLabel(true);
 	
-	// Set up default accessibility info for text input
 	UIAccessibilityInfo accessInfo;
 	accessInfo.role = "textbox";
 	accessInfo.name = "Text input field";
@@ -178,18 +175,33 @@ void CTextInput::keyPressed(EShortcut key)
 	}
 
 	bool redrawNeeded = false;
+	std::string deletedChar;
 
 	switch(key)
 	{
 		case EShortcut::GLOBAL_BACKSPACE:
 			if(!composedText.empty())
 			{
+				// Get the last character before deletion
+				std::string oldComposed = composedText;
 				TextOperations::trimRightUnicode(composedText);
+				
+				// Calculate what was deleted
+				if (oldComposed.length() > composedText.length())
+					deletedChar = oldComposed.substr(composedText.length());
+				
 				redrawNeeded = true;
 			}
 			else if(!currentText.empty())
 			{
+				// Get the last character before deletion
+				std::string oldText = currentText;
 				TextOperations::trimRightUnicode(currentText);
+				
+				// Calculate what was deleted
+				if (oldText.length() > currentText.length())
+					deletedChar = oldText.substr(currentText.length());
+				
 				redrawNeeded = true;
 			}
 			break;
@@ -202,6 +214,19 @@ void CTextInput::keyPressed(EShortcut key)
 		updateLabel();
 		if(onTextEdited)
 			onTextEdited(currentText);
+
+		if (AccessibilityManager::getInstance().isScreenReaderEnabled() && !deletedChar.empty())
+		{
+			AccessibilityManager::getInstance().announce(deletedChar, true);
+		}
+
+		// Update accessibility info with the new text value
+		if (getAccessibilityInfo())
+		{
+			UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
+			updatedInfo.value = currentText;
+			setAccessibilityInfo(updatedInfo);
+		}
 	}
 }
 
@@ -209,7 +234,7 @@ void CTextInput::setText(const std::string & nText)
 {
 	currentText = nText;
 	updateLabel();
-	
+
 	// Update accessibility info with the new text value
 	if (getAccessibilityInfo())
 	{
@@ -258,6 +283,16 @@ void CTextInput::textInputted(const std::string & enteredText)
 			UIAccessibilityInfo updatedInfo = *getAccessibilityInfo();
 			updatedInfo.value = currentText;
 			setAccessibilityInfo(updatedInfo);
+		}
+		
+		if (AccessibilityManager::getInstance().isScreenReaderEnabled())
+		{
+			// Calculate what was actually added (after filtering)
+			if (currentText.length() > oldText.length())
+			{
+				std::string addedText = currentText.substr(oldText.length());
+				AccessibilityManager::getInstance().announce(addedText, true);
+			}
 		}
 	}
 	composedText.clear();
@@ -345,7 +380,7 @@ void CTextInput::deactivate()
 void CTextInput::onFocusGot()
 {
 	updateLabel();
-	
+
 	// Announce the text input field when it gains focus
 	if (AccessibilityManager::getInstance().isScreenReaderEnabled() && getAccessibilityInfo())
 	{
