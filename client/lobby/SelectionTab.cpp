@@ -236,8 +236,16 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 			UIAccessibilityInfo sortInfo;
 			sortInfo.role = "button";
 			const char* sortNames[] = {"Sort by players", "Sort by map size", "Sort by format", "Sort by name", "Sort by victory condition", "Sort by defeat condition"};
+			const char* sortDescriptions[] = {
+				"Sort the list by number of players",
+				"Sort the list by map size", 
+				"Sort the list by map format",
+				"Sort the list by name",
+				"Sort the list by victory condition",
+				"Sort the list by defeat condition"
+			};
 			sortInfo.name = sortNames[i];
-			sortInfo.description = LIBRARY->generaltexth->zelp[107 + i].first;
+			sortInfo.description = sortDescriptions[i];
 			sortInfo.tabOrder = 20 + i;
 			sortButton->setAccessibilityInfo(sortInfo);
 			
@@ -263,6 +271,7 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 		tabTitle = "{" + LIBRARY->generaltexth->arraytxt[231] + "}";
 		break;
 	case ESelectionScreen::campaignList:
+	{
 		tabTitle = "{" + LIBRARY->generaltexth->allTexts[726] + "}";
 		setRedrawParent(true); // we use parent background so we need to make sure it's will be redrawn too
 		pos.w = parent->pos.w;
@@ -270,9 +279,26 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 		pos.x += 3;
 		pos.y += 6;
 
-		buttonsSortBy.push_back(std::make_shared<CButton>(Point(23, 86), AnimationPath::builtin("CamCusM.DEF"), CButton::tooltip(), std::bind(&SelectionTab::sortBy, this, _numOfMaps), EShortcut::MAPS_SORT_MAPS));
-		buttonsSortBy.push_back(std::make_shared<CButton>(Point(55, 86), AnimationPath::builtin("CamCusL.DEF"), CButton::tooltip(), std::bind(&SelectionTab::sortBy, this, _name), EShortcut::MAPS_SORT_NAME));
+		auto sortByMaps = std::make_shared<CButton>(Point(23, 86), AnimationPath::builtin("CamCusM.DEF"), CButton::tooltip(), std::bind(&SelectionTab::sortBy, this, _numOfMaps), EShortcut::MAPS_SORT_MAPS);
+		// Set accessibility info for campaign sort buttons
+		UIAccessibilityInfo sortMapsInfo;
+		sortMapsInfo.role = "button";
+		sortMapsInfo.name = "Sort by number of maps";
+		sortMapsInfo.description = "Sort campaigns by the number of scenarios";
+		sortMapsInfo.tabOrder = 20;
+		sortByMaps->setAccessibilityInfo(sortMapsInfo);
+		buttonsSortBy.push_back(sortByMaps);
+		
+		auto sortByName = std::make_shared<CButton>(Point(55, 86), AnimationPath::builtin("CamCusL.DEF"), CButton::tooltip(), std::bind(&SelectionTab::sortBy, this, _name), EShortcut::MAPS_SORT_NAME);
+		UIAccessibilityInfo sortNameInfo;
+		sortNameInfo.role = "button";
+		sortNameInfo.name = "Sort by name";
+		sortNameInfo.description = "Sort campaigns by name";
+		sortNameInfo.tabOrder = 21;
+		sortByName->setAccessibilityInfo(sortNameInfo);
+		buttonsSortBy.push_back(sortByName);
 		break;
+	}
 	default:
 		assert(0);
 		break;
@@ -282,6 +308,15 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 	{
 		auto sortByDate = std::make_shared<CButton>(Point(371, 85), AnimationPath::builtin("selectionTabSortDate"), CButton::tooltip("", LIBRARY->generaltexth->translate("vcmi.lobby.sortDate")), std::bind(&SelectionTab::sortBy, this, ESortBy::_changeDate), EShortcut::MAPS_SORT_CHANGEDATE);
 		sortByDate->setOverlay(std::make_shared<CPicture>(ImagePath::builtin("lobby/selectionTabSortDate")));
+		
+		// Set accessibility info for sort by date button
+		UIAccessibilityInfo sortDateInfo;
+		sortDateInfo.role = "button";
+		sortDateInfo.name = "Sort by date";
+		sortDateInfo.description = "Sort the list by modification date";
+		sortDateInfo.tabOrder = 26;
+		sortByDate->setAccessibilityInfo(sortDateInfo);
+		
 		buttonsSortBy.push_back(sortByDate);
 
 		if(tabType == ESelectionScreen::loadGame || tabType == ESelectionScreen::newGame)
@@ -332,23 +367,6 @@ SelectionTab::SelectionTab(ESelectionScreen Type)
 			.withTabOrder(5));
 	}
 	
-	// Add accessibility to sort buttons
-	int tabOrder = 20;
-	for (auto& button : buttonsSortBy)
-	{
-		if (button)
-		{
-			// Get existing tooltip info if available
-			std::string name = "Sort button";
-			std::string desc = "Click to sort the save list";
-			
-			button->setAccessibilityInfo(UIAccessibilityInfo()
-				.withRole("button")
-				.withName(name)
-				.withDescription(desc)
-				.withTabOrder(tabOrder++));
-		}
-	}
 	
 	filter(0);
 }
