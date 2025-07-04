@@ -389,8 +389,16 @@ void CSelectableComponent::clickDouble(const Point & cursorPosition)
 
 void CSelectableComponent::keyPressed(EShortcut key)
 {
-	// Call parent implementation
-	CComponent::keyPressed(key);
+	if(key == EShortcut::GLOBAL_ACCEPT || key == EShortcut::GLOBAL_RETURN)
+	{
+		// Select this component when Enter/Space is pressed
+		clickPressed(ENGINE->getCursorPosition());
+	}
+	else
+	{
+		// Call parent implementation for other keys
+		CComponent::keyPressed(key);
+	}
 }
 
 void CSelectableComponent::init()

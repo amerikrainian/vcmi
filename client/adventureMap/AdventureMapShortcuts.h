@@ -10,9 +10,12 @@
 
 #pragma once
 
+#include "../../lib/int3.h"
+
 VCMI_LIB_NAMESPACE_BEGIN
 class Point;
 class Rect;
+class CGObjectInstance;
 VCMI_LIB_NAMESPACE_END
 
 enum class EShortcut;
@@ -78,6 +81,27 @@ class AdventureMapShortcuts
 	void moveHeroDirectional(const Point & direction);
 	void scrollMap(const Point & direction);
 	void announceLandmarks();
+	void cycleLandmarksForward();
+	void cycleLandmarksBackward();
+	void scanForLandmarks(); // Helper to scan landmarks without announcing
+
+	// Landmark cycling state
+	struct LandmarkInfo {
+		const CGObjectInstance* obj;
+		int distance;
+		int priority;
+		std::string direction;
+		
+		bool operator<(const LandmarkInfo& other) const {
+			if (priority != other.priority)
+				return priority < other.priority;
+			return distance < other.distance;
+		}
+	};
+	
+	std::vector<LandmarkInfo> collectedLandmarks;
+	int currentLandmarkIndex = -1;
+	int3 lastScanPosition; // Track where we last scanned from
 
 public:
 	explicit AdventureMapShortcuts(AdventureMapInterface & owner);

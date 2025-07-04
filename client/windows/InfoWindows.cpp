@@ -109,17 +109,18 @@ CSelWindow::CSelWindow( const std::string & Text, PlayerColor player, int charpe
 
 	if(!comps.empty())
 	{
-		components = std::make_shared<CComponentBox>(comps, Rect(0,0,0,0));
+		// Set accessibility info and callbacks before creating the component box
 		for (int i = 0; i < comps.size(); i++)
 		{
 			comps[i]->onChoose = [this](){ madeChoiceAndClose(); };
-			// Set tab order for components
+			// Set tab order for components - must be done before adding to box
 			comps[i]->setAccessibilityInfo(UIAccessibilityInfo()
 				.withRole("option")
 				.withName(comps[i]->getSubtitle())
 				.withDescription(comps[i]->getDescription())
 				.withTabOrder(i + 1));
 		}
+		components = std::make_shared<CComponentBox>(comps, Rect(0,0,0,0));
 	}
 
 	CMessage::drawIWindow(this, Text, player);

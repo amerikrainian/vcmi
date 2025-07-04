@@ -54,6 +54,8 @@ AdventureMapShortcuts::AdventureMapShortcuts(AdventureMapInterface & owner)
 	, mapLevel(0)
 	, searchLast("")
 	, searchPos(0)
+	, currentLandmarkIndex(-1)
+	, lastScanPosition(-1, -1, -1)
 {}
 
 void AdventureMapShortcuts::setState(EAdventureState newState)
@@ -129,7 +131,9 @@ std::vector<AdventureMapShortcutState> AdventureMapShortcuts::getShortcuts()
 		{ EShortcut::ADVENTURE_MOVE_HERO_NE,     optionHeroSelected(),   [this]() { this->moveHeroDirectional({+1, -1}); } },
 		{ EShortcut::ADVENTURE_SEARCH,           optionSidePanelActive(),[this]() { this->search(false); } },
 		{ EShortcut::ADVENTURE_SEARCH_CONTINUE,  optionSidePanelActive(),[this]() { this->search(true); } },
-		{ EShortcut::ADVENTURE_ANNOUNCE_LANDMARKS, optionHeroSelected(),  [this]() { this->announceLandmarks(); } }
+		{ EShortcut::ADVENTURE_ANNOUNCE_LANDMARKS, optionHeroSelected(),  [this]() { this->announceLandmarks(); } },
+		{ EShortcut::ADVENTURE_CYCLE_LANDMARKS_FORWARD, optionHeroSelected(), [this]() { this->cycleLandmarksForward(); } },
+		{ EShortcut::ADVENTURE_CYCLE_LANDMARKS_BACKWARD, optionHeroSelected(), [this]() { this->cycleLandmarksBackward(); } }
 	};
 	return result;
 }
@@ -713,7 +717,7 @@ bool AdventureMapShortcuts::optionMapViewActive()
 	return state == EAdventureState::MAKING_TURN || state == EAdventureState::WORLD_VIEW || state == EAdventureState::CASTING_SPELL;
 }
 
-void AdventureMapShortcuts::announceLandmarks()
+void AdventureMapShortcuts::scanForLandmarks()
 {
 	const CGHeroInstance *hero = GAME->interface()->localState->getCurrentHero();
 	if (!hero)
@@ -721,6 +725,7 @@ void AdventureMapShortcuts::announceLandmarks()
 
 	// Get hero's current position
 	int3 heroPos = hero->visitablePos();
+	lastScanPosition = heroPos;
 	
 	const int SCAN_RADIUS = hero->getSightRadius();
 	
@@ -733,21 +738,15 @@ void AdventureMapShortcuts::announceLandmarks()
 		OTHER = 5
 	};
 	
-	struct LandmarkInfo {
-		const CGObjectInstance* obj;
-		int distance;
-		int priority;
-		std::string direction;
-		
-		bool operator<(const LandmarkInfo& other) const {
-			// Sort by priority first, then by distance
-			if (priority != other.priority)
-				return priority < other.priority;
-			return distance < other.distance;
-		}
-	};
+	// Save the current landmark object pointer if we have one
+	const CGObjectInstance* previousLandmark = nullptr;
+	if (currentLandmarkIndex >= 0 && currentLandmarkIndex < static_cast<int>(collectedLandmarks.size()))
+	{
+		previousLandmark = collectedLandmarks[currentLandmarkIndex].obj;
+	}
 	
-	std::vector<LandmarkInfo> landmarks;
+	// Clear previous landmarks
+	collectedLandmarks.clear();
 	
 	// Scan for objects within radius
 	for (int dx = -SCAN_RADIUS; dx <= SCAN_RADIUS; dx++)
@@ -791,7 +790,7 @@ void AdventureMapShortcuts::announceLandmarks()
 					if (heroObj && heroObj->tempOwner != hero->tempOwner)
 					{
 						priority = THREAT; // Enemy heroes are threats
-						landmarks.push_back({obj, distance, priority, direction});
+						collectedLandmarks.push_back({obj, distance, priority, direction});
 						continue;
 					}
 				}
@@ -874,16 +873,62 @@ void AdventureMapShortcuts::announceLandmarks()
 						break;
 				}
 				
-				landmarks.push_back({obj, distance, priority, direction});
+				collectedLandmarks.push_back({obj, distance, priority, direction});
 			}
 		}
 	}
 	
-	std::sort(landmarks.begin(), landmarks.end());
+	std::sort(collectedLandmarks.begin(), collectedLandmarks.end());
+	
+	// Try to find the previous landmark in the new list
+	if (previousLandmark && !collectedLandmarks.empty())
+	{
+		int foundIndex = -1;
+		for (int i = 0; i < static_cast<int>(collectedLandmarks.size()); i++)
+		{
+			if (collectedLandmarks[i].obj == previousLandmark)
+			{
+				foundIndex = i;
+				break;
+			}
+		}
+		
+		if (foundIndex >= 0)
+		{
+			// Found the same landmark, keep it selected
+			currentLandmarkIndex = foundIndex;
+		}
+		else
+		{
+			// Previous landmark not found, reset to BEFORE first
+			// so that pressing K will advance to index 0
+			currentLandmarkIndex = -1;
+		}
+	}
+	else if (!collectedLandmarks.empty())
+	{
+		// No previous landmark, start BEFORE first
+		// so that pressing K will advance to index 0
+		currentLandmarkIndex = -1;
+	}
+	else
+	{
+		// No landmarks found
+		currentLandmarkIndex = -1;
+	}
+}
+
+void AdventureMapShortcuts::announceLandmarks()
+{
+	const CGHeroInstance *hero = GAME->interface()->localState->getCurrentHero();
+	if (!hero)
+		return;
+		
+	scanForLandmarks();
 	
 	std::string announcement;
 	
-	if (landmarks.empty())
+	if (collectedLandmarks.empty())
 	{
 		announcement = "No landmarks detected within scanning range.";
 	}
@@ -891,7 +936,7 @@ void AdventureMapShortcuts::announceLandmarks()
 	{
 		announcement = "";
 		int count = 0;
-		for (const auto& landmark : landmarks)
+		for (const auto& landmark : collectedLandmarks)
 		{
 			if (count > 0)
 				announcement += "; ";
@@ -920,5 +965,97 @@ void AdventureMapShortcuts::announceLandmarks()
 			count++;
 		}
 	}
+	AccessibilityManager::getInstance().announce(announcement, true);
+}
+
+void AdventureMapShortcuts::cycleLandmarksForward()
+{
+	const CGHeroInstance *hero = GAME->interface()->localState->getCurrentHero();
+	if (!hero)
+		return;
+
+	if (collectedLandmarks.empty() || hero->visitablePos() != lastScanPosition)
+	{
+		scanForLandmarks();
+		if (collectedLandmarks.empty())
+		{
+			AccessibilityManager::getInstance().announce("No landmarks detected within scanning range.", true);
+			return;
+		}
+	}
+	
+	currentLandmarkIndex++;
+	if (currentLandmarkIndex >= static_cast<int>(collectedLandmarks.size()))
+		currentLandmarkIndex = 0;  // Wrap around to first
+		
+	const auto& landmark = collectedLandmarks[currentLandmarkIndex];
+	std::string announcement = landmark.obj->getObjectName();
+	announcement += " " + std::to_string(landmark.distance) + " tiles " + landmark.direction;
+	
+	if (landmark.obj->ID == MapObjectID::MONSTER)
+	{
+		announcement += " (threat)";
+	}
+	else if (landmark.obj->ID == MapObjectID::TOWN)
+	{
+		const CGTownInstance* town = dynamic_cast<const CGTownInstance*>(landmark.obj);
+		if (town)
+		{
+			if (town->tempOwner == hero->tempOwner)
+				announcement += " (friendly)";
+			else if (town->tempOwner == PlayerColor::NEUTRAL)
+				announcement += " (neutral)";
+			else
+				announcement += " (enemy)";
+		}
+	}
+	
+	announcement += " (" + std::to_string(currentLandmarkIndex + 1) + " of " + std::to_string(collectedLandmarks.size()) + ")";
+	AccessibilityManager::getInstance().announce(announcement, true);
+}
+
+void AdventureMapShortcuts::cycleLandmarksBackward()
+{
+	const CGHeroInstance *hero = GAME->interface()->localState->getCurrentHero();
+	if (!hero)
+		return;
+	
+	if (collectedLandmarks.empty() || hero->visitablePos() != lastScanPosition)
+	{
+		scanForLandmarks();
+		if (collectedLandmarks.empty())
+		{
+			AccessibilityManager::getInstance().announce("No landmarks detected within scanning range.", true);
+			return;
+		}
+	}
+	
+	currentLandmarkIndex--;
+	if (currentLandmarkIndex < 0)
+		currentLandmarkIndex = static_cast<int>(collectedLandmarks.size()) - 1;
+
+	const auto& landmark = collectedLandmarks[currentLandmarkIndex];
+	std::string announcement = landmark.obj->getObjectName();
+	announcement += " " + std::to_string(landmark.distance) + " tiles " + landmark.direction;
+
+	if (landmark.obj->ID == MapObjectID::MONSTER)
+	{
+		announcement += " (threat)";
+	}
+	else if (landmark.obj->ID == MapObjectID::TOWN)
+	{
+		const CGTownInstance* town = dynamic_cast<const CGTownInstance*>(landmark.obj);
+		if (town)
+		{
+			if (town->tempOwner == hero->tempOwner)
+				announcement += " (friendly)";
+			else if (town->tempOwner == PlayerColor::NEUTRAL)
+				announcement += " (neutral)";
+			else
+				announcement += " (enemy)";
+		}
+	}
+
+	announcement += " (" + std::to_string(currentLandmarkIndex + 1) + " of " + std::to_string(collectedLandmarks.size()) + ")";
 	AccessibilityManager::getInstance().announce(announcement, true);
 }
