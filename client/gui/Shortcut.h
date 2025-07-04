@@ -247,6 +247,10 @@ enum class EShortcut
 	BATTLE_JUMP_TO_UNIT_5,   // 5
 	BATTLE_JUMP_TO_UNIT_6,   // 6
 	BATTLE_JUMP_TO_UNIT_7,   // 7
+	
+	// Combat accessibility obstacle cycling
+	BATTLE_CYCLE_OBSTACLES_FORWARD,  // O
+	BATTLE_CYCLE_OBSTACLES_BACKWARD, // Shift+O
 	BATTLE_JUMP_TO_UNIT_8,   // 8
 	BATTLE_JUMP_TO_UNIT_9,   // 9
 	BATTLE_JUMP_TO_UNIT_10,  // 0

@@ -152,6 +152,10 @@ BattleWindow::BattleWindow(BattleInterface & Owner)
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_10, [this](){ this->jumpToEnemyUnit(9); });
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_11, [this](){ this->jumpToEnemyUnit(10); });
 	addShortcut(EShortcut::BATTLE_JUMP_TO_ENEMY_12, [this](){ this->jumpToEnemyUnit(11); });
+	
+	// Combat accessibility obstacle cycling
+	addShortcut(EShortcut::BATTLE_CYCLE_OBSTACLES_FORWARD,  [this](){ this->owner.getAccessibilityController()->handleObstacleCycling(EShortcut::BATTLE_CYCLE_OBSTACLES_FORWARD); });
+	addShortcut(EShortcut::BATTLE_CYCLE_OBSTACLES_BACKWARD, [this](){ this->owner.getAccessibilityController()->handleObstacleCycling(EShortcut::BATTLE_CYCLE_OBSTACLES_BACKWARD); });
 
 	// Combat accessibility unit info
 	addShortcut(EShortcut::BATTLE_INFO_ATTACK_DEFENSE,  [this](){ this->announceUnitInfo(1); });

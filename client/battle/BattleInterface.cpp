@@ -623,6 +623,12 @@ void BattleInterface::activateStack()
 	// Announce turn start for accessibility
 	accessibilityController->announceTurnStart(s);
 	
+	// Silently position cursor on the active unit if it belongs to the player
+	if (s->unitOwner() == curInt->playerID)
+	{
+		accessibilityController->silentlyPositionCursorOnUnit(s);
+	}
+	
 	ENGINE->fakeMouseMove();
 }
 

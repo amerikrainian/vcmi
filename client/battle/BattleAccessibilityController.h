@@ -40,10 +40,13 @@ private:
 
     const CSpell* targetingSpell;
     
+    // Obstacle cycling
+    std::vector<std::shared_ptr<const CObstacleInstance>> cachedObstacles;
+    int currentObstacleIndex;
+    
     std::string getAnnouncedCoordinates(BattleHex hex) const;
     std::string formatUnitAnnouncement(const CStack* stack) const;
     std::string getTerrainName(BattleHex hex) const;
-    std::string getObstacleName(const CObstacleInstance* obstacle) const;
     BattleHex::EDir mapKeyToHexDirection(EShortcut key) const;
 
     void executeClickAction();
@@ -55,14 +58,17 @@ public:
     void handleUnitMovement(EShortcut key);
     void handleEnterKey();
     void handleEscapeKey();
+    void handleObstacleCycling(EShortcut key);
     
     void announceHexContent(BattleHex hex);
+    std::string getObstacleName(const CObstacleInstance* obstacle) const;
     void announceUnitInfo(const CStack* stack, int detailLevel);
     void announceCombatEvent(const std::string& event);
     void enterSpellTargetingMode(const CSpell* spell);
     void exitSpellTargetingMode();
     void activateHexNavigation();
     void deactivateHexNavigation();
+    void silentlyPositionCursorOnUnit(const CStack* stack);
     
     bool isHexNavigationActive() const { return hexNavigationMode; }
     bool isSpellTargetingActive() const { return spellTargetingMode; }

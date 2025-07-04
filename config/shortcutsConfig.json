@@ -435,6 +435,10 @@
 		"battleJumpToEnemy6":       "Shift+6",
 		"battleJumpToEnemy7":       "Shift+7",
 		"battleJumpToEnemy8":       "Shift+8",
+		
+		// Combat accessibility obstacle cycling
+		"battleCycleObstaclesForward":  "O",
+		"battleCycleObstaclesBackward": "Shift+O",
 		"battleJumpToEnemy9":       "Shift+9",
 		"battleJumpToEnemy10":      "Shift+0",
 		"battleJumpToEnemy11":      "Shift+-",

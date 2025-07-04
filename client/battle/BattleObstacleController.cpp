@@ -16,9 +16,11 @@
 #include "BattleStacksController.h"
 #include "BattleRenderer.h"
 #include "CreatureAnimation.h"
+#include "BattleAccessibilityController.h"
 
 #include "../CPlayerInterface.h"
 #include "../GameEngine.h"
+#include "../gui/AccessibilityManager.h"
 #include "../media/ISoundPlayer.h"
 #include "../render/CAnimation.h"
 #include "../render/Canvas.h"
@@ -28,6 +30,7 @@
 #include "../../lib/ObstacleHandler.h"
 #include "../../lib/battle/CPlayerBattleCallback.h"
 #include "../../lib/serializer/JsonDeserializer.h"
+#include "../../lib/spells/CSpellHandler.h"
 
 BattleObstacleController::BattleObstacleController(BattleInterface & owner):
 	owner(owner),
@@ -92,6 +95,36 @@ void BattleObstacleController::obstacleRemoved(const std::vector<ObstacleChanges
 		obstacleImages.erase(oi.id);
 		//so when multiple obstacles are removed, they show up one after another
 		owner.waitForAnimations();
+		
+		// Announce obstacle removal for accessibility
+		if (owner.getAccessibilityController())
+		{
+			// Try to get obstacle type from JSON data
+			std::string obstacleName = "obstacle"; // default name
+			
+			// Check if this is a spell-created obstacle
+			if (obstacle["spellCreated"].Bool() && obstacle["trigger"].isNumber())
+			{
+				SpellID spellId(obstacle["trigger"].Integer());
+				if (spellId != SpellID::NONE)
+				{
+					try
+					{
+						const CSpell* spell = spellId.toSpell();
+						if (spell)
+							obstacleName = spell->getNameTranslated();
+					}
+					catch (const std::exception&)
+					{
+						// Fall back to default name
+					}
+				}
+			}
+			
+			std::string hexStr = obstacle["position"].isNumber() ? std::to_string(obstacle["position"].Integer()) : "unknown";
+			std::string announcement = obstacleName + " removed from hex " + hexStr;
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
 	}
 }
 
@@ -119,6 +152,15 @@ void BattleObstacleController::obstaclePlaced(const std::vector<std::shared_ptr<
 		owner.waitForAnimations();
 
 		loadObstacleImage(*oi);
+		
+		// Announce obstacle placement for accessibility
+		if (owner.getAccessibilityController())
+		{
+			std::string obstacleName = owner.getAccessibilityController()->getObstacleName(oi.get());
+			std::string hexStr = std::to_string(oi->pos.toInt());
+			std::string announcement = obstacleName + " placed at hex " + hexStr;
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
 	}
 }
 

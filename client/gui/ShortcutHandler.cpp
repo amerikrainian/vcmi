@@ -276,6 +276,8 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 		{"battleJumpToUnit5",        EShortcut::BATTLE_JUMP_TO_UNIT_5     },
 		{"battleJumpToUnit6",        EShortcut::BATTLE_JUMP_TO_UNIT_6     },
 		{"battleJumpToUnit7",        EShortcut::BATTLE_JUMP_TO_UNIT_7     },
+		{"battleCycleObstaclesForward", EShortcut::BATTLE_CYCLE_OBSTACLES_FORWARD },
+		{"battleCycleObstaclesBackward", EShortcut::BATTLE_CYCLE_OBSTACLES_BACKWARD },
 		{ "battleJumpToUnit8",        EShortcut::BATTLE_JUMP_TO_UNIT_8     },
 		{ "battleJumpToUnit9",        EShortcut::BATTLE_JUMP_TO_UNIT_9     },
 		{ "battleJumpToUnit10",       EShortcut::BATTLE_JUMP_TO_UNIT_10    },

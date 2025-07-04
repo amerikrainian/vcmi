@@ -30,6 +30,8 @@
 #include "../../lib/constants/Enumerations.h"
 #include "../../lib/CConfigHandler.h"
 
+#include <algorithm>
+
 BattleAccessibilityController::BattleAccessibilityController(BattleInterface & owner)
     : owner(owner)
     , currentHex(BattleHex::INVALID)
@@ -38,6 +40,7 @@ BattleAccessibilityController::BattleAccessibilityController(BattleInterface & o
     , spellTargetingMode(false)
     , currentMode(Mode::NORMAL_NAVIGATION)
     , targetingSpell(nullptr)
+    , currentObstacleIndex(-1)
 {
 }
 
@@ -135,14 +138,18 @@ std::string BattleAccessibilityController::getObstacleName(const CObstacleInstan
         auto spellObstacle = dynamic_cast<const SpellCreatedObstacle*>(obstacle);
         if (spellObstacle && spellObstacle->trigger != SpellID::NONE)
         {
-            // Use spell name for spell-created obstacles (Fire Wall, Force Field, etc.)
-            // For now, just return a generic name since we can't access VLC here
-            if (spellObstacle->trigger == SpellID::FIRE_WALL)
-                return "fire wall";
-            else if (spellObstacle->trigger == SpellID::FORCE_FIELD)
-                return "force field";
-            else
-                return "magical obstacle";
+            // Get the spell name from the spell handler
+            try
+            {
+                const CSpell* spell = spellObstacle->trigger.toSpell();
+                if (spell)
+                    return spell->getNameTranslated();
+            }
+            catch (const std::exception&)
+            {
+                // Fall back to generic name if spell lookup fails
+            }
+            return "magical obstacle";
         }
     }
     
@@ -155,33 +162,99 @@ std::string BattleAccessibilityController::getObstacleName(const CObstacleInstan
         animName = animName.substr(0, dotPos);
     
     // Convert animation prefixes to descriptive names
+    // Special case for uppercase variations
+    if (animName.find("OBGrS") == 0) return "grass";
+    if (animName.find("OBLvL") == 0) return "lava rock";
+    
+    // Terrain-specific obstacles (Dirt terrain)
     if (animName.find("ObDino") == 0) return "dinosaur bones";
     if (animName.find("ObSkel") == 0) return "skeleton";
-    if (animName.find("ObStump") == 0) return "tree stump";
-    if (animName.find("ObCrys") == 0) return "crystal";
+    if (animName.find("ObBDT") == 0) return "battlefield debris";
     if (animName.find("ObDRck") == 0 || animName.find("ObDRk") == 0) return "dark rock";
-    if (animName.find("ObLRck") == 0) return "large rock";
-    if (animName.find("ObRock") == 0) return "rock";
-    if (animName.find("ObStne") == 0) return "stone";
-    if (animName.find("ObTree") == 0) return "tree";
-    if (animName.find("ObDead") == 0) return "dead tree";
+    if (animName.find("ObDSh") == 0) return "dead shrub";
+    if (animName.find("ObDTF") == 0) return "dead tree";
+    if (animName.find("ObDtL") == 0) return "large dirt mound";
+    if (animName.find("ObDtS") == 0) return "dirt mound";
+    
+    // Desert/Sand obstacles
+    if (animName.find("ObDsM") == 0) return "desert mountain";
+    if (animName.find("ObDsS") == 0) return "sand dune";
+    
+    // Grass obstacles
+    if (animName.find("ObGLg") == 0) return "log";
+    if (animName.find("ObGRk") == 0) return "grass rock";
+    if (animName.find("ObGSt") == 0) return "stone";
+    if (animName.find("ObGrL") == 0) return "large grass patch";
+    if (animName.find("ObGrS") == 0 || animName.find("ObGrss") == 0 || animName.find("ObGras") == 0) return "grass";
+    
+    // Snow obstacles
+    if (animName.find("ObSnL") == 0) return "large snowdrift";
+    if (animName.find("ObSnS") == 0) return "snowdrift";
+    
+    // Swamp obstacles
+    if (animName.find("ObSwL") == 0) return "large swamp";
+    if (animName.find("ObSwS") == 0) return "swamp";
+    
+    // Rough terrain obstacles
+    if (animName.find("ObRgL") == 0) return "large rocks";
+    if (animName.find("ObRgS") == 0) return "rocks";
+    
+    // Subterranean obstacles
+    if (animName.find("ObSuS") == 0) return "stalagmite";
+    
+    // Lava obstacles
+    if (animName.find("ObLvL") == 0) return "large lava rock";
+    if (animName.find("ObLvS") == 0) return "lava rock";
+    
+    // Special battlefield obstacles
+    if (animName.find("ObBhL") == 0 || animName.find("ObBhS") == 0) return "beach obstacle";
+    if (animName.find("ObBtS") == 0) return "ship debris";
+    
+    // Special terrain obstacles
+    if (animName.find("ObCFL") == 0 || animName.find("ObCFs") == 0) return "clover";
+    if (animName.find("ObLPL") == 0 || animName.find("ObLPs") == 0) return "lucid pool";
+    if (animName.find("ObFFL") == 0 || animName.find("ObFFs") == 0) return "fire";
+    if (animName.find("ObRLL") == 0 || animName.find("ObRLs") == 0) return "rocky outcrop";
+    if (animName.find("ObMCL") == 0 || animName.find("ObMCs") == 0) return "magic cloud";
+    if (animName.find("ObHGs") == 0) return "holy artifact";
+    if (animName.find("ObEFs") == 0) return "evil fog";
+    
+    // Additional patterns from original code (keeping for compatibility)
     if (animName.find("ObBone") == 0) return "bones";
-    if (animName.find("ObShip") == 0) return "shipwreck";
-    if (animName.find("ObBrsh") == 0) return "brush";
+    if (animName.find("ObSkul") == 0) return "skull";
+    if (animName.find("ObLRck") == 0 || animName.find("ObLRk") == 0) return "large rock";
+    if (animName.find("ObRock") == 0 || animName.find("ObRck") == 0) return "rock";
+    if (animName.find("ObStne") == 0 || animName.find("ObStn") == 0) return "stone";
+    if (animName.find("ObCrys") == 0) return "crystal";
+    if (animName.find("ObTree") == 0 || animName.find("ObTre") == 0) return "tree";
+    if (animName.find("ObDead") == 0 || animName.find("ObDeaT") == 0) return "dead tree";
+    if (animName.find("ObStump") == 0 || animName.find("ObStmp") == 0) return "tree stump";
+    if (animName.find("ObBrsh") == 0 || animName.find("ObBush") == 0) return "brush";
     if (animName.find("ObCact") == 0) return "cactus";
-    if (animName.find("ObKetl") == 0) return "kettle";
-    if (animName.find("ObTent") == 0) return "tent";
-    if (animName.find("ObCart") == 0) return "cart";
-    if (animName.find("ObBrl") == 0) return "barrel";
-    if (animName.find("ObSign") == 0) return "sign";
-    if (animName.find("ObGrss") == 0) return "grass";
     if (animName.find("ObSnag") == 0) return "snag";
     if (animName.find("ObLog") == 0) return "log";
     if (animName.find("ObMoss") == 0) return "moss";
-    if (animName.find("ObBhS") == 0) return "battlefield structure";
+    if (animName.find("ObMush") == 0) return "mushroom";
+    if (animName.find("ObPlnt") == 0) return "plant";
+    if (animName.find("ObShip") == 0 || animName.find("ObWrck") == 0) return "shipwreck";
+    if (animName.find("ObKetl") == 0 || animName.find("ObKettle") == 0) return "kettle";
+    if (animName.find("ObTent") == 0) return "tent";
+    if (animName.find("ObCart") == 0) return "cart";
+    if (animName.find("ObBrl") == 0 || animName.find("ObBarrel") == 0) return "barrel";
+    if (animName.find("ObSign") == 0) return "sign";
     if (animName.find("ObWall") == 0) return "wall";
+    if (animName.find("ObRuin") == 0) return "ruins";
+    if (animName.find("ObTomb") == 0) return "tomb";
+    if (animName.find("ObGrave") == 0) return "grave";
     if (animName.find("ObLava") == 0) return "lava";
-    if (animName.find("ObCld") == 0) return "cloud";
+    if (animName.find("ObCld") == 0 || animName.find("ObCloud") == 0) return "cloud";
+    if (animName.find("ObIce") == 0) return "ice";
+    if (animName.find("ObSnow") == 0) return "snow";
+    if (animName.find("ObSand") == 0) return "sand";
+    if (animName.find("ObSwmp") == 0 || animName.find("ObSwamp") == 0) return "swamp";
+    if (animName.find("ObCrat") == 0 || animName.find("ObCrater") == 0) return "crater";
+    if (animName.find("ObFire") == 0) return "fire";
+    if (animName.find("ObSmoke") == 0) return "smoke";
     
     // Default to generic "obstacle" if no match
     return "obstacle";
@@ -435,6 +508,19 @@ void BattleAccessibilityController::deactivateHexNavigation()
     owner.actionsController->onHexHovered(BattleHex::INVALID);
 }
 
+void BattleAccessibilityController::silentlyPositionCursorOnUnit(const CStack* stack)
+{
+    if (!stack || !stack->getPosition().isValid())
+        return;
+    
+    // Silently position the cursor on the unit's position
+    currentHex = stack->getPosition();
+    
+    // Update hover state if hex navigation is active
+    if (hexNavigationMode)
+        owner.actionsController->onHexHovered(currentHex);
+}
+
 void BattleAccessibilityController::setCurrentHex(BattleHex hex)
 {
     currentHex = hex;
@@ -523,6 +609,55 @@ void BattleAccessibilityController::handleEscapeKey()
             exitSpellTargetingMode();
             break;
     }
+}
+
+void BattleAccessibilityController::handleObstacleCycling(EShortcut key)
+{
+    auto allObstacles = owner.getBattle()->battleGetAllObstacles();
+
+    cachedObstacles.clear();
+    for (const auto& obstacle : allObstacles)
+    {
+        if (obstacle->obstacleType != CObstacleInstance::MOAT)
+            cachedObstacles.push_back(obstacle);
+    }
+    
+    if (cachedObstacles.empty())
+    {
+        AccessibilityManager::getInstance().announce("No obstacles on battlefield", true);
+        return;
+    }
+    
+    std::sort(cachedObstacles.begin(), cachedObstacles.end(), 
+        [](const auto& a, const auto& b) { return a->pos.toInt() < b->pos.toInt(); });
+    
+    if (key == EShortcut::BATTLE_CYCLE_OBSTACLES_FORWARD)
+    {
+        currentObstacleIndex++;
+        if (currentObstacleIndex >= static_cast<int>(cachedObstacles.size()))
+            currentObstacleIndex = 0;
+    }
+    else
+    {
+        currentObstacleIndex--;
+        if (currentObstacleIndex < 0)
+            currentObstacleIndex = static_cast<int>(cachedObstacles.size()) - 1;
+    }
+    
+    const auto& obstacle = cachedObstacles[currentObstacleIndex];
+    currentHex = obstacle->pos;
+    
+    if (!hexNavigationMode)
+        activateHexNavigation();
+    
+    owner.actionsController->onHexHovered(currentHex);
+    
+    std::string obstacleName = getObstacleName(obstacle.get());
+    std::string announcement = obstacleName + " at " + getAnnouncedCoordinates(currentHex);
+    announcement += " (" + std::to_string(currentObstacleIndex + 1) + " of " + 
+                    std::to_string(cachedObstacles.size()) + ")";
+
+    AccessibilityManager::getInstance().announce(announcement, true);
 }
 
 void BattleAccessibilityController::executeClickAction()
