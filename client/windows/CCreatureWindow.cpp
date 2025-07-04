@@ -27,6 +27,7 @@
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
 #include "../gui/AccessibilityManager.h"
+#include "../gui/FocusManager.h"
 #include "../battle/BattleInterface.h"
 
 #include "../../lib/CBonusTypeHandler.h"
@@ -340,18 +341,16 @@ CStackWindow::BonusLineSection::BonusLineSection(CStackWindow * owner, size_t li
 			drawBonusSource(leftRight, Point(position.x - 1, position.y - 1), bi);
 			
 			// Make the entire bonus area accessible
-			auto accessibleArea = std::make_shared<LRClickableAreaWText>(Rect(position.x, position.y, 190, 52));
-			accessibleArea->text = bi.description;
+			accessibleAreas[leftRight] = std::make_shared<LRClickableAreaWText>(Rect(position.x, position.y, 190, 52));
+			accessibleAreas[leftRight]->text = bi.description;
+			accessibleAreas[leftRight]->addUsedEvents(KEYBOARD); // Enable keyboard navigation
 			
 			// Set accessibility info with proper tab order
 			std::string bonusSourceName = bonusNames.count(bi.bonusSource) ? bonusNames[bi.bonusSource] : LIBRARY->generaltexth->translate("vcmi.bonusSource.other");
-			accessibleArea->setAccessibilityInfo(UIAccessibilityInfo()
+			accessibleAreas[leftRight]->setAccessibilityInfo(UIAccessibilityInfo()
 				.withRole("text")
 				.withName(bonusSourceName + ": " + bi.description)
 				.withTabOrder(60 + bonusIndex));
-			
-			// Add the accessible area as a child
-			addChild(accessibleArea.get());
 		}
 	}
 }
@@ -1196,6 +1195,69 @@ std::string CStackWindow::getCommanderSkillDescription(int skillIndex, int skill
 	std::string textID = TextIdentifier("vcmi", "commander", "skill", skillNames.at(skillIndex), skillLevel).get();
 
 	return LIBRARY->generaltexth->translate(textID);
+}
+
+void CStackWindow::keyPressed(EShortcut key)
+{
+	// Handle tab navigation for commander windows
+	if(info->commander && commanderTab)
+	{
+		if(key == EShortcut::MOVE_LEFT || key == EShortcut::MOVE_UP)
+		{
+			// Switch to previous tab (Skills)
+			if(activeTab != 0)
+			{
+				switchButtons[activeTab]->enable();
+				commanderTab->setActive(0);
+				switchButtons[0]->disable();
+				redraw();
+				AccessibilityManager::getInstance().announce("Skills tab selected", true);
+			}
+		}
+		else if(key == EShortcut::MOVE_RIGHT || key == EShortcut::MOVE_DOWN)
+		{
+			// Switch to next tab (Bonuses)
+			if(activeTab != 1)
+			{
+				switchButtons[activeTab]->enable();
+				commanderTab->setActive(1);
+				switchButtons[1]->disable();
+				redraw();
+				AccessibilityManager::getInstance().announce("Bonuses tab selected", true);
+			}
+		}
+	}
+	// For non-commander windows, announce the current section when using Tab
+	else if(key == EShortcut::GLOBAL_MOVE_FOCUS || key == EShortcut::GLOBAL_MOVE_FOCUS_PREV)
+	{
+		// Let the focus manager handle the actual focus movement first
+		CWindowObject::keyPressed(key);
+		
+		// Then announce which section the focus moved to
+		auto focusedElement = FocusManager::getInstance().getFocusedElement();
+		if(!focusedElement)
+			return;
+			
+		// Check which section contains the focused element
+		bool inMainSection = mainSection && mainSection->pos.isInside(focusedElement->pos.topLeft());
+		bool inSpellsSection = activeSpellsSection && activeSpellsSection->pos.isInside(focusedElement->pos.topLeft());
+		bool inBonusesSection = bonusesSection && bonusesSection->pos.isInside(focusedElement->pos.topLeft());
+		bool inButtonsSection = buttonsSection && buttonsSection->pos.isInside(focusedElement->pos.topLeft());
+		
+		if(inMainSection)
+			AccessibilityManager::getInstance().announce("Main statistics section", true);
+		else if(inSpellsSection)
+			AccessibilityManager::getInstance().announce("Active spells section", true);
+		else if(inBonusesSection)
+			AccessibilityManager::getInstance().announce("Bonuses and abilities section", true);
+		else if(inButtonsSection)
+			AccessibilityManager::getInstance().announce("Buttons section", true);
+			
+		return; // Already handled focus movement
+	}
+	
+	// Pass other keys to parent
+	CWindowObject::keyPressed(key);
 }
 
 void CStackWindow::setSelection(si32 newSkill, std::shared_ptr<CCommanderSkillIcon> newIcon)

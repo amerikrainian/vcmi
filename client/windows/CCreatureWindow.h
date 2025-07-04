@@ -87,6 +87,7 @@ class CStackWindow : public CWindowObject
 		std::array<std::shared_ptr<CMultiLineLabel>, 2> description;
 		std::array<std::shared_ptr<GraphicalPrimitiveCanvas>, 2> frame;
 		std::array<std::vector<std::shared_ptr<CLabel>>, 2> bonusSource;
+		std::array<std::shared_ptr<LRClickableAreaWText>, 2> accessibleAreas;
 	public:
 		BonusLineSection(CStackWindow * owner, size_t lineIndex);
 	};
@@ -194,6 +195,8 @@ class CStackWindow : public CWindowObject
 
 	std::string generateStackExpDescription();
 	std::string getCommanderSkillDescription(int skillIndex, int skillLevel);
+
+	void keyPressed(EShortcut key) override;
 
 public:
 	// for battles
