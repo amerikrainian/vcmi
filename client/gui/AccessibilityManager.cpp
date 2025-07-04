@@ -250,7 +250,6 @@ void AccessibilityManager::announce(const std::string& text, bool interrupt)
 	std::wstring wideText = impl->toWideString(cleanText);
 	if (!wideText.empty())
 	{
-		// Fire-and-forget approach - just send to screen reader
 		bool success = Speech_Output(wideText.c_str(), interrupt);
 		if (!success)
 		{
@@ -289,7 +288,6 @@ void AccessibilityManager::handleHover(const CIntObject* element)
 	if (!screenReaderEnabled || !announceHoverText || !element)
 		return;
 	
-	// Get accessibility info from the element
 	const UIAccessibilityInfo* info = element->getAccessibilityInfo();
 	if (info && !info->name.empty())
 	{
@@ -299,7 +297,6 @@ void AccessibilityManager::handleHover(const CIntObject* element)
 
 void AccessibilityManager::processAnnouncements()
 {
-	// No longer needed - fire-and-forget approach
 }
 
 void AccessibilityManager::stopSpeaking()
@@ -312,8 +309,6 @@ void AccessibilityManager::stopSpeaking()
 
 bool AccessibilityManager::isSpeaking() const
 {
-	// Many screen readers don't support this, so just return false
-	// This prevents code from waiting for speech to finish
 	return false;
 }
 
@@ -329,7 +324,31 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 	std::string text;
 	bool valueAlreadyUsed = false;
 
-	// Special case: no name, but value and role exist
+	if (info->name.empty() && info->value.empty() && !info->description.empty())
+	{
+		text = info->description;
+
+		if (!info->role.empty() && info->role != "text")
+		{
+			const std::string punctuation = ".!?";
+			char lastChar = text.back();
+			if (punctuation.find(lastChar) == std::string::npos)
+				text += ",";
+
+			text += " ";
+
+			text += info->role;
+		}
+
+		if (!info->state.empty())
+		{
+			text += ", ";
+			text += info->state;
+		}
+
+		return text;
+	}
+
 	if (info->name.empty() && !info->value.empty() && !info->role.empty())
 	{
 		text = info->value;
@@ -344,6 +363,7 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 	else if (!info->name.empty())
 	{
 		text = info->name;
+
 		if (!info->role.empty() && info->role != "text")
 		{
 			text += ", ";
@@ -367,8 +387,6 @@ std::string AccessibilityManager::getAccessibleText(const CIntObject* element) c
 
 	if (!info->description.empty() && text != info->description)
 	{
-		if (!text.empty())
-			text += ". ";
 		text += info->description;
 	}
 
