@@ -754,7 +754,7 @@ void AdventureMapShortcuts::announceLandmarks()
 	{
 		for (int dy = -SCAN_RADIUS; dy <= SCAN_RADIUS; dy++)
 		{
-			int3 checkPos = heroPos + int3(dx, dy, heroPos.z);
+			int3 checkPos = heroPos + int3(dx, dy, 0);
 			
 			if (!GAME->interface()->cb->isInTheMap(checkPos))
 				continue;
