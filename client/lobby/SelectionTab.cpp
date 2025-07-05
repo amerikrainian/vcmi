@@ -526,8 +526,13 @@ void SelectionTab::keyPressed(EShortcut key)
 		}
 		else if(selectionPos < curItems.size() && curItems[selectionPos]->isFolder)
 		{
-			// Enter folder
-			select((int)selectionPos - slider->getValue());
+			// Enter folder explicitly when accessibility is enabled
+			if(AccessibilityManager::getInstance().isScreenReaderEnabled()) {
+				enterFolder(selectionPos);
+			} else {
+				// Normal behavior - select will auto-enter
+				select((int)selectionPos - slider->getValue());
+			}
 		}
 		return;
 	default:
@@ -557,7 +562,13 @@ void SelectionTab::clickDouble(const Point & cursorPosition)
 
 	if(itemIndex >= 0 && curItems[itemIndex]->isFolder)
 	{
-		select(position);
+		// In accessibility mode, double-click should enter folder
+		// In normal mode, single-click already enters folders
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled()) {
+			enterFolder(itemIndex);
+		} else {
+			select(position);
+		}
 		return;
 	}
 
@@ -787,6 +798,34 @@ void SelectionTab::select(int position)
 		slider->scrollBy(position - (int)listItems.size() + 1);
 
 	if(curItems[py]->isFolder) {
+		// If accessibility is enabled, don't automatically enter folders
+		// User must explicitly press Enter to navigate into folders
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled()) {
+			// Just update the selection without entering the folder
+			updateListItems();
+			redraw();
+			// Don't call callOnSelect for folders - the server doesn't need to know about folder selection
+			
+			// Announce the newly selected item
+			if(py < curItems.size())
+			{
+				std::string announcement = curItems[py]->folderName;
+				
+				// Count files separately from folders
+				int fileCount = 0;
+				for(const auto& item : curItems) {
+					if(!item->isFolder) fileCount++;
+				}
+				
+				announcement += ", folder " + std::to_string(py + 1) + " of " + std::to_string(curItems.size());
+				announcement += ", press Enter to open";
+				
+				AccessibilityManager::getInstance().announce(announcement, true);
+			}
+			return;
+		}
+		
+		// Normal behavior when accessibility is disabled - auto-enter folders
 		if(boost::starts_with(curItems[py]->folderName, ".."))
 		{
 			std::vector<std::string> filetree;
@@ -825,8 +864,29 @@ void SelectionTab::select(int position)
 	// Announce the newly selected item
 	if(AccessibilityManager::getInstance().isScreenReaderEnabled() && py < curItems.size())
 	{
-		std::string announcement = curItems[py]->name;
-		announcement += ", " + std::to_string(py + 1) + " of " + std::to_string(curItems.size());
+		std::string announcement;
+		
+		// Count files separately from folders
+		int fileCount = 0;
+		for(const auto& item : curItems) {
+			if(!item->isFolder) fileCount++;
+		}
+		
+		if(curItems[py]->isFolder) {
+			announcement = curItems[py]->folderName;
+			announcement += ", folder " + std::to_string(py + 1) + " of " + std::to_string(curItems.size());
+			announcement += ", press Enter to open";
+		} else {
+			announcement = curItems[py]->name;
+			// Calculate the file index (position among files only)
+			int fileIndex = 0;
+			for(int i = 0; i <= py; i++) {
+				if(!curItems[i]->isFolder) fileIndex++;
+			}
+			announcement += ", file " + std::to_string(fileIndex) + " of " + std::to_string(fileCount);
+			announcement += " (item " + std::to_string(py + 1) + " of " + std::to_string(curItems.size()) + ")";
+		}
+		
 		AccessibilityManager::getInstance().announce(announcement, true);
 	}
 }
@@ -1328,7 +1388,27 @@ void SelectionTab::onFocusGained()
 		AccessibilityManager::getInstance().announceElement(this);
 		
 		// Also announce how many items are available
-		std::string itemsInfo = "Contains " + std::to_string(curItems.size()) + " items";
+		// Count files separately from folders
+		int fileCount = 0;
+		int folderCount = 0;
+		for(const auto& item : curItems) {
+			if(item->isFolder) 
+				folderCount++;
+			else 
+				fileCount++;
+		}
+		
+		std::string itemsInfo;
+		if(fileCount > 0 && folderCount > 0) {
+			itemsInfo = "Contains " + std::to_string(fileCount) + " files and " + std::to_string(folderCount) + " folders";
+		} else if(fileCount > 0) {
+			itemsInfo = "Contains " + std::to_string(fileCount) + " files";
+		} else if(folderCount > 0) {
+			itemsInfo = "Contains " + std::to_string(folderCount) + " folders";
+		} else {
+			itemsInfo = "Empty list";
+		}
+		
 		if(selectionPos < curItems.size() && curItems[selectionPos])
 		{
 			itemsInfo += ", " + curItems[selectionPos]->name + " selected";
@@ -1356,4 +1436,40 @@ bool SelectionTab::captureThisKey(EShortcut key)
 	       key == EShortcut::MOVE_LAST ||
 	       key == EShortcut::GLOBAL_ACCEPT ||
 	       key == EShortcut::GLOBAL_RETURN;
+}
+
+void SelectionTab::enterFolder(int folderIndex)
+{
+	if(folderIndex >= curItems.size() || !curItems[folderIndex]->isFolder)
+		return;
+		
+	// Navigate into the folder
+	if(boost::starts_with(curItems[folderIndex]->folderName, ".."))
+	{
+		std::vector<std::string> filetree;
+		boost::split(filetree, curFolder, boost::is_any_of("/"));
+		filetree.pop_back();
+		filetree.pop_back();
+		curFolder = filetree.size() > 0 ? boost::algorithm::join(filetree, "/") + "/" : "";
+	}
+	else
+		curFolder += curItems[folderIndex]->folderName + "/";
+		
+	filter(-1);
+	slider->scrollTo(0);
+
+	int firstPos = boost::range::find_if(curItems, [](std::shared_ptr<ElementInfo> e) { return !e->isFolder; }) - curItems.begin();
+	if(firstPos < curItems.size())
+	{
+		selectAbs(firstPos);
+	}
+	
+	// Announce the folder change
+	if(AccessibilityManager::getInstance().isScreenReaderEnabled())
+	{
+		std::string announcement = "Entered folder";
+		if(!curFolder.empty())
+			announcement += ": " + curFolder;
+		AccessibilityManager::getInstance().announce(announcement, true);
+	}
 }

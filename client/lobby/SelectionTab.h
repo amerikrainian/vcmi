@@ -138,4 +138,5 @@ private:
 	std::unordered_set<ResourcePath> getFiles(std::string dirURI, EResType resType);
 
 	void handleUnsupportedSavegames(const std::vector<ResourcePath> & files);
+	void enterFolder(int folderIndex);
 };
