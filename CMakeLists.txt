@@ -688,8 +688,7 @@ endif()
 
 # Add SpeechCore for accessibility support
 if(ENABLE_CLIENT)
-	add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../SpeechCore" "${CMAKE_CURRENT_BINARY_DIR}/SpeechCore")
-	set_property(TARGET SpeechCore PROPERTY FOLDER "3rdparty")
+	add_subdirectory_with_folder("3rdparty" lib/SpeechCore)
 endif()
 
 if(ENABLE_LAUNCHER OR ENABLE_EDITOR)

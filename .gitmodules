@@ -10,3 +10,6 @@
 	path = launcher/lib/innoextract
 	url = https://github.com/vcmi/innoextract.git
 	branch = vcmi
+[submodule "lib/SpeechCore"]
+	path = lib/SpeechCore
+	url = https://github.com/amerikrainian/SpeechCore.git
