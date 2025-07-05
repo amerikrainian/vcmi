@@ -13,6 +13,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "Buttons.h"
 
@@ -303,6 +304,10 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 		return;
 	}
 
+	// Track previous state for accessibility announcements
+	ArtifactID oldArtId = artPlace->getArtifactId();
+	bool wasEmpty = (oldArtId == ArtifactID::NONE || oldArtId == ArtifactID::ART_LOCK);
+
 	artPlace->slot = slot;
 	if(auto slotInfo = curHero->getSlot(slot))
 	{
@@ -323,6 +328,13 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 			.withDescription(description)
 			.withState(state)
 			.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num));
+		
+		// Announce the change if accessibility is enabled and slot has focus
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled() && wasEmpty && artPlace->hasFocus())
+		{
+			std::string announcement = artifactName + " equipped in " + slotName + " slot";
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
 		
 		if(slotInfo->locked)
 			return;
@@ -365,6 +377,13 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 			.withDescription(slotName + " slot. Empty slot")
 			.withState("empty")
 			.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num));
+		
+		// Announce slot is now empty if it previously had an artifact
+		if(AccessibilityManager::getInstance().isScreenReaderEnabled() && !wasEmpty && artPlace->hasFocus())
+		{
+			std::string announcement = slotName + " slot is now empty";
+			AccessibilityManager::getInstance().announce(announcement, true);
+		}
 	}
 }
 

@@ -12,6 +12,8 @@
 
 #include "../GameEngine.h"
 #include "../GameInstance.h"
+#include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "Images.h"
 #include "IGameSettings.h"
@@ -30,6 +32,7 @@ CArtifactsOfHeroBackpack::CArtifactsOfHeroBackpack(size_t slotsColumnsMax, size_
 	, backpackPos(0)
 {
 	setRedrawParent(true);
+	addUsedEvents(KEYBOARD);
 }
 
 CArtifactsOfHeroBackpack::CArtifactsOfHeroBackpack()
@@ -122,6 +125,14 @@ size_t CArtifactsOfHeroBackpack::calcRows(size_t slots)
 			rows += 1;
 	}
 	return rows;
+}
+
+void CArtifactsOfHeroBackpack::keyPressed(EShortcut key)
+{
+	// For now, let the parent class handle keyboard navigation
+	// The backpack slots already have proper tab order set in initAOHbackpack
+	// and CArtPlace has keyPressed implementation for Enter/Space
+	CArtifactsOfHeroBase::keyPressed(key);
 }
 
 CArtifactsOfHeroQuickBackpack::CArtifactsOfHeroQuickBackpack(const ArtifactPosition filterBySlot)

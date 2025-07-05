@@ -28,6 +28,7 @@ public:
 	void updateBackpackSlots() override;
 	size_t getActiveSlotRowsNum();
 	size_t getSlotsNum();
+	void keyPressed(EShortcut key) override;
 
 protected:
 	std::shared_ptr<CListBoxWithCallback> backpackListBox;
