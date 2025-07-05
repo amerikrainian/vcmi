@@ -29,6 +29,10 @@ public:
 	size_t getActiveSlotRowsNum();
 	size_t getSlotsNum();
 	void keyPressed(EShortcut key) override;
+	bool captureThisKey(EShortcut key) override;
+	void onFocusGained() override;
+	void onFocusLost() override;
+	bool isFocusable() const override { return true; }
 
 protected:
 	std::shared_ptr<CListBoxWithCallback> backpackListBox;
@@ -38,9 +42,15 @@ protected:
 	const int slotSizeWithMargin = 46;
 	const int sliderPosOffsetX = 5;
 	int backpackPos; // Position to display artifacts in heroes backpack
+	
+	// Grid navigation
+	Point focusedCell = {0, 0}; // Current focused cell in grid (x=column, y=row)
+	bool gridNavigationEnabled = false;
 
 	void initAOHbackpack(size_t slots, bool slider);
 	size_t calcRows(size_t slots);
+	void updateFocusedArtifact();
+	void announceFocusedArtifact();
 };
 
 class CArtifactsOfHeroQuickBackpack : public CArtifactsOfHeroBackpack

@@ -10,6 +10,7 @@
 #pragma once
 
 #include "MiscWidgets.h"
+#include "../gui/Shortcut.h"
 
 class CAnimImage;
 
@@ -36,8 +37,9 @@ class CArtPlace : public CComponentHolder
 {
 public:
 	ArtifactPosition slot;
+	EShortcut lastUsedShortcut = EShortcut::NONE;
 	
-	CArtPlace(Point position, const ArtifactID & newArtId = ArtifactID::NONE, const SpellID & newSpellId = SpellID::NONE);
+	CArtPlace(Point position, const ArtifactID & newArtId = ArtifactID::NONE, const SpellID & newSpellId = SpellID::NONE, bool focusable = true);
 	void setArtifact(const SpellID & newSpellId);
 	void setArtifact(const ArtifactID & newArtId, const SpellID & newSpellId = SpellID::NONE);
 	ArtifactID getArtifactId() const;
@@ -46,12 +48,14 @@ public:
 	void addCombinedArtInfo(const std::map<const ArtifactID, std::vector<ArtifactID>> & arts);
 	void addChargedArtInfo(const uint16_t charges);
 	void keyPressed(EShortcut key) override;
+	bool isFocusable() const override { return focusableSlot; }
 
 private:
 	ArtifactID artId;
 	SpellID spellId;
 	bool locked;
 	int32_t imageIndex;
+	bool focusableSlot;
 };
 
 class CCommanderArtPlace : public CArtPlace

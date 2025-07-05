@@ -24,6 +24,7 @@
 #include "../render/IImage.h"
 
 #include "../widgets/CComponent.h"
+#include "../widgets/CComponentHolder.h"
 
 #include "../CPlayerInterface.h"
 
@@ -91,8 +92,26 @@ void CWindowWithArtifacts::clickPressedOnArtPlace(const CGHeroInstance * hero, c
 	{
 		if(hero->getOwner() == GAME->interface()->playerID)
 		{
-			if(checkSpecialArts(*art, *hero, altarTrading))
-				onClickPressedCommonArtifact(*hero, slot, closeWindow);
+			// Check if this click came from a special keyboard shortcut
+			EShortcut usedShortcut = EShortcut::NONE;
+			for(const auto & artSet : artSets)
+			{
+				if(auto artPlace = artSet->getArtPlace(slot))
+				{
+					usedShortcut = artPlace->lastUsedShortcut;
+					break;
+				}
+			}
+			
+			// If using keyboard shortcuts, bypass special artifact checks
+			if(usedShortcut == EShortcut::ARTIFACT_MOVE_TO_BACKPACK || usedShortcut == EShortcut::ARTIFACT_TRANSFER_TO_HERO)
+			{
+				onClickPressedCommonArtifact(*hero, slot, closeWindow, usedShortcut);
+			}
+			else if(checkSpecialArts(*art, *hero, altarTrading))
+			{
+				onClickPressedCommonArtifact(*hero, slot, closeWindow, usedShortcut);
+			}
 		}
 		else
 		{
@@ -275,13 +294,14 @@ void CWindowWithArtifacts::putPickedArtifact(const CGHeroInstance & curHero, con
 	}
 }
 
-void CWindowWithArtifacts::onClickPressedCommonArtifact(const CGHeroInstance & curHero, const ArtifactPosition & slot, bool closeWindow)
+void CWindowWithArtifacts::onClickPressedCommonArtifact(const CGHeroInstance & curHero, const ArtifactPosition & slot, bool closeWindow, EShortcut keyboardShortcut)
 {
 	assert(curHero.getArt(slot));
 	auto srcLoc = ArtifactLocation(curHero.id, slot);
 	auto dstLoc = ArtifactLocation(curHero.id, ArtifactPosition::TRANSITION_POS);
 
-	if(ENGINE->isKeyboardCmdDown())
+	// Check if a special keyboard shortcut was used
+	if(keyboardShortcut == EShortcut::ARTIFACT_TRANSFER_TO_HERO || (keyboardShortcut == EShortcut::NONE && ENGINE->isKeyboardCmdDown()))
 	{
 		for(const auto & anotherSet : artSets)
 		{
@@ -299,7 +319,7 @@ void CWindowWithArtifacts::onClickPressedCommonArtifact(const CGHeroInstance & c
 			}
 		}
 	}
-	else if(ENGINE->isKeyboardAltDown())
+	else if(keyboardShortcut == EShortcut::ARTIFACT_MOVE_TO_BACKPACK || (keyboardShortcut == EShortcut::NONE && ENGINE->isKeyboardAltDown()))
 	{
 		const auto artId = curHero.getArt(slot)->getTypeId();
 		if(ArtifactUtils::isSlotEquipment(slot))

@@ -100,13 +100,17 @@ CHeroBackpackWindow::CHeroBackpackWindow(const CGHeroInstance * hero, const std:
 			.withTabOrder(3));
 	}
 	
-	// Add accessibility info to the main artifacts area
+	// The artifacts grid already has its accessibility info set in initAOHbackpack
+	// Just ensure it has the right tab order relative to the buttons
 	if (arts)
 	{
-		arts->setAccessibilityInfo(UIAccessibilityInfo()
-			.withRole("grid")
-			.withName("Hero backpack")
-			.withDescription("Grid of artifact slots in the hero's backpack. Use arrow keys to navigate"));
+		// Override the tab order set in initAOHbackpack
+		auto currentInfo = arts->getAccessibilityInfo();
+		if (currentInfo)
+		{
+			arts->setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withTabOrder(4)); // After the 3 sort buttons
+		}
 	}
 	
 	// Set window accessibility

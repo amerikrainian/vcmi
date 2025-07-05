@@ -83,10 +83,11 @@ void CComponentHolder::gesture(bool on, const Point & initialPosition, const Poi
 		gestureCallback(*this, initialPosition);
 }
 
-CArtPlace::CArtPlace(Point position, const ArtifactID & artId, const SpellID & spellId)
+CArtPlace::CArtPlace(Point position, const ArtifactID & artId, const SpellID & spellId, bool focusable)
 	: CComponentHolder(Rect(position, Point(44, 44)), Point(1, 1))
 	, locked(false)
 	, imageIndex(0)
+	, focusableSlot(focusable)
 {
 	OBJECT_CONSTRUCTION;
 
@@ -169,11 +170,23 @@ void CArtPlace::keyPressed(EShortcut key)
 	{
 		showPopupWindow(pos.center());
 	}
+	else if(key == EShortcut::ARTIFACT_MOVE_TO_BACKPACK || key == EShortcut::ARTIFACT_TRANSFER_TO_HERO)
+	{
+		// Only process if this artifact slot has focus
+		if(hasFocus())
+		{
+			// These shortcuts will be handled by clicking with special markers
+			// The click handler will check which shortcut was used
+			lastUsedShortcut = key;
+			clickPressed(pos.center());
+			lastUsedShortcut = EShortcut::NONE;
+		}
+	}
 }
 
 CCommanderArtPlace::CCommanderArtPlace(Point position, const CGHeroInstance * commanderOwner, ArtifactPosition artSlot,
 	const ArtifactID & artId, const SpellID & spellId)
-	: CArtPlace(position, artId, spellId),
+	: CArtPlace(position, artId, spellId, true), // true = focusable by default
 	commanderOwner(commanderOwner),
 	commanderSlotID(artSlot.num)
 {

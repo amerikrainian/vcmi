@@ -340,6 +340,8 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 		{"heroCostumeLoad7",         EShortcut::HERO_COSTUME_LOAD_7       },
 		{"heroCostumeLoad8",         EShortcut::HERO_COSTUME_LOAD_8       },
 		{"heroCostumeLoad9",         EShortcut::HERO_COSTUME_LOAD_9       },
+		{"artifactMoveToBackpack",   EShortcut::ARTIFACT_MOVE_TO_BACKPACK },
+		{"artifactTransferToHero",   EShortcut::ARTIFACT_TRANSFER_TO_HERO },
 		{"spellbookTabAdventure",    EShortcut::SPELLBOOK_TAB_ADVENTURE   },
 		{"spellbookTabCombat",       EShortcut::SPELLBOOK_TAB_COMBAT      },
 		{"spellbookSearchFocus",     EShortcut::SPELLBOOK_SEARCH_FOCUS    },

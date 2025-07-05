@@ -355,6 +355,10 @@ enum class EShortcut
 	HERO_COSTUME_LOAD_8,
 	HERO_COSTUME_LOAD_9,
 
+	// Artifact shortcuts
+	ARTIFACT_MOVE_TO_BACKPACK,   // Alt+Enter - Move artifact to backpack
+	ARTIFACT_TRANSFER_TO_HERO,   // Cmd+Enter - Transfer artifact to another hero
+
 	EXCHANGE_ARMY_TO_LEFT,
 	EXCHANGE_ARMY_TO_RIGHT,
 	EXCHANGE_ARMY_SWAP,

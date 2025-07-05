@@ -133,6 +133,8 @@
 		"heroCostumeLoad7":         "7",
 		"heroCostumeLoad8":         "8",
 		"heroCostumeLoad9":         "9",
+		"artifactMoveToBackpack":   "Alt+Return",
+		"artifactTransferToHero":   "Ctrl+Return",
 		"heroCostumeSave0":         "Ctrl+0",
 		"heroCostumeSave1":         "Ctrl+1",
 		"heroCostumeSave2":         "Ctrl+2",

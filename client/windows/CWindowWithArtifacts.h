@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include "../gui/Shortcut.h"
 #include "../widgets/CArtifactsOfHeroMain.h"
 #include "../widgets/CArtifactsOfHeroKingdom.h"
 #include "../widgets/CArtifactsOfHeroAltar.h"
@@ -43,5 +44,5 @@ protected:
 	bool checkSpecialArts(const CArtifactInstance & artInst, const CGHeroInstance & hero, bool isTrade) const;
 	void setCursorAnimation(const CArtifactInstance & artInst) const;
 	void putPickedArtifact(const CGHeroInstance & curHero, const ArtifactPosition & targetSlot) const;
-	void onClickPressedCommonArtifact(const CGHeroInstance & curHero, const ArtifactPosition & slot, bool closeWindow);
+	void onClickPressedCommonArtifact(const CGHeroInstance & curHero, const ArtifactPosition & slot, bool closeWindow, EShortcut keyboardShortcut = EShortcut::NONE);
 };

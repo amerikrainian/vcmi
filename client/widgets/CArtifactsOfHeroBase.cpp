@@ -307,6 +307,11 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 	// Track previous state for accessibility announcements
 	ArtifactID oldArtId = artPlace->getArtifactId();
 	bool wasEmpty = (oldArtId == ArtifactID::NONE || oldArtId == ArtifactID::ART_LOCK);
+	
+	// Store current tab order if it exists
+	int currentTabOrder = -1;
+	if(artPlace->getAccessibilityInfo() && artPlace->getAccessibilityInfo()->tabOrder >= 0)
+		currentTabOrder = artPlace->getAccessibilityInfo()->tabOrder;
 
 	artPlace->slot = slot;
 	if(auto slotInfo = curHero->getSlot(slot))
@@ -322,12 +327,18 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 		std::string state = slotInfo->locked ? "locked" : "equipped";
 		std::string description = slotName + " slot equipped with " + artifactName;
 		
-		artPlace->setAccessibilityInfo(UIAccessibilityInfo()
+		// For backpack slots in grid mode, don't set tab order
+		UIAccessibilityInfo accessInfo = UIAccessibilityInfo()
 			.withRole("artifact_slot")
 			.withName(slotName + " - " + artifactName)
 			.withDescription(description)
-			.withState(state)
-			.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num));
+			.withState(state);
+		
+		// Only set tab order if it was previously set (not -1) or if it's not a backpack slot
+		if(currentTabOrder >= 0 || !ArtifactUtils::isSlotBackpack(slot))
+			accessInfo = accessInfo.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num);
+			
+		artPlace->setAccessibilityInfo(accessInfo);
 		
 		// Announce the change if accessibility is enabled and slot has focus
 		if(AccessibilityManager::getInstance().isScreenReaderEnabled() && wasEmpty && artPlace->hasFocus())
@@ -371,12 +382,17 @@ void CArtifactsOfHeroBase::setSlotData(ArtPlacePtr artPlace, const ArtifactPosit
 		
 		// Update accessibility info for empty slot
 		std::string slotName = getSlotName(slot);
-		artPlace->setAccessibilityInfo(UIAccessibilityInfo()
+		UIAccessibilityInfo accessInfo = UIAccessibilityInfo()
 			.withRole("artifact_slot")
 			.withName(slotName)
 			.withDescription(slotName + " slot. Empty slot")
-			.withState("empty")
-			.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num));
+			.withState("empty");
+			
+		// Only set tab order if it was previously set (not -1) or if it's not a backpack slot
+		if(currentTabOrder >= 0 || !ArtifactUtils::isSlotBackpack(slot))
+			accessInfo = accessInfo.withTabOrder(ArtifactUtils::isSlotBackpack(slot) ? 50 + (slot.num - ArtifactPosition::BACKPACK_START) : 31 + slot.num);
+			
+		artPlace->setAccessibilityInfo(accessInfo);
 		
 		// Announce slot is now empty if it previously had an artifact
 		if(AccessibilityManager::getInstance().isScreenReaderEnabled() && !wasEmpty && artPlace->hasFocus())
