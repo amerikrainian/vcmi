@@ -125,6 +125,9 @@ public:
 /// component selection window
 class CSelWindow : public CInfoWindow
 {
+protected:
+	/// Handle escape key to make default selection before closing
+	void keyPressed(EShortcut key) override;
 public:
 	void madeChoice(); //looks for selected component and calls callback
 	void madeChoiceAndClose();

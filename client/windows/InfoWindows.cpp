@@ -149,6 +149,25 @@ void CSelWindow::madeChoiceAndClose()
 	close();
 }
 
+void CSelWindow::keyPressed(EShortcut key)
+{
+	// Handle escape key - make a "cancel" selection before closing
+	if (key == EShortcut::GLOBAL_CANCEL)
+	{
+		// Send selection 0 (cancel) to server
+		if (ID.getNum() >= 0)
+		{
+			GAME->interface()->cb->selectionMade(0, ID);
+		}
+		close();
+	}
+	else
+	{
+		// Let parent handle other keys
+		CInfoWindow::keyPressed(key);
+	}
+}
+
 CInfoWindow::CInfoWindow(const std::string & Text, PlayerColor player, const TCompsInfo & comps, const TButtonsInfo & Buttons)
 {
 	OBJECT_CONSTRUCTION;
