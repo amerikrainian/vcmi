@@ -19,6 +19,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../CPlayerInterface.h"
+#include "../gui/AccessibilityManager.h"
 
 CCampaignInfoScreen::CCampaignInfoScreen()
 {
@@ -30,6 +31,15 @@ CCampaignInfoScreen::CCampaignInfoScreen()
 	screenType = ESelectionScreen::scenarioInfo;
 
 	updateAfterStateChange();
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Campaign Information")
+		.withDescription("View campaign scenario details and objectives"));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 CCampaignInfoScreen::~CCampaignInfoScreen() = default;

@@ -16,6 +16,7 @@
 #include "../CMT.h"
 #include "../CPlayerInterface.h"
 #include "../CServerHandler.h"
+#include "../HeroMovementController.h"
 #include "../PlayerLocalState.h"
 #include "../GameEngine.h"
 #include "../GameInstance.h"
@@ -133,7 +134,8 @@ std::vector<AdventureMapShortcutState> AdventureMapShortcuts::getShortcuts()
 		{ EShortcut::ADVENTURE_SEARCH_CONTINUE,  optionSidePanelActive(),[this]() { this->search(true); } },
 		{ EShortcut::ADVENTURE_ANNOUNCE_LANDMARKS, optionHeroSelected(),  [this]() { this->announceLandmarks(); } },
 		{ EShortcut::ADVENTURE_CYCLE_LANDMARKS_FORWARD, optionHeroSelected(), [this]() { this->cycleLandmarksForward(); } },
-		{ EShortcut::ADVENTURE_CYCLE_LANDMARKS_BACKWARD, optionHeroSelected(), [this]() { this->cycleLandmarksBackward(); } }
+		{ EShortcut::ADVENTURE_CYCLE_LANDMARKS_BACKWARD, optionHeroSelected(), [this]() { this->cycleLandmarksBackward(); } },
+		{ EShortcut::ADVENTURE_ANNOUNCE_EXITS, optionHeroSelected(), [this]() { this->announceExits(); } }
 	};
 	return result;
 }
@@ -1062,4 +1064,11 @@ void AdventureMapShortcuts::cycleLandmarksBackward()
 	// Center view on landmark and set cursor position
 	owner.centerOnObject(landmark.obj);
 	owner.setMapCursorPosition(landmark.obj->visitablePos(), true);
+}
+
+
+void AdventureMapShortcuts::announceExits()
+{
+	// Use the existing hero position announcement from HeroMovementController
+	GAME->interface()->getMovementController()->announceCurrentHeroPosition();
 }

@@ -75,4 +75,7 @@ public:
 	// UI handlers
 	void requestMovementStart(const CGHeroInstance * h, const CGPath & path);
 	void requestMovementAbort();
+	
+	/// Announces current hero position and available exits (for accessibility)
+	void announceCurrentHeroPosition();
 };

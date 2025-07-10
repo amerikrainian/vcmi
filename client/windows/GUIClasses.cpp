@@ -708,6 +708,17 @@ CTavernWindow::CTavernWindow(const CGObjectInstance * TavernObj, const std::func
 	heroesForHire = std::make_shared<CLabel>(145, 283, FONT_BIG, ETextAlignment::CENTER, Colors::YELLOW, LIBRARY->generaltexth->jktexts[38]);
 
 	rumor = std::make_shared<CTextBox>(GAME->interface()->cb->getTavernRumor(tavernObj), Rect(32, 188, 330, 66), 0, FONT_SMALL, ETextAlignment::CENTER, Colors::WHITE);
+	
+	// Set accessibility info for rumor text
+	rumor->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("text")
+		.withName("Tavern Rumor")
+		.withDescription("Latest rumor from the tavern")
+		.withValue(rumor->label->getText())
+		.withTabOrder(0));
+	
+	// Make rumor focusable for keyboard navigation
+	rumor->addUsedEvents(KEYBOARD);
 
 	statusbar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(8, pos.h - 26, pos.w - 16, 19), 8, pos.h - 26));
 	cancel = std::make_shared<CButton>(Point(310, 428), AnimationPath::builtin("ICANCEL.DEF"), CButton::tooltip(LIBRARY->generaltexth->tavernInfo[7]), std::bind(&CTavernWindow::close, this), EShortcut::GLOBAL_CANCEL);
@@ -774,6 +785,9 @@ CTavernWindow::CTavernWindow(const CGObjectInstance * TavernObj, const std::func
 		videoPlayer = std::make_shared<VideoWidget>(Point(70, 56), VideoPath::builtin("TAVERN.BIK"), false);
 
 	addInvite();
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void CTavernWindow::addInvite()

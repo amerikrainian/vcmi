@@ -17,6 +17,7 @@
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
 #include "../widgets/Buttons.h"
+#include "../gui/AccessibilityManager.h"
 
 #include "../../lib/callback/CCallback.h"
 #include "../../lib/texts/CGeneralTextHandler.h"
@@ -46,6 +47,22 @@ CScenarioInfoScreen::CScenarioInfoScreen()
 
 	card->iconDifficulty->setSelected(getCurrentDifficulty());
 	buttonBack = std::make_shared<CButton>(Point(584, 535), AnimationPath::builtin("SCNRBACK.DEF"), LIBRARY->generaltexth->zelp[105], [this](){ close();}, EShortcut::GLOBAL_CANCEL);
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Scenario Information")
+		.withDescription("View scenario details and objectives"));
+	
+	// Set button accessibility info
+	buttonBack->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Back")
+		.withDescription("Close scenario information and return to game")
+		.withTabOrder(100));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 CScenarioInfoScreen::~CScenarioInfoScreen() = default;

@@ -228,6 +228,7 @@ EShortcut ShortcutHandler::findShortcut(const std::string & identifier ) const
 		{"adventureAnnounceLandmarks", EShortcut::ADVENTURE_ANNOUNCE_LANDMARKS },
 		{"adventureCycleLandmarksForward", EShortcut::ADVENTURE_CYCLE_LANDMARKS_FORWARD },
 		{"adventureCycleLandmarksBackward", EShortcut::ADVENTURE_CYCLE_LANDMARKS_BACKWARD },
+		{"adventureAnnounceExits", EShortcut::ADVENTURE_ANNOUNCE_EXITS},
 		{"mapCursorClick",           EShortcut::MAP_CURSOR_CLICK          },
 		{"mapCursorToggleMode",      EShortcut::MAP_CURSOR_TOGGLE_MODE    },
 		{"battleToggleHeroesStats",  EShortcut::BATTLE_TOGGLE_HEROES_STATS},

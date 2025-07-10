@@ -84,6 +84,7 @@ class AdventureMapShortcuts
 	void cycleLandmarksForward();
 	void cycleLandmarksBackward();
 	void scanForLandmarks(); // Helper to scan landmarks without announcing
+	void announceExits(); // Announces available exits from current position
 
 	// Landmark cycling state
 	struct LandmarkInfo {

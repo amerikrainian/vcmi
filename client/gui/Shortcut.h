@@ -179,6 +179,7 @@ enum class EShortcut
 	ADVENTURE_ANNOUNCE_LANDMARKS,
 	ADVENTURE_CYCLE_LANDMARKS_FORWARD,
 	ADVENTURE_CYCLE_LANDMARKS_BACKWARD,
+	ADVENTURE_ANNOUNCE_EXITS,
 	MAP_CURSOR_CLICK,            // Ctrl+Enter to click at cursor position
 	MAP_CURSOR_TOGGLE_MODE,      // Toggle between cursor mode and direct mode
 

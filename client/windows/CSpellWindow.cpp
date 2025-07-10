@@ -61,7 +61,7 @@ static const std::array schoolTabOrder =
 
 CSpellWindow::InteractiveArea::InteractiveArea(const Rect & myRect, std::function<void()> funcL, int helpTextId, CSpellWindow * _owner)
 {
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
 	pos = myRect;
 	onLeft = funcL;
 	hoverText = LIBRARY->generaltexth->zelp[helpTextId].first;
@@ -87,6 +87,129 @@ void CSpellWindow::InteractiveArea::hover(bool on)
 		owner->statusBar->clear();
 }
 
+void CSpellWindow::InteractiveArea::keyPressed(EShortcut key)
+{
+	if(key == EShortcut::GLOBAL_ACCEPT)
+		onLeft();
+}
+
+// Spell grid panel that manages arrow key navigation internally
+class CSpellGridPanel : public CIntObject
+{
+	CSpellWindow* parent;
+	int focusedSlot = -1;
+	
+public:
+	CSpellGridPanel(CSpellWindow* parent, const Rect& rect)
+		: parent(parent)
+	{
+		pos = rect;
+		
+		// Make focusable with keyboard events
+		addUsedEvents(KEYBOARD);
+		setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("grid")
+			.withName("Spell grid")
+			.withDescription("Use arrow keys to navigate spells")
+			.withTabOrder(5));
+	}
+	
+	bool captureThisKey(EShortcut key) override
+	{
+		// Only capture arrow keys and Enter when we have focus
+		if(!hasFocus())
+			return false;
+			
+		switch(key)
+		{
+			case EShortcut::MOVE_UP:
+			case EShortcut::MOVE_DOWN:
+			case EShortcut::MOVE_LEFT:
+			case EShortcut::MOVE_RIGHT:
+			case EShortcut::GLOBAL_ACCEPT:
+				return true;
+			default:
+				return false;
+		}
+	}
+	
+	void keyPressed(EShortcut key) override
+	{
+		if(!hasFocus())
+		{
+			CIntObject::keyPressed(key);
+			return;
+		}
+		
+		switch(key)
+		{
+			case EShortcut::MOVE_LEFT:
+				parent->navigateGrid(0, -1);
+				break;
+				
+			case EShortcut::MOVE_RIGHT:
+				parent->navigateGrid(0, 1);
+				break;
+				
+			case EShortcut::MOVE_UP:
+				parent->navigateGrid(-1, 0);
+				break;
+				
+			case EShortcut::MOVE_DOWN:
+				parent->navigateGrid(1, 0);
+				break;
+				
+			case EShortcut::GLOBAL_ACCEPT:
+				// Activate current spell
+				if(parent->currentSpellIndex >= 0 && parent->currentSpellIndex < parent->spellsPerPage && 
+				   parent->spellAreas[parent->currentSpellIndex]->mySpell)
+				{
+					parent->spellAreas[parent->currentSpellIndex]->clickPressed(Point());
+				}
+				break;
+				
+			default:
+				// Let other keys pass through (like Tab)
+				CIntObject::keyPressed(key);
+				break;
+		}
+	}
+	
+	void onFocusGained() override
+	{
+		CIntObject::onFocusGained();
+		
+		// If no spell is focused, find the first available one
+		if(parent->currentSpellIndex < 0)
+		{
+			for(int i = 0; i < parent->spellsPerPage; ++i)
+			{
+				if(parent->spellAreas[i]->mySpell)
+				{
+					parent->currentSpellIndex = i;
+					parent->announceCurrentSpell();
+					parent->redraw();
+					break;
+				}
+			}
+		}
+		else
+		{
+			// Re-announce current spell
+			parent->announceCurrentSpell();
+		}
+		
+		AccessibilityManager::getInstance().announce("Spell grid. Use arrow keys to navigate.", true);
+	}
+	
+	void onFocusLost() override
+	{
+		CIntObject::onFocusLost();
+		// Keep the current spell index but redraw to remove visual focus
+		parent->redraw();
+	}
+};
+
 class SpellbookSpellSorter
 {
 public:
@@ -108,6 +231,7 @@ public:
 		return TextOperations::compareLocalizedStrings(A->getNameTranslated(), B->getNameTranslated());
 	}
 };
+
 
 CSpellWindow::CSpellWindow(const CGHeroInstance * _myHero, CPlayerInterface * _myInt, bool openOnBattleSpells, const std::function<void(SpellID)> & onSpellSelect):
 	CWindowObject(PLAYER_COLORED | (settings["gameTweaks"]["enableLargeSpellbook"].Bool() ? BORDERED : 0)),
@@ -268,6 +392,9 @@ CSpellWindow::CSpellWindow(const CGHeroInstance * _myHero, CPlayerInterface * _m
 			}
 		}
 	}
+	
+	// Create spell grid panel for keyboard navigation
+	spellGridPanel = std::make_shared<CSpellGridPanel>(this, Rect(117 + offL, 90 + offT, 400, 300));
 
 	selectedTab = battleSpellsOnly ? myInt->localState->getSpellbookSettings().spellbookLastTabBattle : myInt->localState->getSpellbookSettings().spellbookLastTabAdvmap;
 	schoolTab->setFrame(selectedTab, 0);
@@ -282,19 +409,11 @@ CSpellWindow::CSpellWindow(const CGHeroInstance * _myHero, CPlayerInterface * _m
 	setAccessibilityInfo(UIAccessibilityInfo()
 		.withRole("window")
 		.withName("Spellbook")
-		.withDescription("Hero spellbook. Use arrow keys to navigate spells, change pages and schools. Press Enter to cast spell.")
+		.withDescription("Hero spellbook. Use Tab to navigate between controls, arrow keys to navigate spells when focused. Press Enter to cast spell.")
 		.withTabOrder(0));
 	
-	// Set initial focus to first available spell
-	currentSpellIndex = 0;
-	for(int i = 0; i < spellsPerPage; ++i)
-	{
-		if(spellAreas[i]->mySpell)
-		{
-			setFocusedSpell(i);
-			break;
-		}
-	}
+	// Initialize grid navigation state
+	currentSpellIndex = -1;
 	
 	// Announce window opening
 	std::string announcement = "Spellbook opened. ";
@@ -474,15 +593,8 @@ void CSpellWindow::selectSchool(int school)
 	}
 	computeSpellsPerArea();
 	
-	// Set focus to first available spell in new school
-	for(int i = 0; i < spellsPerPage; ++i)
-	{
-		if(spellAreas[i]->mySpell)
-		{
-			setFocusedSpell(i);
-			break;
-		}
-	}
+	// Reset spell focus when changing schools
+	currentSpellIndex = -1;
 	
 	// Announce school change
 	std::string schoolName = school == 4 ? "All schools" : LIBRARY->spellSchoolHandler->getById(schoolTabOrder[school])->getJsonKey();
@@ -498,15 +610,8 @@ void CSpellWindow::fLcornerb()
 	}
 	computeSpellsPerArea();
 	
-	// Set focus to first available spell on new page
-	for(int i = 0; i < spellsPerPage; ++i)
-	{
-		if(spellAreas[i]->mySpell)
-		{
-			setFocusedSpell(i);
-			break;
-		}
-	}
+	// Reset spell focus when changing pages
+	currentSpellIndex = -1;
 	
 	AccessibilityManager::getInstance().announce("Previous page. Page " + std::to_string(currentPage + 1) + " of " + std::to_string(pagesWithinCurrentTab()));
 }
@@ -520,34 +625,24 @@ void CSpellWindow::fRcornerb()
 	}
 	computeSpellsPerArea();
 	
-	// Set focus to first available spell on new page
-	for(int i = 0; i < spellsPerPage; ++i)
-	{
-		if(spellAreas[i]->mySpell)
-		{
-			setFocusedSpell(i);
-			break;
-		}
-	}
+	// Reset spell focus when changing pages
+	currentSpellIndex = -1;
 	
 	AccessibilityManager::getInstance().announce("Next page. Page " + std::to_string(currentPage + 1) + " of " + std::to_string(pagesWithinCurrentTab()));
 }
 
 void CSpellWindow::show(Canvas & to)
 {
-	if(video)
-		video->show(to);
-	statusBar->show(to);
+	CWindowObject::show(to);
 	
-	// Draw focus indicator for the current spell
-	if(currentSpellIndex >= 0 && currentSpellIndex < spellsPerPage && spellAreas[currentSpellIndex])
+	// Draw focus indicator on focused spell if grid panel has focus
+	if(spellGridPanel && spellGridPanel->hasFocus() &&
+	   currentSpellIndex >= 0 && currentSpellIndex < spellsPerPage && 
+	   spellAreas[currentSpellIndex]->mySpell)
 	{
-		auto focusedArea = spellAreas[currentSpellIndex];
-		if(focusedArea->mySpell)
-		{
-			// Draw yellow border around focused spell
-			to.drawBorder(focusedArea->pos, Colors::BRIGHT_YELLOW, 2);
-		}
+		Rect focusRect = spellAreas[currentSpellIndex]->pos + pos.topLeft();
+		focusRect = focusRect.resize(2); // Slightly larger than spell area
+		to.drawBorder(focusRect, Colors::WHITE, 2);
 	}
 }
 
@@ -613,12 +708,17 @@ void CSpellWindow::computeSpellsPerArea()
 	{
 		spellAreas[0]->setSpell(nullptr);
 		spellAreas[1]->setSpell(nullptr);
-		for(size_t c=0; c<spellsPerPage-2; ++c)
+		if(selectedTab == 0)
+		{
+			spellAreas[spellsPerPage - 2]->setSpell(nullptr);
+			spellAreas[spellsPerPage - 1]->setSpell(nullptr);
+		}
+		for(size_t c=0; c<spellsPerPage - 2; ++c)
 		{
 			if(c < spellsCurSite.size())
-				spellAreas[c+2]->setSpell(spellsCurSite[c]);
+				spellAreas[c + 2]->setSpell(spellsCurSite[c]);
 			else
-				spellAreas[c+2]->setSpell(nullptr);
+				spellAreas[c + 2]->setSpell(nullptr);
 		}
 	}
 	redraw();
@@ -630,16 +730,8 @@ void CSpellWindow::setCurrentPage(int value)
 	schoolPicture->visible = selectedTab!=4 && currentPage == 0;
 	if(selectedTab != 4)
 		schoolPicture->setFrame(selectedTab, 0);
-
-	if (currentPage != 0)
-		leftCorner->enable();
-	else
-		leftCorner->disable();
-
-	if (currentPage + 1 < pagesWithinCurrentTab())
-		rightCorner->enable();
-	else
-		rightCorner->disable();
+	leftCorner->setEnabled(currentPage != 0);
+	rightCorner->setEnabled((currentPage+1) < pagesWithinCurrentTab());
 
 	mana->setText(std::to_string(myHero->mana));//just in case, it will be possible to cast spell without closing book
 }
@@ -666,92 +758,11 @@ void CSpellWindow::onVideoPlaybackFinished()
 
 void CSpellWindow::keyPressed(EShortcut key)
 {
+	// Global shortcuts that work regardless of focus
 	switch(key)
 	{
 		case EShortcut::GLOBAL_RETURN:
 			fexitb();
-			break;
-
-		case EShortcut::MOVE_LEFT:
-			if(getFocusedCol() > 0)
-			{
-				// Navigate within spell grid
-				navigateToSpell(getFocusedRow(), getFocusedCol() - 1);
-			}
-			else if(currentSpellIndex >= spellsPerPage / 2)
-			{
-				// Jump to left page from right page
-				navigateToSpell(getFocusedRow(), getSpellsPerRow() - 1);
-			}
-			else
-			{
-				// At leftmost position, turn page
-				fLcornerb();
-			}
-			break;
-			
-		case EShortcut::MOVE_RIGHT:
-			if(getFocusedCol() < getSpellsPerRow() - 1 && 
-			   (currentSpellIndex < spellsPerPage / 2 - 1 || 
-			    (currentSpellIndex >= spellsPerPage / 2 && currentSpellIndex < spellsPerPage - 1)))
-			{
-				// Navigate within spell grid
-				navigateToSpell(getFocusedRow(), getFocusedCol() + 1);
-			}
-			else if(currentSpellIndex < spellsPerPage / 2)
-			{
-				// Jump to right page from left page
-				navigateToSpell(getFocusedRow(), 0);
-			}
-			else
-			{
-				// At rightmost position, turn page
-				fRcornerb();
-			}
-			break;
-			
-		case EShortcut::MOVE_UP:
-			if(getFocusedRow() > 0)
-			{
-				// Navigate up within grid
-				navigateToSpell(getFocusedRow() - 1, getFocusedCol());
-			}
-			else
-			{
-				// At top row, switch schools up
-				static const int schoolsOrder[] = { 0, 3, 1, 2, 4 };
-				int index = -1;
-				while(schoolsOrder[++index] != selectedTab);
-				index--;
-				if(index >= 0)
-					selectSchool(schoolsOrder[index]);
-			}
-			break;
-			
-		case EShortcut::MOVE_DOWN:
-			if(getFocusedRow() < getSpellsPerColumn() - 1)
-			{
-				// Navigate down within grid
-				navigateToSpell(getFocusedRow() + 1, getFocusedCol());
-			}
-			else
-			{
-				// At bottom row, switch schools down
-				static const int schoolsOrder[] = { 0, 3, 1, 2, 4 };
-				int index = -1;
-				while(schoolsOrder[++index] != selectedTab);
-				index++;
-				if(index < std::size(schoolsOrder))
-					selectSchool(schoolsOrder[index]);
-			}
-			break;
-			
-		case EShortcut::GLOBAL_ACCEPT:
-			// Activate current spell
-			if(currentSpellIndex < spellsPerPage && spellAreas[currentSpellIndex]->mySpell)
-			{
-				spellAreas[currentSpellIndex]->clickPressed(Point());
-			}
 			break;
 			
 		case EShortcut::SPELLBOOK_TAB_COMBAT:
@@ -777,7 +788,14 @@ void CSpellWindow::keyPressed(EShortcut key)
 			int index = static_cast<int>(key) - static_cast<int>(EShortcut::SELECT_INDEX_1);
 			if(index < spellsPerPage && spellAreas[index]->mySpell)
 			{
-				setFocusedSpell(index);
+				// Focus on the spell grid and select the spell
+				if(spellGridPanel)
+				{
+					spellGridPanel->setFocus(true);
+					currentSpellIndex = index;
+					announceCurrentSpell();
+					redraw();
+				}
 			}
 			break;
 		}
@@ -796,40 +814,89 @@ void CSpellWindow::keyPressed(EShortcut key)
 	}
 }
 
+void CSpellWindow::navigateGrid(int deltaRow, int deltaCol)
+{
+	if(currentSpellIndex < 0)
+	{
+		// Find first available spell
+		for(int i = 0; i < spellsPerPage; ++i)
+		{
+			if(spellAreas[i]->mySpell)
+			{
+				currentSpellIndex = i;
+				announceCurrentSpell();
+				redraw();
+				return;
+			}
+		}
+		return;
+	}
+	
+	int currentPage = currentSpellIndex < spellsPerPage / 2 ? 0 : 1;
+	int currentRow = getFocusedRow();
+	int currentCol = getFocusedCol();
+	
+	// Calculate new position
+	int newRow = currentRow + deltaRow;
+	int newCol = currentCol + deltaCol;
+	
+	// Handle column movement with page switching
+	if(deltaCol != 0)
+	{
+		if(newCol < 0)
+		{
+			// At leftmost column, try to move to previous page
+			if(currentPage == 1)
+			{
+				// Move to rightmost column of left page
+				currentPage = 0;
+				newCol = getSpellsPerRow() - 1;
+			}
+			else
+			{
+				// Already at leftmost column of left page
+				return;
+			}
+		}
+		else if(newCol >= getSpellsPerRow())
+		{
+			// At rightmost column, try to move to next page
+			if(currentPage == 0)
+			{
+				// Move to leftmost column of right page
+				currentPage = 1;
+				newCol = 0;
+			}
+			else
+			{
+				// Already at rightmost column of right page
+				return;
+			}
+		}
+	}
+	
+	// Handle row bounds
+	if(newRow < 0 || newRow >= getSpellsPerColumn())
+		return;
+	
+	// Calculate new index on the same page
+	int newIndex = currentPage * (spellsPerPage / 2) + newRow * getSpellsPerRow() + newCol;
+	
+	// Check if the target slot has a spell
+	if(newIndex >= 0 && newIndex < spellsPerPage && spellAreas[newIndex]->mySpell)
+	{
+		currentSpellIndex = newIndex;
+		announceCurrentSpell();
+		redraw();
+	}
+}
+
 int CSpellWindow::pagesWithinCurrentTab()
 {
 	return battleSpellsOnly ? sitesPerTabBattle[selectedTab] : sitesPerTabAdv[selectedTab];
 }
 
-void CSpellWindow::navigateSpells(int delta)
-{
-	int newIndex = currentSpellIndex + delta;
-	if(newIndex >= 0 && newIndex < spellsPerPage)
-	{
-		setFocusedSpell(newIndex);
-	}
-}
 
-void CSpellWindow::setFocusedSpell(int index)
-{
-	if(index >= 0 && index < spellsPerPage)
-	{
-		currentSpellIndex = index;
-		
-		// Update focus for all spell areas
-		for(int i = 0; i < spellsPerPage; ++i)
-		{
-			if(spellAreas[i])
-			{
-				spellAreas[i]->setFocus(i == currentSpellIndex);
-			}
-		}
-		
-		// Announce the newly focused spell
-		announceCurrentSpell();
-		redraw();
-	}
-}
 
 void CSpellWindow::announceCurrentSpell()
 {
@@ -862,24 +929,12 @@ void CSpellWindow::announceCurrentSpell()
 	}
 }
 
-void CSpellWindow::navigateToSpell(int row, int col)
-{
-	// Calculate the spell index based on which page we're on
-	int baseIndex = currentSpellIndex < spellsPerPage / 2 ? 0 : spellsPerPage / 2;
-	int newIndex = baseIndex + row * getSpellsPerRow() + col;
-	
-	// Ensure we don't go out of bounds
-	if(newIndex >= baseIndex && newIndex < baseIndex + spellsPerPage / 2 && newIndex < spellsPerPage)
-	{
-		setFocusedSpell(newIndex);
-	}
-}
 
 CSpellWindow::SpellArea::SpellArea(Rect pos, CSpellWindow * owner)
 {
 	this->pos = pos;
 	this->owner = owner;
-	addUsedEvents(LCLICK | SHOW_POPUP | HOVER | KEYBOARD);
+	addUsedEvents(LCLICK | SHOW_POPUP | HOVER);
 
 	schoolLevel = -1;
 	mySpell = nullptr;
@@ -1003,7 +1058,8 @@ void CSpellWindow::SpellArea::showPopupWindow(const Point & cursorPosition)
 			boost::algorithm::replace_first(dmgInfo, "%d", std::to_string(causedDmg));
 		}
 
-		CRClickPopup::createAndPush(mySpell->getDescriptionTranslated(schoolLevel) + dmgInfo, std::make_shared<CComponent>(ComponentType::SPELL, mySpell->id));
+		CRClickPopup::createAndPush(mySpell->getDescriptionTranslated(schoolLevel) + dmgInfo,
+			std::make_shared<CComponent>(ComponentType::SPELL, mySpell->id));
 	}
 }
 
@@ -1012,19 +1068,12 @@ void CSpellWindow::SpellArea::hover(bool on)
 	if(mySpell)
 	{
 		if(on)
-			owner->statusBar->write(boost::str(boost::format("%s (%s)") % mySpell->getNameTranslated() % LIBRARY->generaltexth->allTexts[171+mySpell->getLevel()]));
+			owner->statusBar->write(mySpell->getNameTranslated());
 		else
 			owner->statusBar->clear();
 	}
 }
 
-void CSpellWindow::SpellArea::keyPressed(EShortcut key)
-{
-	if(key == EShortcut::GLOBAL_ACCEPT && mySpell)
-	{
-		clickPressed(Point());
-	}
-}
 
 void CSpellWindow::SpellArea::setSpell(const CSpell * spell)
 {
@@ -1036,28 +1085,42 @@ void CSpellWindow::SpellArea::setSpell(const CSpell * spell)
 	mySpell = spell;
 	if(mySpell)
 	{
-		SpellSchool whichSchool;
+		SpellSchool whichSchool = SpellSchool::AIR; //0 - air magic, 1 - fire magic, 2 - water magic, 3 - earth magic,
 		schoolLevel = owner->myHero->getSpellSchoolLevel(mySpell, &whichSchool);
 		auto spellCost = owner->myInt->cb->getSpellCost(mySpell, owner->myHero);
 
-		image->setFrame(mySpell->id.getNum());
+		image->setFrame(mySpell->id);
 		image->visible = true;
 
 		{
 			OBJECT_CONSTRUCTION;
-
-			schoolBorder.reset();
-			if (owner->selectedTab >= 4)
-			{
-				if (whichSchool.hasValue())
-					schoolBorder = std::make_shared<CAnimImage>(LIBRARY->spellSchoolHandler->getById(whichSchool)->getSpellBordersPath(), schoolLevel);
-			}
-			else
-				schoolBorder = std::make_shared<CAnimImage>(LIBRARY->spellSchoolHandler->getById(schoolTabOrder.at(owner->selectedTab))->getSpellBordersPath(), schoolLevel);
+			schoolBorder = std::make_shared<CAnimImage>(AnimationPath::builtin("SplevA"), whichSchool.getNum() + 4 * schoolLevel, 0, 4, 4);
+		}
+		
+		// Update accessibility info with spell details
+		std::string spellInfo = mySpell->getNameTranslated();
+		spellInfo += ", Level " + std::to_string(mySpell->getLevel());
+		spellInfo += ", Cost: " + std::to_string(spellCost);
+		
+		auto currentInfo = getAccessibilityInfo();
+		if(currentInfo)
+		{
+			setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withName(spellInfo)
+				.withDescription("Press Enter to cast spell"));
+		}
+		else
+		{
+			// Create new accessibility info if none exists
+			setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("gridcell")
+				.withName(spellInfo)
+				.withDescription("Press Enter to cast spell")
+				.withTabOrder(50));
 		}
 
 		ColorRGBA firstLineColor, secondLineColor;
-		if(spellCost > owner->myHero->mana && !owner->onSpellSelect) //hero cannot cast this spell
+		if(spellCost > owner->myHero->mana) //hero cannot cast this spell
 		{
 			firstLineColor = Colors::WHITE;
 			secondLineColor = Colors::ORANGE;
@@ -1074,41 +1137,34 @@ void CSpellWindow::SpellArea::setSpell(const CSpell * spell)
 		level->color = secondLineColor;
 		if(schoolLevel > 0)
 		{
-			boost::format fmt("%s/%s");
-			fmt % LIBRARY->generaltexth->allTexts[171 + mySpell->getLevel()];
-			fmt % LIBRARY->generaltexth->levels[3+(schoolLevel-1)];//lines 4-6
+			boost::format fmt(LIBRARY->generaltexth->allTexts[171]);
+			fmt % LIBRARY->generaltexth->levels[3 + schoolLevel];
 			level->setText(fmt.str());
 		}
 		else
-			level->setText(LIBRARY->generaltexth->allTexts[171 + mySpell->getLevel()]);
+			level->setText(LIBRARY->generaltexth->levels[0]);
 
 		cost->color = secondLineColor;
-		boost::format costfmt("%s: %d");
-		costfmt % LIBRARY->generaltexth->allTexts[387] % spellCost;
-		cost->setText(costfmt.str());
-		
-		// Add accessibility info for spell slots
-		std::string spellName = mySpell->getNameTranslated();
-		std::string levelText = LIBRARY->generaltexth->allTexts[171 + mySpell->getLevel()];
-		std::string fullName = spellName + " - " + levelText;
-		std::string description = mySpell->getDescriptionTranslated(schoolLevel) + " Cost: " + std::to_string(spellCost);
-		std::string state = (spellCost > owner->myHero->mana && !owner->onSpellSelect) ? "insufficient_mana" : "available";
-		
-		setAccessibilityInfo(UIAccessibilityInfo()
-			.withRole("spell_slot")
-			.withName(fullName)
-			.withDescription(description)
-			.withState(state)
-			.withTabOrder(100 + (pos.x / 65) + (pos.y / 97) * 10)); // Calculate tab order based on position
+		cost->setText(std::to_string(spellCost));
 	}
 	else
 	{
-		// Add accessibility info for empty spell slots
-		setAccessibilityInfo(UIAccessibilityInfo()
-			.withRole("spell_slot")
-			.withName("Empty spell slot")
-			.withDescription("No spell available in this slot")
-			.withState("empty")
-			.withTabOrder(100 + (pos.x / 65) + (pos.y / 97) * 10));
+		// Update accessibility info for empty slot
+		auto currentInfo = getAccessibilityInfo();
+		if(currentInfo)
+		{
+			setAccessibilityInfo(UIAccessibilityInfo(*currentInfo)
+				.withName("Empty spell slot")
+				.withDescription("No spell available"));
+		}
+		else
+		{
+			// Create new accessibility info if none exists
+			setAccessibilityInfo(UIAccessibilityInfo()
+				.withRole("gridcell")
+				.withName("Empty spell slot")
+				.withDescription("No spell available")
+				.withTabOrder(50));
+		}
 	}
 }

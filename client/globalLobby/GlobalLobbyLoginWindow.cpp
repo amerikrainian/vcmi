@@ -17,6 +17,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/CTextInput.h"
 #include "../widgets/Images.h"
@@ -81,6 +82,48 @@ GlobalLobbyLoginWindow::GlobalLobbyLoginWindow()
 	});
 
 	center();
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Global Lobby Login")
+		.withDescription("Login or create account for online multiplayer"));
+	
+	// Set accessibility info for buttons
+	buttonRegister->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Create Account")
+		.withDescription("Create a new account")
+		.withTabOrder(1));
+	
+	buttonLogin->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Use Existing")
+		.withDescription("Use existing account")
+		.withTabOrder(2));
+	
+	// Set accessibility info for username input
+	inputUsername->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Username")
+		.withDescription("Enter username for new account")
+		.withTabOrder(3));
+	
+	// Set accessibility info for action buttons
+	this->buttonLogin->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Login")
+		.withDescription("Login to global lobby")
+		.withTabOrder(4));
+	
+	buttonClose->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Cancel")
+		.withDescription("Cancel login and close window")
+		.withTabOrder(5));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void GlobalLobbyLoginWindow::onLoginModeChanged(int value)

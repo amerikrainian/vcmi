@@ -31,9 +31,12 @@ class TransparentFilledRectangle;
 class CToggleButton;
 class VideoWidgetOnce;
 
+class CSpellGridPanel;
+
 /// The spell window
 class CSpellWindow : public CWindowObject, public IVideoHolder
 {
+	friend class CSpellGridPanel;
 	class SpellArea : public CIntObject
 	{
 		int schoolLevel; //range: 0 none, 3 - expert
@@ -52,9 +55,6 @@ class CSpellWindow : public CWindowObject, public IVideoHolder
 		void clickPressed(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
 		void hover(bool on) override;
-		void keyPressed(EShortcut key) override;
-		
-		bool isFocusable() const override { return mySpell != nullptr; }
 	};
 
 	class InteractiveArea : public CIntObject
@@ -68,6 +68,7 @@ class CSpellWindow : public CWindowObject, public IVideoHolder
 		void clickPressed(const Point & cursorPosition) override;
 		void showPopupWindow(const Point & cursorPosition) override;
 		void hover(bool on) override;
+		void keyPressed(EShortcut key) override;
 
 		InteractiveArea(const Rect &myRect, std::function<void()> funcL, int helpTextId, CSpellWindow * _owner);
 	};
@@ -146,13 +147,12 @@ public:
 	void show(Canvas & to) override;
 	
 	// Grid navigation
-	int currentSpellIndex = 0; // Current focused spell slot (0-23)
-	int getFocusedRow() const { return currentSpellIndex / getSpellsPerRow(); }
-	int getFocusedCol() const { return currentSpellIndex % getSpellsPerRow(); }
+	std::shared_ptr<CIntObject> spellGridPanel;
+	int currentSpellIndex = -1; // Current focused spell slot (0-23), -1 if none
+	int getFocusedRow() const { return currentSpellIndex >= 0 ? (currentSpellIndex % (spellsPerPage / 2)) / getSpellsPerRow() : 0; }
+	int getFocusedCol() const { return currentSpellIndex >= 0 ? (currentSpellIndex % (spellsPerPage / 2)) % getSpellsPerRow() : 0; }
 	int getSpellsPerRow() const { return isBigSpellbook ? 3 : 2; }
 	int getSpellsPerColumn() const { return isBigSpellbook ? 4 : 3; }
-	void navigateSpells(int delta);
-	void setFocusedSpell(int index);
+	void navigateGrid(int deltaRow, int deltaCol);
 	void announceCurrentSpell();
-	void navigateToSpell(int row, int col);
 };

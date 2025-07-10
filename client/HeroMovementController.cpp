@@ -618,3 +618,19 @@ void HeroMovementController::sendMovementRequest(const CGHeroInstance * h, const
 		GAME->interface()->cb->moveHero(h, pathToMove, useTransitAtStart);
 	}
 }
+
+
+void HeroMovementController::announceCurrentHeroPosition()
+{
+	const CGHeroInstance * hero = GAME->interface()->localState->getCurrentHero();
+	if (!hero)
+		return;
+	
+	// Create a dummy TryMoveHero structure with current position
+	TryMoveHero details;
+	details.end = hero->anchorPos(); // Use anchor position, not visitable position
+	details.result = TryMoveHero::SUCCESS;
+	
+	// Call the existing private method
+	announceHeroPosition(hero, details, false);
+}

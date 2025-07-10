@@ -19,6 +19,7 @@
 		"adventureAnnounceLandmarks": "Ctrl+K",
 		"adventureCycleLandmarksForward": "K",
 		"adventureCycleLandmarksBackward": "Shift+K",
+		"adventureAnnounceExits": "/",
 		"adventureMainMenu":        "Ctrl+M",
 		"adventureMarketplace":     "B",
 		"adventureMoveHero":        "M",

@@ -19,6 +19,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/WindowHandler.h"
+#include "../gui/AccessibilityManager.h"
 #include "../widgets/CTextInput.h"
 #include "../widgets/Slider.h"
 #include "../widgets/ObjectLists.h"
@@ -41,6 +42,15 @@ GlobalLobbyWindow::GlobalLobbyWindow()
 
 	widget->getChannelListHeader()->setText(MetaString::createFromTextID("vcmi.lobby.header.channels").toString());
 	widget->getChannelList()->resize(GAME->server().getGlobalLobby().getActiveChannels().size()+1);
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Global Lobby")
+		.withDescription("Online multiplayer lobby with chat and game rooms"));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 bool GlobalLobbyWindow::isChannelOpen(const std::string & testChannelType, const std::string & testChannelName) const

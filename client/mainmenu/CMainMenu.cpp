@@ -533,6 +533,22 @@ CMultiMode::CMultiMode(ESelectionScreen ScreenType)
 
 	buttonCancel = std::make_shared<CButton>(Point(373, 424), AnimationPath::builtin("MUBCANC.DEF"), LIBRARY->generaltexth->zelp[288], [this](){ close();}, EShortcut::GLOBAL_CANCEL);
 	addButtonAccessibility(buttonCancel, LIBRARY->generaltexth->zelp[288], 5);
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Multiplayer Options")
+		.withDescription("Choose multiplayer game mode"));
+	
+	// Set player name input accessibility info
+	playerName->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Player Name")
+		.withDescription("Enter your player name")
+		.withTabOrder(0));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void CMultiMode::openLobby()
@@ -623,6 +639,41 @@ CMultiPlayers::CMultiPlayers(const std::vector<std::string>& playerNames, ESelec
 	{
 		inputNames[i]->setText(playerNames[i]);
 	}
+	
+	// Set window accessibility info based on mode
+	std::string windowName = "Player Name Setup";
+	std::string windowDesc = "Enter player names for ";
+	switch (shortcut)
+	{
+	case EShortcut::MAIN_MENU_HOTSEAT:
+		windowDesc += "hot seat game";
+		break;
+	case EShortcut::MAIN_MENU_HOST_GAME:
+		windowDesc += "hosting TCP game";
+		break;
+	case EShortcut::MAIN_MENU_JOIN_GAME:
+		windowDesc += "joining TCP game";
+		break;
+	}
+	
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(windowName)
+		.withDescription(windowDesc));
+	
+	// Set accessibility info for all player name inputs
+	for(int i = 0; i < inputNames.size(); i++)
+	{
+		inputNames[i]->setAccessibilityInfo(UIAccessibilityInfo()
+			.withRole("textbox")
+			.withName("Player " + std::to_string(i + 1) + " Name")
+			.withDescription("Enter name for player " + std::to_string(i + 1))
+			.withTabOrder(i + 1));
+	}
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
+	
 #ifndef VCMI_MOBILE
 	inputNames[0]->giveFocus();
 #endif
@@ -697,6 +748,28 @@ CSimpleJoinScreen::CSimpleJoinScreen(bool host)
 	buttonCancel = std::make_shared<CButton>(Point(142, 142), AnimationPath::builtin("MUBCANC.DEF"), LIBRARY->generaltexth->zelp[561], std::bind(&CSimpleJoinScreen::leaveScreen, this), EShortcut::GLOBAL_CANCEL);
 	addButtonAccessibility(buttonCancel, LIBRARY->generaltexth->zelp[561], 4);
 	statusBar = CGStatusBar::create(std::make_shared<CPicture>(background->getSurface(), Rect(7, 186, 218, 18), 7, 186));
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName(host ? "Host TCP Game" : "Join TCP Game")
+		.withDescription("Enter server connection details"));
+	
+	// Set accessibility info for input fields
+	inputAddress->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Server Address")
+		.withDescription("Enter server IP address or hostname")
+		.withTabOrder(1));
+	
+	inputPort->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("textbox")
+		.withName("Server Port")
+		.withDescription("Enter server port number")
+		.withTabOrder(2));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void CSimpleJoinScreen::connectToServer()

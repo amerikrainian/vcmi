@@ -19,6 +19,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../mainmenu/CMainMenu.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/Images.h"
@@ -203,6 +204,39 @@ GlobalLobbyRoomWindow::GlobalLobbyRoomWindow(GlobalLobbyWindow * window, const s
 	buttonJoin->block(!errorMessage.empty());
 	filledBackground->setPlayerColor(PlayerColor(1));
 	center();
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Game Room Details")
+		.withDescription("View game room information and join"));
+	
+	// Set button accessibility info
+	buttonJoin->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Join Game")
+		.withDescription("Join this game room")
+		.withTabOrder(1));
+	
+	buttonClose->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Close")
+		.withDescription("Close this window")
+		.withTabOrder(2));
+	
+	// Set list accessibility info
+	accountList->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Players")
+		.withDescription("List of players in this room"));
+	
+	modList->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("list")
+		.withName("Mods")
+		.withDescription("List of mods required for this game"));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void GlobalLobbyRoomWindow::onJoin()

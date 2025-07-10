@@ -17,6 +17,7 @@
 #include "../GameEngine.h"
 #include "../GameInstance.h"
 #include "../gui/Shortcut.h"
+#include "../gui/AccessibilityManager.h"
 #include "../mainmenu/CMainMenu.h"
 #include "../widgets/Buttons.h"
 #include "../widgets/Images.h"
@@ -83,6 +84,52 @@ GlobalLobbyServerSetup::GlobalLobbyServerSetup()
 
 	updateDescription();
 	center();
+	
+	// Set window accessibility info
+	setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("dialog")
+		.withName("Create Game Room")
+		.withDescription("Configure settings for new multiplayer game room"));
+	
+	// Set button accessibility info
+	buttonPublic->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Public Room")
+		.withDescription("Create a public room visible to all players")
+		.withTabOrder(1));
+	
+	buttonPrivate->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Private Room")
+		.withDescription("Create a private room accessible by invitation only")
+		.withTabOrder(2));
+	
+	buttonNewGame->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("New Game")
+		.withDescription("Start a new game from scenario selection")
+		.withTabOrder(3));
+	
+	buttonLoadGame->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Load Game")
+		.withDescription("Load an existing saved game")
+		.withTabOrder(4));
+	
+	buttonCreate->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Create Room")
+		.withDescription("Create the game room with selected settings")
+		.withTabOrder(10));
+	
+	buttonClose->setAccessibilityInfo(UIAccessibilityInfo()
+		.withRole("button")
+		.withName("Cancel")
+		.withDescription("Cancel room creation")
+		.withTabOrder(11));
+	
+	// Announce the window when opened
+	AccessibilityManager::getInstance().announceElement(this);
 }
 
 void GlobalLobbyServerSetup::updateDescription()
